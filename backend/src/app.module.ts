@@ -18,15 +18,16 @@ import { LoggingModule } from './common/logging/logging.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TenantContextModule } from './common/tenant/tenant-context.module';
 import { TenantContextInterceptor } from './common/tenant/tenant-context.interceptor';
+
 @Module({
   imports: [
-    LoggingModule, // registered first — every other module's logger calls should already be structured
+    LoggingModule,
     ConfigModule.forRoot({ isGlobal: true, load: [authConfig] }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]), // global baseline; auth endpoints add their own tighter limits
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     BullModule.forRoot({
       connection: { host: process.env.REDIS_HOST ?? 'localhost', port: Number(process.env.REDIS_PORT ?? 6379) },
     }),
-    ScheduleModule.forRoot(), // powers AutomationScheduler's daily @Cron job
+    ScheduleModule.forRoot(),
     TenantContextModule,
     RedisModule,
     AuthModule,
@@ -41,6 +42,7 @@ import { TenantContextInterceptor } from './common/tenant/tenant-context.interce
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
-  ],{ provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
+  ],
 })
 export class AppModule {}
