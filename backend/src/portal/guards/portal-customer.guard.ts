@@ -1,0 +1,67 @@
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { PortalTokenPayload, AuthenticatedPortalCustomer } from '../interfaces/portal-token.interface';
+
+/**
+ * The single most important piece of code in this module. Every portal
+ * endpoint runs behind this guard, which does two things a staff
+ * JwtAuthGuard does not:
+ *
+ *   1. Validates against PORTAL_JWT_SECRET — a completely different secret
+ *      from staff JWT_ACCESS_SECRET, so a staff access token (even a
+ *      compromised one) is cryptographically incapable of passing this
+ *      guard, and vice versa.
+ *   2. Rejects anything that isn't `type: 'portal'` — belt-and-suspenders
+ *      against the two token shapes ever being interchangeable even if
+ *      they somehow shared a secret by misconfiguration.
+ *
+ * It attaches `{ customerId, companyId, email }` to the request. Services
+ * behind this guard are responsible for filtering every query by BOTH
+ * companyId (tenant) AND customerId (this specific customer) — RLS covers
+ * the tenant boundary the same as everywhere else in Renovo, but nothing
+ * in the database schema knows "this customer may only see their own
+ * records" — that is purely an application-layer guarantee, which is why
+ * every portal service method takes an explicit customerId filter rather
+ * than assuming the guard alone is enough.
+ */
+@Injectable()
+export class PortalCustomerGuard implements CanActivate {
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly config: ConfigService,
+  ) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    const authHeader: string | undefined = request.headers.authorization;
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Missing portal access token');
+    }
+
+    const token = authHeader.slice('Bearer '.length);
+
+    let payload: PortalTokenPayload;
+    try {
+      payload = this.jwt.verify(token, {
+        secret: this.config.get<string>('PORTAL_JWT_SECRET'),
+        issuer: 'renovo-crm-portal',
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired portal session');
+    }
+
+    if (payload.type !== 'portal') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
+    const customer: AuthenticatedPortalCustomer = {
+      customerId: payload.sub,
+      companyId: payload.companyId,
+      email: payload.email,
+    };
+    request.portalCustomer = customer;
+    return true;
+  }
+}

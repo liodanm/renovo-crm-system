@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-brand: #0e7490; /* teal-700 — water/pressure-washing association without leaning on cliché blue */
+  --color-brand-dark: #155e75;
+}

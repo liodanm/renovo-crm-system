@@ -1,0 +1,519 @@
+// Auth-relevant subset of the full Renovo CRM schema (renovo_crm_schema.sql).
+// Run against the SAME database — these models map onto tables already
+// created by that migration. `oauth_accounts` is the one new table this
+// module introduces; add it via a follow-up migration (see
+// prisma/migrations/000_add_oauth_accounts.sql).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                String    @id @default(uuid())
+  name              String
+  slug              String    @unique
+  status            String    @default("trial")
+  stripeCustomerId  String?   @unique @map("stripe_customer_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  companyUsers CompanyUser[]
+  roles        Role[]
+
+  @@map("companies")
+}
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  phone             String?
+  passwordHash      String?   @map("password_hash")
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
+  avatarUrl         String?   @map("avatar_url")
+  mfaEnabled        Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret         String?   @map("mfa_secret")
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  phoneVerifiedAt   DateTime? @map("phone_verified_at")
+  lastLoginAt       DateTime? @map("last_login_at")
+  status            String    @default("active")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  companyUsers  CompanyUser[]
+  oauthAccounts OauthAccount[]
+
+  @@map("users")
+}
+
+model Role {
+  id            String   @id @default(uuid())
+  companyId     String?  @map("company_id")
+  name          String
+  description   String?
+  isSystemRole  Boolean  @default(false) @map("is_system_role")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  company         Company?         @relation(fields: [companyId], references: [id])
+  rolePermissions RolePermission[]
+  companyUsers    CompanyUser[]
+
+  @@unique([companyId, name])
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid())
+  key         String @unique
+  category    String
+  description String
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model CompanyUser {
+  id               String    @id @default(uuid())
+  companyId        String    @map("company_id")
+  userId           String    @map("user_id")
+  roleId           String    @map("role_id")
+  status           String    @default("invited")
+  invitedByUserId  String?   @map("invited_by_user_id")
+  invitedAt        DateTime  @default(now()) @map("invited_at")
+  joinedAt         DateTime? @map("joined_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role    Role    @relation(fields: [roleId], references: [id])
+
+  @@unique([companyId, userId])
+  @@map("company_users")
+}
+
+/// New table for this module — links a user to a Google/Microsoft identity.
+/// A user can have multiple OAuth providers linked to the same email-based account.
+model OauthAccount {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  provider          String // 'google' | 'microsoft'
+  providerAccountId String   @map("provider_account_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("oauth_accounts")
+}
+
+// =============================================================================
+// CORE CRM DOMAIN — subset of renovo_crm_schema.sql needed by the dashboard
+// and the modules that will follow it (jobs, estimates, invoicing).
+// =============================================================================
+
+model Crew {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  jobs Job[]
+
+  @@map("crews")
+}
+
+model Customer {
+  id               String    @id @default(uuid())
+  companyId        String    @map("company_id")
+  customerType     String    @default("residential") @map("customer_type")
+  firstName        String?   @map("first_name")
+  lastName         String?   @map("last_name")
+  businessName     String?   @map("business_name")
+  email            String?
+  phone            String?
+  secondaryPhone   String?   @map("secondary_phone")
+  source           String?
+  leadStatus       String    @default("lead") @map("lead_status")
+  lifetimeValue    Decimal   @default(0) @map("lifetime_value") @db.Decimal(12, 2)
+  tags             String[]  @default([])
+  notesText        String?   @map("notes")
+  createdBy        String?   @map("created_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  properties Property[]
+  jobs       Job[]
+  estimates  Estimate[]
+  invoices   Invoice[]
+  payments   Payment[]
+  notes      CustomerNote[]
+  photos     Photo[]
+  documents  Document[]
+  calls      Call[]
+
+  @@map("customers")
+}
+
+model Property {
+  id            String    @id @default(uuid())
+  companyId     String    @map("company_id")
+  customerId    String    @map("customer_id")
+  label         String?
+  addressLine1  String    @map("address_line1")
+  city          String
+  state         String
+  postalCode    String    @map("postal_code")
+  latitude      Decimal?  @db.Decimal(9, 6)
+  longitude     Decimal?  @db.Decimal(9, 6)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  jobs      Job[]
+  estimates Estimate[]
+  photos    Photo[]
+
+  @@map("properties")
+}
+
+model Estimate {
+  id          String    @id @default(uuid())
+  companyId   String    @map("company_id")
+  customerId  String    @map("customer_id")
+  propertyId  String    @map("property_id")
+  status      String    @default("draft")
+  totalAmount Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  sentAt      DateTime? @map("sent_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  declinedAt  DateTime? @map("declined_at")
+  signatureDataUrl String? @map("signature_data_url")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("estimates")
+}
+
+model Job {
+  id             String    @id @default(uuid())
+  companyId      String    @map("company_id")
+  customerId     String    @map("customer_id")
+  propertyId     String    @map("property_id")
+  assignedCrewId String?   @map("assigned_crew_id")
+  jobNumber      String    @map("job_number")
+  title          String
+  serviceType    String?   @map("service_type")
+  status         String    @default("scheduled")
+  scheduledStart DateTime? @map("scheduled_start")
+  scheduledEnd   DateTime? @map("scheduled_end")
+  price          Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  crew     Crew?    @relation(fields: [assignedCrewId], references: [id])
+  invoices Invoice[]
+  photos   Photo[]
+  documents Document[]
+
+  @@map("jobs")
+}
+
+model Invoice {
+  id            String    @id @default(uuid())
+  companyId     String    @map("company_id")
+  customerId    String    @map("customer_id")
+  jobId         String?   @map("job_id")
+  invoiceNumber String    @map("invoice_number")
+  status        String    @default("draft")
+  totalAmount   Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  amountPaid    Decimal   @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  dueDate       DateTime? @map("due_date") @db.Date
+  paidAt        DateTime? @map("paid_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  job      Job?      @relation(fields: [jobId], references: [id])
+  payments Payment[]
+
+  @@map("invoices")
+}
+
+model Payment {
+  id          String    @id @default(uuid())
+  companyId   String    @map("company_id")
+  invoiceId   String    @map("invoice_id")
+  customerId  String    @map("customer_id")
+  amount      Decimal   @db.Decimal(12, 2)
+  method      String
+  status      String    @default("pending")
+  stripePaymentIntentId String? @map("stripe_payment_intent_id")
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  invoice  Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Notification {
+  id                 String    @id @default(uuid())
+  companyId          String    @map("company_id")
+  userId             String    @map("user_id")
+  notificationType   String    @map("notification_type")
+  title              String
+  body               String?
+  relatedEntityType  String?   @map("related_entity_type")
+  relatedEntityId    String?   @map("related_entity_id")
+  channel            String    @default("in_app")
+  status             String    @default("pending")
+  readAt             DateTime? @map("read_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model Photo {
+  id                String    @id @default(uuid())
+  companyId         String    @map("company_id")
+  customerId        String?   @map("customer_id")
+  jobId             String?   @map("job_id")
+  propertyId        String?   @map("property_id")
+  estimateId        String?   @map("estimate_id")
+  uploadedByUserId  String?   @map("uploaded_by_user_id")
+  photoType         String    @default("other") @map("photo_type")
+  s3KeyOriginal     String    @map("s3_key_original")
+  s3KeyThumbnail    String?   @map("s3_key_thumbnail")
+  s3KeyWeb          String?   @map("s3_key_web")
+  fileSizeBytes     BigInt?   @map("file_size_bytes")
+  mimeType          String?   @map("mime_type")
+  width             Int?
+  height            Int?
+  isPublicShowcase  Boolean   @default(false) @map("is_public_showcase")
+  takenAt           DateTime? @map("taken_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  job      Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("photos")
+}
+
+model CustomerNote {
+  id             String    @id @default(uuid())
+  companyId      String    @map("company_id")
+  customerId     String    @map("customer_id")
+  authorUserId   String?   @map("author_user_id")
+  body           String
+  isPinned       Boolean   @default(false) @map("is_pinned")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_notes")
+}
+
+model Document {
+  id                  String   @id @default(uuid())
+  companyId           String   @map("company_id")
+  customerId          String?  @map("customer_id")
+  jobId               String?  @map("job_id")
+  uploadedByUserId    String?  @map("uploaded_by_user_id")
+  fileName            String   @map("file_name")
+  documentType        String   @default("other") @map("document_type")
+  s3Key               String   @map("s3_key")
+  mimeType            String?  @map("mime_type")
+  fileSizeBytes       BigInt?  @map("file_size_bytes")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  job      Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model CustomFieldDefinition {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  entityType  String   @default("customer") @map("entity_type")
+  fieldKey    String   @map("field_key")
+  label       String
+  fieldType   String   @map("field_type")
+  options     Json?
+  isRequired  Boolean  @default(false) @map("is_required")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  values CustomFieldValue[]
+
+  @@unique([companyId, entityType, fieldKey])
+  @@map("custom_field_definitions")
+}
+
+model CustomFieldValue {
+  id                 String   @id @default(uuid())
+  companyId          String   @map("company_id")
+  fieldDefinitionId  String   @map("field_definition_id")
+  entityId           String   @map("entity_id")
+  value              Json?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  fieldDefinition CustomFieldDefinition @relation(fields: [fieldDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([fieldDefinitionId, entityId])
+  @@map("custom_field_values")
+}
+
+// =============================================================================
+// AI RECEPTIONIST — see ai-receptionist-architecture.md for the full design.
+// New tables this module introduces; add via 003_add_receptionist.sql.
+// =============================================================================
+
+model Call {
+  id                String    @id @default(uuid())
+  companyId         String    @map("company_id")
+  customerId        String?   @map("customer_id") // null until/unless the caller is identified
+  twilioCallSid     String    @unique @map("twilio_call_sid")
+  direction         String    @default("inbound") // 'inbound' | 'outbound'
+  fromNumber        String    @map("from_number")
+  toNumber          String    @map("to_number")
+  status            String    @default("in_progress") // 'in_progress' | 'completed' | 'voicemail' | 'transferred' | 'missed'
+  outcome           String?   // 'estimate_scheduled' | 'job_rescheduled' | 'faq_answered' | 'transferred' | 'voicemail' | 'no_action'
+  transcript        Json?     // array of { role: 'caller'|'assistant', text, at }
+  summary           String?
+  summaryStructured Json?     // { topics: string[], actionItems: string[], sentiment: string }
+  recordingUrl      String?   @map("recording_url")
+  recordingSid      String?   @map("recording_sid")
+  durationSeconds   Int?      @map("duration_seconds")
+  startedAt         DateTime  @default(now()) @map("started_at")
+  endedAt           DateTime? @map("ended_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@map("calls")
+}
+
+model FaqEntry {
+  id         String   @id @default(uuid())
+  companyId  String   @map("company_id")
+  question   String
+  answer     String
+  isActive   Boolean  @default(true) @map("is_active")
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("faq_entries")
+}
+
+model ReceptionistSettings {
+  id                    String   @id @default(uuid())
+  companyId             String   @unique @map("company_id")
+  isEnabled             Boolean  @default(false) @map("is_enabled")
+  greeting              String   @default("Thanks for calling! How can I help you today?")
+  recordingDisclosure   String   @default("This call may be recorded for quality and training purposes.")
+  transferPhoneNumber   String?  @map("transfer_phone_number")
+  businessHours         Json     // { mon: {open:'08:00', close:'17:00'}, ... , timezone: 'America/New_York' }
+  voicemailEnabled      Boolean  @default(true) @map("voicemail_enabled")
+  twilioPhoneNumber     String?  @map("twilio_phone_number")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("receptionist_settings")
+}
+
+// =============================================================================
+// CUSTOMER PORTAL — see customer-portal-architecture.md. Customers authenticate
+// via a separate magic-link flow (no password, no shared credential surface
+// with staff CRM auth) and can only ever see their OWN records — enforced by
+// PortalCustomerGuard filtering on customerId, not just companyId.
+// =============================================================================
+
+model ServiceRequest {
+  id                    String    @id @default(uuid())
+  companyId             String    @map("company_id")
+  customerId            String    @map("customer_id")
+  propertyId            String?   @map("property_id")
+  description           String
+  requestedServiceType  String?   @map("requested_service_type")
+  isRecurring           Boolean   @default(false) @map("is_recurring")
+  recurringFrequency    String?   @map("recurring_frequency")
+  preferredDates        String?   @map("preferred_dates")
+  status                String    @default("pending") // 'pending' | 'reviewed' | 'converted' | 'declined'
+  convertedEstimateId   String?   @map("converted_estimate_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("service_requests")
+}
+
+// =============================================================================
+// AUTOMATION — real, server-side, cron-driven (automation/automation.service.ts).
+// Sends immediately for enabled rules; AutomationLog is a review-after-the-fact
+// record, not an approval queue — see that file for why, given a solo operator.
+// =============================================================================
+
+model AutomationSettings {
+  id                               String   @id @default(uuid())
+  companyId                        String   @unique @map("company_id")
+  estimateFollowupEnabled          Boolean  @default(true) @map("estimate_followup_enabled")
+  estimateFollowupAfterDays        Int      @default(3) @map("estimate_followup_after_days")
+  recurringReminderEnabled         Boolean  @default(true) @map("recurring_reminder_enabled")
+  recurringReminderIntervalMonths  Int      @default(12) @map("recurring_reminder_interval_months")
+  reviewRequestEnabled             Boolean  @default(true) @map("review_request_enabled")
+  reviewRequestDelayDays           Int      @default(1) @map("review_request_delay_days")
+  updatedAt                        DateTime @updatedAt @map("updated_at")
+
+  @@map("automation_settings")
+}
+
+model AutomationLog {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  customerId   String?  @map("customer_id")
+  ruleType     String   @map("rule_type") // 'estimate_followup' | 'recurring_reminder' | 'review_request'
+  dedupeKey    String   @map("dedupe_key")
+  channel      String   // 'sms' | 'email'
+  messageBody  String   @map("message_body")
+  status       String   @default("sent") // 'sent' | 'failed'
+  errorDetail  String?  @map("error_detail")
+  sentAt       DateTime @default(now()) @map("sent_at")
+
+  @@unique([companyId, dedupeKey])
+  @@map("automation_log")
+}
+
