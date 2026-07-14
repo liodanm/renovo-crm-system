@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import authConfig from './config/auth.config';
@@ -16,7 +16,8 @@ import { AutomationModule } from './automation/automation.module';
 import { LeadsModule } from './leads/leads.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-
+import { TenantContextModule } from './common/tenant/tenant-context.module';
+import { TenantContextInterceptor } from './common/tenant/tenant-context.interceptor';
 @Module({
   imports: [
     LoggingModule, // registered first — every other module's logger calls should already be structured
@@ -26,6 +27,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
       connection: { host: process.env.REDIS_HOST ?? 'localhost', port: Number(process.env.REDIS_PORT ?? 6379) },
     }),
     ScheduleModule.forRoot(), // powers AutomationScheduler's daily @Cron job
+    TenantContextModule,
     RedisModule,
     AuthModule,
     DashboardModule,
@@ -39,6 +41,6 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
-  ],
+  ],{ provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
 })
 export class AppModule {}
