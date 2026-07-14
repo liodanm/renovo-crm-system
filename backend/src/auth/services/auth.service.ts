@@ -284,7 +284,7 @@ export class AuthService {
       include: { user: true },
     });
 
-    let user = existingLink?.user;
+    let user = existingLink?.user ?? null;
 
     if (!user) {
       user = await this.prisma.user.findUnique({ where: { email: profile.email.toLowerCase() } });
