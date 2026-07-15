@@ -25,7 +25,11 @@ import { TenantContextInterceptor } from './common/tenant/tenant-context.interce
     ConfigModule.forRoot({ isGlobal: true, load: [authConfig] }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     BullModule.forRoot({
-      connection: { host: process.env.REDIS_HOST ?? 'localhost', port: Number(process.env.REDIS_PORT ?? 6379) },
+      connection: {
+        host: process.env.REDIS_HOST ?? 'localhost',
+        port: Number(process.env.REDIS_PORT ?? 6379),
+        password: process.env.REDIS_PASSWORD,
+      },
     }),
     ScheduleModule.forRoot(),
     TenantContextModule,
