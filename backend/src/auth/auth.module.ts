@@ -16,10 +16,15 @@ import { PermissionsGuard } from './guards/permissions.guard';
 import { MailModule } from '../mail/mail.module';
 import { PrismaService } from '../common/prisma/prisma.service';
 
+const optionalOAuthProviders = [
+  ...(process.env.GOOGLE_CLIENT_ID ? [GoogleStrategy] : []),
+  ...(process.env.MICROSOFT_CLIENT_ID ? [MicrosoftStrategy] : []),
+];
+
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({}), // secrets are passed per-call (access vs refresh use different secrets)
+    JwtModule.register({}),
     MailModule,
   ],
   controllers: [AuthController],
@@ -30,11 +35,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
     PasswordService,
     JwtAccessStrategy,
     JwtRefreshStrategy,
-    GoogleStrategy,
-    MicrosoftStrategy,
-    // Registered globally, in order: authenticate -> check role -> check
-    // permissions. Each guard no-ops if its decorator isn't present on the
-    // route, so unmarked routes only pay the JwtAuthGuard cost.
+    ...optionalOAuthProviders,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
