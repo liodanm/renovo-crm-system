@@ -14,7 +14,7 @@ export class EstimatesController {
 
   @Get()
   findAll(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryEstimatesDto) {
-    return this.estimatesService.findAll(user.companyId, query, this.canViewProfitability(user));
+    return this.estimatesService.findAll(user.companyId, query);
   }
 
   @Get(':id')
