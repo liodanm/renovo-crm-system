@@ -37,6 +37,7 @@ export default function DashboardPage() {
           <nav className="hidden gap-4 text-sm font-medium text-slate-500 sm:flex">
             <a href="/" className="text-slate-900">Dashboard</a>
             <a href="/customers" className="hover:text-slate-800">Customers</a>
+            <a href="/estimates" className="hover:text-slate-800">Estimates</a>
           </nav>
         </div>
         <div className="flex items-center gap-3">
