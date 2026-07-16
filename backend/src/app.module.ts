@@ -18,12 +18,13 @@ import { LoggingModule } from './common/logging/logging.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TenantContextModule } from './common/tenant/tenant-context.module';
 import { TenantContextInterceptor } from './common/tenant/tenant-context.interceptor';
+import { EstimatesModule } from './estimates/estimates.module';
 
 @Module({
   imports: [
-    LoggingModule,
+    LoggingModule, // registered first — every other module's logger calls should already be structured
     ConfigModule.forRoot({ isGlobal: true, load: [authConfig] }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]), // global baseline; auth endpoints add their own tighter limits
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST ?? 'localhost',
@@ -31,8 +32,8 @@ import { TenantContextInterceptor } from './common/tenant/tenant-context.interce
         password: process.env.REDIS_PASSWORD,
       },
     }),
-    ScheduleModule.forRoot(),
-    TenantContextModule,
+    ScheduleModule.forRoot(), // powers AutomationScheduler's daily @Cron job
+    TenantContextModule, // @Global() — makes TenantContextService one real shared instance across every feature module, not one per module
     RedisModule,
     AuthModule,
     DashboardModule,
@@ -42,10 +43,14 @@ import { TenantContextInterceptor } from './common/tenant/tenant-context.interce
     HealthModule,
     AutomationModule,
     LeadsModule,
+    EstimatesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    // NestJS runs Guards before Interceptors on every request, regardless
+    // of array order here — so request.user (set by JwtAuthGuard, a guard)
+    // is already populated by the time this interceptor runs.
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
   ],
 })
