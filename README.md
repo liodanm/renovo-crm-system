@@ -351,7 +351,7 @@ then re-run `tsc` to get full compiler coverage on the Prisma layer.
 
 ## AI Receptionist
 
-`backend/src/receptionist/` (5 services, 1 controller) + `ai-receptionist-architecture.md`.
+`backend/src/receptionist/` (5 services, 1 controller) + `docs/ai-receptionist-architecture.md`.
 
 **This one is fundamentally different from every other module in this
 project.** Everything else here is either a real backend module or a
@@ -359,7 +359,7 @@ client-side prototype. Answering a phone call is neither — it's Twilio
 hitting a real server's webhook the instant someone dials a real number,
 whether or not anyone has a browser open anywhere. There's no version of
 this that runs as a mock UI. So this shipped as: the real architecture
-(`ai-receptionist-architecture.md` — Twilio ConversationRelay for the
+(`docs/ai-receptionist-architecture.md` — Twilio ConversationRelay for the
 real-time voice loop, not old-style `<Gather>` IVR polling) plus the real
 backend code implementing it, tested every way that's actually possible
 without a live phone number.
