@@ -6,6 +6,12 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 
+# node:20-slim's minimal Debian base doesn't include OpenSSL — Prisma's
+# actual query engine binary requires it (both to generate the correct
+# engine here, and to run it in the runtime stage below). This was never
+# something testable before a real Docker build actually ran anywhere,
+# which never happened until Railway's build — my own sandbox has never
+# been able to pull the base image at all.
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
@@ -28,10 +34,16 @@ RUN npm ci --omit=dev && npx prisma generate
 
 COPY --from=builder /app/dist ./dist
 
+# Runs as an unprivileged user — the default node:20-slim image already
+# provides one rather than needing a custom useradd.
 USER node
 
 EXPOSE 4000
 
+# Same real DB+Redis check the app's own /health endpoint performs,
+# reused here so `docker inspect` and orchestrators relying on
+# HEALTHCHECK (not every deployment target reads the HTTP endpoint
+# directly) get an accurate signal too.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://localhost:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
