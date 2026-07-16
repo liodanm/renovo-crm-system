@@ -69,9 +69,11 @@ async function bootstrap() {
   // silently break the portal once its frontend is deployed. Both are
   // explicit, known origins (never a wildcard/regex "allow everything",
   // which would defeat the point of credentialed CORS).
-  const allowedOrigins = [process.env.FRONTEND_URL, process.env.PORTAL_URL].filter((origin): origin is string => Boolean(origin));
+  const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL, process.env.PORTAL_URL].filter(
+    (origin): origin is string => Boolean(origin),
+  );
   app.enableCors({
-    origin: allowedOrigins.length > 0 ? allowedOrigins : 'http://localhost:3000',
+    origin: allowedOrigins,
     credentials: true,
   });
 
