@@ -31,9 +31,16 @@ export default function CustomersPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
-        <Link href="/" className="text-sm font-semibold tracking-tight text-[var(--color-brand)]">
-          Renovo CRM
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link href="/" className="text-sm font-semibold tracking-tight text-[var(--color-brand)]">
+            Renovo CRM
+          </Link>
+          <nav className="hidden gap-4 text-sm font-medium text-slate-500 sm:flex">
+            <Link href="/" className="hover:text-slate-800">Dashboard</Link>
+            <Link href="/customers" className="text-slate-900">Customers</Link>
+            <Link href="/estimates" className="hover:text-slate-800">Estimates</Link>
+          </nav>
+        </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
