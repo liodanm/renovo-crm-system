@@ -30,6 +30,19 @@ Check first — open a terminal and run `git --version`. If it prints a
 version number, skip to step 4. If not, install Git from git-scm.com
 (Windows/Mac/Linux installers all there) and re-check.
 
+**If this is the first time you've used Git on this computer**, it also
+needs to know who you are before it'll let you make a commit — run these
+once (real values, not placeholders — this is what shows up as the
+"author" on every change):
+
+```bash
+git config --global user.email "you@example.com"
+git config --global user.name "Your Name"
+```
+
+Skip this if you've used Git before and it's already configured — running
+it again just overwrites the same values.
+
 ## 4. Push this project to your new repository
 
 Open a terminal in the project folder (the one containing `backend/`,
