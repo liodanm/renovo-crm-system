@@ -47,8 +47,11 @@ export class EstimatesService {
     return this.applyProfitabilityVisibility(result, canViewProfitability);
   }
 
-  async findAll(companyId: string, query: QueryEstimatesDto, canViewProfitability: boolean) {
-    const estimates = await this.prisma.tenant.estimate.findMany({
+async findAll(companyId: string, query: QueryEstimatesDto) {
+    // No profitability gating needed here — this list query never fetches
+    // lineItems (only findOne does), so there's nothing for
+    // applyProfitabilityVisibility to strip.
+    return this.prisma.tenant.estimate.findMany({
       where: {
         companyId,
         status: query.status,
@@ -57,7 +60,6 @@ export class EstimatesService {
       include: { customer: true, property: true },
       orderBy: { createdAt: 'desc' },
     });
-    return estimates.map((e) => this.applyProfitabilityVisibility(e, canViewProfitability));
   }
 
   async findOne(companyId: string, id: string, canViewProfitability = false) {
