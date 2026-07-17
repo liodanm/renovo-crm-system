@@ -69,6 +69,11 @@ async function bootstrap() {
   // silently break the portal once its frontend is deployed. Both are
   // explicit, known origins (never a wildcard/regex "allow everything",
   // which would defeat the point of credentialed CORS).
+  // localhost is always allowed, not just as a fallback when FRONTEND_URL
+  // is unset — a solo operator testing locally against this exact
+  // production backend (a real, deliberate part of this project's
+  // workflow) needs both to work at once, not one or the other depending
+  // on whether FRONTEND_URL happens to be configured.
   const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL, process.env.PORTAL_URL].filter(
     (origin): origin is string => Boolean(origin),
   );
