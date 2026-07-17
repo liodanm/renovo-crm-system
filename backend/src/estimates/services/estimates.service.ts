@@ -47,10 +47,14 @@ export class EstimatesService {
     return this.applyProfitabilityVisibility(result, canViewProfitability);
   }
 
-async findAll(companyId: string, query: QueryEstimatesDto) {
+  async findAll(companyId: string, query: QueryEstimatesDto) {
     // No profitability gating needed here — this list query never fetches
     // lineItems (only findOne does), so there's nothing for
-    // applyProfitabilityVisibility to strip.
+    // applyProfitabilityVisibility to strip. It previously called that
+    // function anyway, which type-checked against this project's local
+    // Prisma stub client but was rejected by Railway's real, strict
+    // generated types — a call with no actual effect at runtime, removed
+    // rather than fought with generics.
     return this.prisma.tenant.estimate.findMany({
       where: {
         companyId,
