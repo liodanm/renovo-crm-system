@@ -1,12 +1,15 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { customersApi } from '../../../lib/api/customers';
+import { settingsApi } from '../../../lib/api/settings';
 import { estimatesApi, SERVICE_TYPES, UNITS_OF_MEASURE } from '../../../lib/api/estimates';
 import { ApiError } from '../../../lib/api/api-client';
+import { AppShell } from '../../../components/layout/AppShell';
+import { serviceCatalogApi, type ServiceCatalogItem } from '../../../lib/api/service-catalog';
 
 // Kept as strings for the whole time they're being edited — this is
 // deliberate, not an oversight. A controlled <input> whose value is
@@ -24,6 +27,7 @@ interface DraftLineItem {
   unitPrice: string;
   notes?: string;
   serviceDetails?: Record<string, unknown>;
+  serviceCatalogItemId?: string;
 }
 
 function emptyLineItem(): DraftLineItem {
@@ -126,6 +130,18 @@ export default function NewEstimatePage() {
 
   const totals = computeTotals(lineItems, discountType, discountValue, taxRatePercent);
 
+  // Real integration, not just stored data: a new estimate's tax rate
+  // starts from the company's Business Default the moment this page
+  // loads, rather than an empty field every time. Only runs once per
+  // mount and never overwrites a value the person already typed.
+  useEffect(() => {
+    settingsApi.getBusinessDefaults().then((defaults) => {
+      if (defaults.defaultTaxRatePercent) {
+        setTaxRatePercent((current) => (current === '' ? defaults.defaultTaxRatePercent! : current));
+      }
+    }).catch(() => undefined);
+  }, []);
+
   function updateLineItem(key: string, patch: Partial<DraftLineItem>) {
     setLineItems((items) => items.map((item) => (item.key === key ? { ...item, ...patch } : item)));
   }
@@ -185,18 +201,7 @@ export default function NewEstimatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-sm font-semibold tracking-tight text-[var(--color-brand)]">Renovo CRM</Link>
-          <nav className="hidden gap-4 text-sm font-medium text-slate-500 sm:flex">
-            <Link href="/" className="hover:text-slate-800">Dashboard</Link>
-            <Link href="/customers" className="hover:text-slate-800">Customers</Link>
-            <Link href="/estimates" className="text-slate-900">Estimates</Link>
-          </nav>
-        </div>
-      </header>
-
+    <AppShell>
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
         <Link href="/estimates" className="text-sm text-slate-500 hover:text-slate-800">← Back to Estimates</Link>
         <h1 className="mt-4 text-xl font-semibold text-slate-900">New Estimate</h1>
@@ -259,12 +264,31 @@ export default function NewEstimatePage() {
         <div className="mt-8 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">Line Items</h2>
-            <button
-              onClick={() => setLineItems((items) => [...items, emptyLineItem()])}
-              className="text-sm font-medium text-[var(--color-brand)]"
-            >
-              + Add service
-            </button>
+            <div className="flex items-center gap-3">
+              <CatalogPicker
+                onPick={(catalogItem) =>
+                  setLineItems((items) => [
+                    ...items,
+                    {
+                      key: crypto.randomUUID(),
+                      serviceType: catalogItem.serviceType,
+                      description: catalogItem.name,
+                      unitOfMeasure: catalogItem.defaultUnitOfMeasure ?? 'each',
+                      quantity: '1',
+                      unitPrice: catalogItem.defaultUnitPrice ?? '',
+                      notes: catalogItem.defaultNotes ?? undefined,
+                      serviceCatalogItemId: catalogItem.id,
+                    },
+                  ])
+                }
+              />
+              <button
+                onClick={() => setLineItems((items) => [...items, emptyLineItem()])}
+                className="text-sm font-medium text-[var(--color-brand)]"
+              >
+                + Add service
+              </button>
+            </div>
           </div>
 
           {lineItems.map((item, i) => (
@@ -338,6 +362,37 @@ export default function NewEstimatePage() {
           </button>
         </div>
       </main>
+    </AppShell>
+  );
+}
+
+function CatalogPicker({ onPick }: { onPick: (item: ServiceCatalogItem) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const { data: items } = useSWR('service-catalog-active', () => serviceCatalogApi.list(true));
+
+  return (
+    <div className="relative">
+      <button onClick={() => setIsOpen((v) => !v)} className="text-sm font-medium text-slate-600 hover:text-slate-900">
+        Load from Catalog
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+            {(!items || items.length === 0) && <p className="p-3 text-xs text-slate-400">No active services in your catalog yet.</p>}
+            {items?.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => { onPick(item); setIsOpen(false); }}
+                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50"
+              >
+                <span className="font-medium text-slate-800">{item.name}</span>
+                {item.defaultUnitPrice && <span className="ml-1.5 text-xs text-slate-400">${item.defaultUnitPrice}</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

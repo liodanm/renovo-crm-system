@@ -19,6 +19,12 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TenantContextModule } from './common/tenant/tenant-context.module';
 import { TenantContextInterceptor } from './common/tenant/tenant-context.interceptor';
 import { EstimatesModule } from './estimates/estimates.module';
+import { JobsModule } from './jobs/jobs.module';
+import { SchedulingModule } from './scheduling/scheduling.module';
+import { ServiceCatalogModule } from './service-catalog/service-catalog.module';
+import { SettingsModule } from './settings/settings.module';
+import { InvoicesModule } from './invoices/invoices.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -44,6 +50,12 @@ import { EstimatesModule } from './estimates/estimates.module';
     AutomationModule,
     LeadsModule,
     EstimatesModule,
+    JobsModule,
+    SchedulingModule,
+    ServiceCatalogModule,
+    SettingsModule,
+    InvoicesModule,
+    PaymentsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

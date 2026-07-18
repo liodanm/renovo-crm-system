@@ -7,6 +7,7 @@ import useSWR from 'swr';
 import { estimatesApi, SERVICE_TYPES } from '../../../lib/api/estimates';
 import { PermissionGate } from '../../../components/auth/permission-gate';
 import { ApiError } from '../../../lib/api/api-client';
+import { AppShell } from '../../../components/layout/AppShell';
 
 function customerName(customer: { firstName: string | null; lastName: string | null; businessName: string | null }): string {
   return customer.businessName ?? (`${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || 'Unknown');
@@ -45,29 +46,15 @@ export default function EstimateDetailPage() {
     setActionError(null);
     try {
       const job = await estimatesApi.convertToJob(params.id);
-      router.push(`/estimates/${params.id}`);
-      await mutate();
-      alert(`Created job ${job.jobNumber} — it's unscheduled until you assign it a date.`);
+      router.push(`/jobs/${job.id}`);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Failed to convert estimate to a job.');
-    } finally {
       setIsActing(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-sm font-semibold tracking-tight text-[var(--color-brand)]">Renovo CRM</Link>
-          <nav className="hidden gap-4 text-sm font-medium text-slate-500 sm:flex">
-            <Link href="/" className="hover:text-slate-800">Dashboard</Link>
-            <Link href="/customers" className="hover:text-slate-800">Customers</Link>
-            <Link href="/estimates" className="text-slate-900">Estimates</Link>
-          </nav>
-        </div>
-      </header>
-
+    <AppShell>
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
         <Link href="/estimates" className="text-sm text-slate-500 hover:text-slate-800">← Back to Estimates</Link>
 
@@ -201,6 +188,6 @@ export default function EstimateDetailPage() {
           </>
         )}
       </main>
-    </div>
+    </AppShell>
   );
 }

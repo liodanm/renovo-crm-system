@@ -5,6 +5,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { customersApi, DuplicateCluster } from '../../../lib/api/customers';
 import { CardSkeleton, CardError, CardEmpty } from '../../../components/dashboard/dashboard-card';
+import { AppShell } from '../../../components/layout/AppShell';
 
 const REASON_LABELS: Record<string, string> = {
   exact_email: 'Same email address',
@@ -32,15 +33,11 @@ export default function DuplicatesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
+    <AppShell>
+      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
         <Link href="/customers" className="text-sm font-medium text-slate-500 hover:text-slate-800">
           ← Customers
         </Link>
-        <span className="text-sm font-semibold tracking-tight text-[var(--color-brand)]">Review Duplicates</span>
-      </header>
-
-      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
         <h1 className="text-xl font-semibold text-slate-900">Possible Duplicate Customers</h1>
         <p className="mt-1 text-sm text-slate-500">
           Found by matching exact email, exact phone, or similar names across your customer list. Merging is permanent — the
@@ -96,6 +93,6 @@ export default function DuplicatesPage() {
             ))}
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }

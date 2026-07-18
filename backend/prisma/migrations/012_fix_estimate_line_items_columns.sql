@@ -1,3 +1,9 @@
+-- Confirmed by directly inspecting the real production table (\d
+-- estimate_line_items showed no service_type, unit_of_measure, or notes
+-- columns at all): migration 008 never fully landed here either, the
+-- same underlying gap as 009/010. IF NOT EXISTS makes this safe to run
+-- regardless of what partial state the real database is actually in.
+
 BEGIN;
 
 ALTER TABLE estimate_line_items

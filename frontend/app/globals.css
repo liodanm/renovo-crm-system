@@ -5,4 +5,21 @@
 :root {
   --color-brand: #0e7490; /* teal-700 — water/pressure-washing association without leaning on cliché blue */
   --color-brand-dark: #155e75;
+
+  /* Sidebar-specific tokens — a deep, teal-tinted charcoal, not a generic
+     slate-900 dark theme bolted onto the existing brand. Ties the "field
+     service, professional, always-on" feel to the same water association
+     as the brand color, rather than treating dark-mode as a separate,
+     disconnected palette. */
+  --sidebar-bg: #0b2530;
+  --sidebar-bg-hover: #123544;
+  --sidebar-border: #163a47;
+  --sidebar-text: #9fc3cc;
+  --sidebar-text-muted: #6d94a0;
+  --sidebar-text-active: #ecfeff;
+  --sidebar-accent: #5eead4; /* teal-300 — bright enough to read against the dark sidebar, distinct from --color-brand which targets light backgrounds */
+  --sidebar-accent-glow: rgba(94, 234, 212, 0.15);
+
+  --sidebar-width: 17rem;
+  --sidebar-width-collapsed: 4.5rem;
 }

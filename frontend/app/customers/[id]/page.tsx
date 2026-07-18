@@ -14,6 +14,7 @@ import { NotesTab } from '../../../components/customers/tabs/notes-tab';
 import { PhotosTab } from '../../../components/customers/tabs/photos-tab';
 import { DocumentsTab } from '../../../components/customers/tabs/documents-tab';
 import { ActivityTab } from '../../../components/customers/tabs/activity-tab';
+import { AppShell } from '../../../components/layout/AppShell';
 
 const TABS = ['Overview', 'Properties', 'Service History', 'Notes', 'Photos', 'Documents', 'Activity'] as const;
 type Tab = (typeof TABS)[number];
@@ -41,14 +42,12 @@ export default function CustomerProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
+    <AppShell>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
         <Link href="/customers" className="text-sm font-medium text-slate-500 hover:text-slate-800">
           ← Customers
         </Link>
-      </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
         {isLoading && <CardSkeleton lines={4} />}
         {error && <CardError message="Couldn't load this customer" />}
 
@@ -109,6 +108,6 @@ export default function CustomerProfilePage() {
           </>
         )}
       </main>
-    </div>
+    </AppShell>
   );
 }

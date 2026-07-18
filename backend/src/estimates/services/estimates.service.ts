@@ -6,6 +6,7 @@ import { QueryEstimatesDto } from '../dto/query-estimates.dto';
 import { computeEstimateTotals } from './estimate-totals.util';
 import { computeLineItemProfit, resolveLaborRate } from './estimate-profit.util';
 import { validateServiceDetails } from '../dto/service-details/validate-service-details';
+import { JobsService } from '../../jobs/services/jobs.service';
 
 // Fields only estimates.profitability holders should ever see — stripped
 // from every response otherwise, not just hidden client-side (which
@@ -18,7 +19,10 @@ const PROFITABILITY_LINE_ITEM_FIELDS = [
 
 @Injectable()
 export class EstimatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobsService: JobsService,
+  ) {}
 
   async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean) {
     await this.assertCustomerAndPropertyBelongToCompany(companyId, dto.customerId, dto.propertyId);
@@ -131,42 +135,11 @@ export class EstimatesService {
   }
 
   async convertToJob(companyId: string, id: string) {
-    const estimate = await this.findOne(companyId, id, true);
-    if (estimate.status !== 'accepted') {
-      throw new BadRequestException(`Cannot convert an estimate with status '${estimate.status}' to a job — only accepted estimates can be converted`);
-    }
-
-    return this.prisma.withTenantContext(companyId, async (tx) => {
-      // Real double-conversion guard: if a job already exists for this
-      // estimate (someone clicked convert twice, or a retry after a
-      // network blip), return the existing job instead of silently
-      // creating a second one for the same accepted quote.
-      const existingJob = await tx.job.findFirst({ where: { estimateId: id, companyId } });
-      if (existingJob) return existingJob;
-
-      const jobNumber = `JOB-${Date.now().toString().slice(-6)}`;
-      const primaryServiceType = estimate.lineItems[0]?.serviceType ?? null;
-      const title = estimate.lineItems.map((li) => li.description).join(', ').slice(0, 200);
-
-      // Unscheduled by design, per explicit requirement — the not-yet-built
-      // Scheduler assigns scheduledStart/scheduledEnd later. status stays
-      // out of 'scheduled' specifically so this job does NOT appear on the
-      // dashboard's calendar query (DashboardService filters on
-      // status: 'scheduled'), which is correct: it has no date to show yet.
-      return tx.job.create({
-        data: {
-          companyId,
-          customerId: estimate.customerId,
-          propertyId: estimate.propertyId,
-          estimateId: estimate.id,
-          jobNumber,
-          title: title || 'Job from estimate',
-          serviceType: primaryServiceType,
-          status: 'unscheduled',
-          price: estimate.totalAmount,
-        },
-      });
-    });
+    // Delegates to JobsService, which now owns Job creation — including
+    // real line-item preservation this method never had before. Kept
+    // here as the entry point since "Convert to Job" is naturally an
+    // estimate-initiated action from the caller's perspective.
+    return this.jobsService.createFromEstimate(companyId, id);
   }
 
   // ===========================================================================
@@ -207,10 +180,10 @@ export class EstimatesService {
       await tx.$queryRaw`
         INSERT INTO estimate_line_items
           (company_id, estimate_id, service_type, description, unit_of_measure, quantity, unit_price, notes, sort_order,
-           service_details, estimated_labor_hours, estimated_chemical_cost, estimated_equipment_cost, estimated_fuel_cost, estimated_misc_cost, assigned_user_id)
+           service_details, estimated_labor_hours, estimated_chemical_cost, estimated_equipment_cost, estimated_fuel_cost, estimated_misc_cost, assigned_user_id, service_catalog_item_id)
         VALUES
           (${companyId}::uuid, ${estimateId}::uuid, ${item.serviceType}, ${item.description}, ${item.unitOfMeasure}, ${item.quantity}, ${item.unitPrice}, ${item.notes ?? null}, ${i},
-           ${serviceDetailsJson}::jsonb, ${item.estimatedLaborHours ?? 0}, ${item.estimatedChemicalCost ?? 0}, ${item.estimatedEquipmentCost ?? 0}, ${item.estimatedFuelCost ?? 0}, ${item.estimatedMiscCost ?? 0}, ${item.assignedUserId ?? null}::uuid)
+           ${serviceDetailsJson}::jsonb, ${item.estimatedLaborHours ?? 0}, ${item.estimatedChemicalCost ?? 0}, ${item.estimatedEquipmentCost ?? 0}, ${item.estimatedFuelCost ?? 0}, ${item.estimatedMiscCost ?? 0}, ${item.assignedUserId ?? null}::uuid, ${item.serviceCatalogItemId ?? null}::uuid)
       `;
     }
   }

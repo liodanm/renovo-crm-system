@@ -17,11 +17,15 @@ export async function apiFetch<T>(
   options: RequestInit & { skipAuth?: boolean; skipRefreshRetry?: boolean } = {},
 ): Promise<T> {
   const { skipAuth, skipRefreshRetry, headers, ...rest } = options;
+  const isFormData = typeof FormData !== 'undefined' && rest.body instanceof FormData;
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
     headers: {
-      'Content-Type': 'application/json',
+      // FormData bodies (photo uploads) must NOT set Content-Type
+      // manually — the browser needs to generate its own multipart
+      // boundary, which setting this header here would override.
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(skipAuth ? {} : authHeader()),
       ...headers,
     },

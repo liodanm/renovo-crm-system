@@ -61,6 +61,7 @@ export interface CreateLineItemInput {
   estimatedEquipmentCost?: number;
   estimatedFuelCost?: number;
   estimatedMiscCost?: number;
+  serviceCatalogItemId?: string;
 }
 
 export interface CreateEstimateInput {

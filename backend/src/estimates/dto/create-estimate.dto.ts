@@ -88,6 +88,14 @@ export class CreateEstimateLineItemDto {
   @IsOptional()
   @IsUUID()
   assignedUserId?: string;
+
+  // Set when this line item was created by picking a Service Catalog
+  // entry — additive per the approved architecture. Never required:
+  // a line item built entirely by hand has no catalog origin, and
+  // that's a completely valid, common case.
+  @IsOptional()
+  @IsUUID()
+  serviceCatalogItemId?: string;
 }
 
 export class CreateEstimateDto {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '../lib/auth/auth-context';
-import { CompanySwitcher } from '../components/auth/company-switcher';
+import { AppShell } from '../components/layout/AppShell';
 import { SummaryStats } from '../components/dashboard/summary-stats';
 import { TodaysJobsListCard } from '../components/dashboard/todays-jobs-list-card';
 import { JobCalendarCard } from '../components/dashboard/job-calendar-card';
@@ -12,7 +12,7 @@ import { AiSuggestionsCard } from '../components/dashboard/ai-suggestions-card';
 import { NotificationsCard } from '../components/dashboard/notifications-card';
 
 export default function DashboardPage() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Loading…</div>;
@@ -30,28 +30,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="flex items-center gap-6">
-          <span className="text-sm font-semibold tracking-tight text-[var(--color-brand)]">Renovo CRM</span>
-          <nav className="hidden gap-4 text-sm font-medium text-slate-500 sm:flex">
-            <a href="/" className="text-slate-900">Dashboard</a>
-            <a href="/customers" className="hover:text-slate-800">Customers</a>
-            <a href="/estimates" className="hover:text-slate-800">Estimates</a>
-          </nav>
-        </div>
-        <div className="flex items-center gap-3">
-          <CompanySwitcher />
-          <span className="hidden text-sm text-slate-600 sm:inline">
-            {user.email} · <span className="capitalize">{user.roleName.replace('_', ' ')}</span>
-          </span>
-          <button onClick={logout} className="text-sm font-medium text-slate-500 hover:text-slate-800">
-            Log out
-          </button>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+    <AppShell>
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <h1 className="text-xl font-semibold text-slate-900">
           Good {timeOfDayGreeting()}
           {user.email ? `, ${user.email.split('@')[0]}` : ''}
@@ -79,8 +59,8 @@ export default function DashboardPage() {
             <NotificationsCard />
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }
 

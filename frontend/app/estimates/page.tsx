@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import useSWR from 'swr';
 import { estimatesApi } from '../../lib/api/estimates';
+import { AppShell } from '../../components/layout/AppShell';
 
 const STATUS_STYLES: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700',
@@ -25,18 +26,7 @@ export default function EstimatesPage() {
   const { data: estimates, error, isLoading } = useSWR('estimates', () => estimatesApi.list());
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-sm font-semibold tracking-tight text-[var(--color-brand)]">Renovo CRM</Link>
-          <nav className="hidden gap-4 text-sm font-medium text-slate-500 sm:flex">
-            <Link href="/" className="hover:text-slate-800">Dashboard</Link>
-            <Link href="/customers" className="hover:text-slate-800">Customers</Link>
-            <Link href="/estimates" className="text-slate-900">Estimates</Link>
-          </nav>
-        </div>
-      </header>
-
+    <AppShell>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -95,6 +85,6 @@ export default function EstimatesPage() {
           )}
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }
