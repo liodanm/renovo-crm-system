@@ -235,7 +235,7 @@ export default function JobDetailPage() {
                       {job.completionNotes}
                     </p>
                   )}
-                  {job.recommendedFutureServices.length > 0 && (
+                  {job.recommendedFutureServices && job.recommendedFutureServices.length > 0 && (
                     <div>
                       <span className="text-slate-500">Recommended: </span>
                       {job.recommendedFutureServices.map((s) => RECOMMENDABLE_SERVICE_LABELS[s] ?? s).join(', ')}
