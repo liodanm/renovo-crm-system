@@ -106,7 +106,7 @@ export class SchedulingService {
       `SELECT ${CALENDAR_SELECT} ${CALENDAR_JOINS}
        WHERE a.company_id = $1 AND a.starts_at < $2 AND a.ends_at >= $3
          AND ($4::text IS NULL OR a.status = $4)
-         AND ($5::uuid IS NULL OR cu.id = $5)
+         AND ($5::uuid IS NULL OR cu.id = $5::uuid)
          AND ($6::text IS NULL OR c.first_name ILIKE $6 OR c.last_name ILIKE $6 OR c.business_name ILIKE $6 OR p.address_line1 ILIKE $6)
        ORDER BY a.starts_at ASC`,
       companyId,
