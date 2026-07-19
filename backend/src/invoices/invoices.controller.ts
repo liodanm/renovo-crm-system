@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { InvoicesService } from './services/invoices.service';
 import { UpdateInvoiceDto, QueryInvoicesDto } from './dto/invoice.dto';
+import { SendInvoiceEmailDto } from './dto/send-email.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -36,6 +38,30 @@ export class InvoicesController {
   @RequirePermissions('invoices.write')
   send(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
     return this.invoices.send(user.companyId, id);
+  }
+
+  @Get(':id/pdf')
+  async getPdf(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Res() res: Response) {
+    const { buffer, filename } = await this.invoices.generatePdf(user.companyId, id);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` });
+    res.send(buffer);
+  }
+
+  @Post(':id/send-email')
+  @RequirePermissions('invoices.write')
+  sendEmail(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: SendInvoiceEmailDto) {
+    return this.invoices.sendEmail(user.companyId, id, user.userId, dto.toEmail);
+  }
+
+  @Post(':id/resend-email')
+  @RequirePermissions('invoices.write')
+  resendEmail(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: SendInvoiceEmailDto) {
+    return this.invoices.sendEmail(user.companyId, id, user.userId, dto.toEmail);
+  }
+
+  @Get(':id/email-history')
+  getEmailHistory(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.invoices.getEmailHistory(user.companyId, id);
   }
 
   @Post(':id/void')

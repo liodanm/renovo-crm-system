@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { EstimatesService } from './services/estimates.service';
 import { CreateEstimateDto } from './dto/create-estimate.dto';
 import { UpdateEstimateDto } from './dto/update-estimate.dto';
 import { QueryEstimatesDto } from './dto/query-estimates.dto';
+import { SendEstimateEmailDto } from './dto/send-email.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -38,6 +40,30 @@ export class EstimatesController {
   @RequirePermissions('estimates.write')
   send(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
     return this.estimatesService.send(user.companyId, id);
+  }
+
+  @Get(':id/pdf')
+  async getPdf(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Res() res: Response) {
+    const { buffer, filename } = await this.estimatesService.generatePdf(user.companyId, id);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` });
+    res.send(buffer);
+  }
+
+  @Post(':id/send-email')
+  @RequirePermissions('estimates.write')
+  sendEmail(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: SendEstimateEmailDto) {
+    return this.estimatesService.sendEmail(user.companyId, id, user.userId, dto.toEmail);
+  }
+
+  @Post(':id/resend-email')
+  @RequirePermissions('estimates.write')
+  resendEmail(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: SendEstimateEmailDto) {
+    return this.estimatesService.sendEmail(user.companyId, id, user.userId, dto.toEmail);
+  }
+
+  @Get(':id/email-history')
+  getEmailHistory(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.estimatesService.getEmailHistory(user.companyId, id);
   }
 
   @Post(':id/convert-to-job')

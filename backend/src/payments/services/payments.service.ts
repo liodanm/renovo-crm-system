@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RecordPaymentDto, RefundPaymentDto, VoidPaymentDto } from '../dto/payment.dto';
 import { computeInvoiceStatusAfterPayment } from './invoice-status.util';
+import { logAutomationEvent } from '../../common/utils/automation-event.util';
+import { AutomationService } from '../../automation/services/automation.service';
 
 const PAYMENT_SELECT = `
   p.id, p.invoice_id AS "invoiceId", p.customer_id AS "customerId", p.property_id AS "propertyId",
@@ -12,7 +14,10 @@ const PAYMENT_SELECT = `
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly automation: AutomationService,
+  ) {}
 
   /**
    * The primary action. balance_due is read fresh from the database's
@@ -21,13 +26,12 @@ export class PaymentsService {
    * not a stale value the caller might be holding.
    */
   async recordPayment(companyId: string, invoiceId: string, userId: string, dto: RecordPaymentDto) {
-    const invoiceRows = await this.prisma.tenant.$queryRaw<
-      { id: string; customerId: string; propertyId: string | null; status: string; totalAmount: string; amountPaid: string; balanceDue: string }[]
-    >`
+    const invoiceRows: { id: string; customerId: string; propertyId: string | null; status: string; totalAmount: string; amountPaid: string; balanceDue: string; invoiceNumber: string }[] =
+      await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, customer_id AS "customerId", property_id AS "propertyId", status,
-             total_amount AS "totalAmount", amount_paid AS "amountPaid", balance_due AS "balanceDue"
+             total_amount AS "totalAmount", amount_paid AS "amountPaid", balance_due AS "balanceDue", invoice_number AS "invoiceNumber"
       FROM invoices WHERE id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (invoiceRows.length === 0) throw new NotFoundException('Invoice not found');
     const invoice = invoiceRows[0];
 
@@ -65,6 +69,25 @@ export class PaymentsService {
         WHERE id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid
       `;
 
+      if (newStatus === 'paid') {
+        // Fires regardless of how the invoice reached "paid" — cash,
+        // check, Zelle recorded here, or the separate Stripe webhook
+        // path in PortalController — "Invoice Paid" is a real event
+        // about the invoice's state, not specific to one payment method.
+        // Deliberately called with the outer PrismaService (not tx) —
+        // it opens its own withTenantContext transaction, a fire-and-
+        // forget side effect independent of this payment's own
+        // transaction, matching the try/catch-and-continue design
+        // inside logAutomationEvent itself.
+        await logAutomationEvent(this.prisma, {
+          companyId,
+          customerId: invoice.customerId,
+          ruleType: 'invoice_paid',
+          dedupeKey: `invoice-paid-${invoiceId}`,
+          messageBody: `Invoice ${invoice.invoiceNumber} paid in full via ${dto.method}`,
+        });
+      }
+
       return this.findOne(companyId, paymentId, tx);
     });
   }
@@ -78,30 +101,32 @@ export class PaymentsService {
    * (Jobs, Invoices, Scheduling's calendar).
    */
   async findAll(companyId: string, status?: string) {
-    return this.prisma.tenant.$queryRawUnsafe(
-      `SELECT ${PAYMENT_SELECT}, i.invoice_number AS "invoiceNumber",
+    // Same reasoning as Invoices/Jobs — a safety net, not a contract change.
+    return this.prisma.withTenantContext(companyId, (tx) =>
+      tx.$queryRawUnsafe(
+        `SELECT ${PAYMENT_SELECT}, i.invoice_number AS "invoiceNumber",
               c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName"
        FROM payments p
        JOIN invoices i ON i.id = p.invoice_id
        JOIN customers c ON c.id = p.customer_id
        WHERE p.company_id = $1::uuid AND ($2::text IS NULL OR p.status = $2)
-       ORDER BY p.created_at DESC`,
-      companyId,
-      status ?? null,
+       ORDER BY p.created_at DESC
+       LIMIT 200`,
+        companyId,
+        status ?? null,
+      ),
     );
   }
 
   async listByInvoice(companyId: string, invoiceId: string) {
-    return this.prisma.tenant.$queryRawUnsafe(
-      `SELECT ${PAYMENT_SELECT} FROM payments p WHERE p.invoice_id = $1::uuid AND p.company_id = $2::uuid ORDER BY p.created_at ASC`,
-      invoiceId,
-      companyId,
+    return this.prisma.withTenantContext(companyId, (tx) =>
+      tx.$queryRawUnsafe(`SELECT ${PAYMENT_SELECT} FROM payments p WHERE p.invoice_id = $1::uuid AND p.company_id = $2::uuid ORDER BY p.created_at ASC`, invoiceId, companyId),
     );
   }
 
   async findOne(companyId: string, id: string, txOverride?: { $queryRawUnsafe: (q: string, ...v: any[]) => Promise<any> }) {
-    const client = txOverride ?? this.prisma.tenant;
-    const rows: any[] = await client.$queryRawUnsafe(`SELECT ${PAYMENT_SELECT} FROM payments p WHERE p.id = $1::uuid AND p.company_id = $2::uuid`, id, companyId);
+    const run = (client: { $queryRawUnsafe: any }) => client.$queryRawUnsafe(`SELECT ${PAYMENT_SELECT} FROM payments p WHERE p.id = $1::uuid AND p.company_id = $2::uuid`, id, companyId);
+    const rows: any[] = txOverride ? await run(txOverride) : await this.prisma.withTenantContext(companyId, (tx) => run(tx));
     if (rows.length === 0) throw new NotFoundException('Payment not found');
     return rows[0];
   }
@@ -175,8 +200,9 @@ export class PaymentsService {
    * from identically.
    */
   async getReceipt(companyId: string, paymentId: string) {
-    const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT p.id, p.receipt_number AS "receiptNumber", p.amount, p.method, p.status,
+    const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) =>
+      tx.$queryRawUnsafe(
+        `SELECT p.id, p.receipt_number AS "receiptNumber", p.amount, p.method, p.status,
               p.reference_number AS "referenceNumber", p.payment_date AS "paymentDate", p.notes,
               i.invoice_number AS "invoiceNumber", i.total_amount AS "invoiceTotal", i.balance_due AS "invoiceBalanceDue",
               c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName", c.email AS "customerEmail",
@@ -190,8 +216,9 @@ export class PaymentsService {
        LEFT JOIN properties pr ON pr.id = p.property_id
        JOIN companies co ON co.id = p.company_id
        WHERE p.id = $1::uuid AND p.company_id = $2::uuid`,
-      paymentId,
-      companyId,
+        paymentId,
+        companyId,
+      ),
     );
     if (rows.length === 0) throw new NotFoundException('Payment not found');
     const row = rows[0];

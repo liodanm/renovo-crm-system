@@ -65,6 +65,35 @@ export class MailService {
     await this.enqueue('automation-message', to, { subject, body });
   }
 
+  /**
+   * The one real difference from every sender above: this one carries a
+   * PDF attachment and a companyId + emailLogId, so MailProcessor can
+   * write real delivery status back to the persistent email_log row —
+   * none of the other six senders need that, since they were never
+   * expected to have a "did this actually deliver" history a user would
+   * ever look back at.
+   */
+  async sendDocumentEmail(input: {
+    to: string;
+    template: 'estimate-send' | 'invoice-send';
+    data: Record<string, unknown>;
+    companyId: string;
+    emailLogId: string;
+    replyTo?: string;
+    attachment: { filename: string; contentBase64: string; contentType: string };
+  }) {
+    try {
+      await this.mailQueue.add(
+        input.template,
+        { to: input.to, template: input.template, data: input.data, companyId: input.companyId, emailLogId: input.emailLogId, replyTo: input.replyTo, attachment: input.attachment },
+        { attempts: 5, backoff: { type: 'exponential', delay: 5000 } },
+      );
+    } catch (err) {
+      this.logger.error(`Failed to enqueue "${input.template}" email to ${input.to}`, err as Error);
+      throw err; // unlike the fire-and-forget senders below, the caller here needs to know enqueueing itself failed, since it already created a real email_log row expecting this to run
+    }
+  }
+
   private async enqueue(template: string, to: string, data: Record<string, unknown>) {
     try {
       await this.mailQueue.add(

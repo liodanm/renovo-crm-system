@@ -27,14 +27,14 @@ export class JobPhotosService {
   ) {}
 
   async listByJob(companyId: string, jobId: string): Promise<JobPhotoRow[]> {
-    return this.prisma.tenant.$queryRaw<JobPhotoRow[]>`
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, photo_type AS "photoType", caption, mime_type AS "mimeType",
              file_size_bytes::text AS "fileSizeBytes", width, height,
              taken_at AS "takenAt", created_at AS "createdAt", s3_key_original AS "s3KeyOriginal"
       FROM photos
       WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
       ORDER BY COALESCE(taken_at, created_at) ASC
-    `;
+    `);
   }
 
   async upload(
@@ -78,22 +78,22 @@ export class JobPhotosService {
   }
 
   async getFile(companyId: string, jobId: string, photoId: string): Promise<{ buffer: Buffer; mimeType: string | null }> {
-    const rows = await this.prisma.tenant.$queryRaw<{ s3KeyOriginal: string; mimeType: string | null }[]>`
+    const rows: { s3KeyOriginal: string; mimeType: string | null }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT s3_key_original AS "s3KeyOriginal", mime_type AS "mimeType"
       FROM photos WHERE id = ${photoId}::uuid AND job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (rows.length === 0) throw new NotFoundException('Photo not found');
     const buffer = await this.storage.read(rows[0].s3KeyOriginal);
     return { buffer, mimeType: rows[0].mimeType };
   }
 
   async delete(companyId: string, jobId: string, photoId: string, userId: string, gps?: { latitude?: number; longitude?: number }) {
-    const rows = await this.prisma.tenant.$queryRaw<JobPhotoRow[]>`
+    const rows: JobPhotoRow[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, photo_type AS "photoType", caption, mime_type AS "mimeType",
              file_size_bytes::text AS "fileSizeBytes", width, height,
              taken_at AS "takenAt", created_at AS "createdAt", s3_key_original AS "s3KeyOriginal"
       FROM photos WHERE id = ${photoId}::uuid AND job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (rows.length === 0) throw new NotFoundException('Photo not found');
     const photo = rows[0];
 

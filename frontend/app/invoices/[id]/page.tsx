@@ -8,6 +8,7 @@ import { invoicesApi, invoiceCustomerName, INVOICE_STATUS_LABELS } from '../../.
 import { AppShell } from '../../../components/layout/AppShell';
 import { ApiError } from '../../../lib/api/api-client';
 import { PaymentsSection } from '../../../components/payments/PaymentsSection';
+import { DocumentEmailSection } from '../../../components/documents/DocumentEmailSection';
 
 function formatMoney(value: string | undefined): string {
   return `$${Number(value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -22,19 +23,6 @@ export default function InvoiceDetailPage() {
   const { data: invoice, error, isLoading, mutate } = useSWR(['invoice', params.id], () => invoicesApi.get(params.id));
   const [isActing, setIsActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  async function handleSend() {
-    setIsActing(true);
-    setActionError(null);
-    try {
-      await invoicesApi.send(params.id);
-      await mutate();
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Something went wrong.');
-    } finally {
-      setIsActing(false);
-    }
-  }
 
   async function handleVoid() {
     if (!confirm('Void this invoice? This cannot be undone.')) return;
@@ -77,17 +65,22 @@ export default function InvoiceDetailPage() {
             {actionError && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>}
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {invoice.status === 'draft' && (
-                <button onClick={handleSend} disabled={isActing} className="rounded-lg bg-[var(--color-brand)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-                  {isActing ? 'Sending…' : 'Send Invoice'}
-                </button>
-              )}
               {!['paid', 'void'].includes(invoice.status) && (
                 <button onClick={handleVoid} disabled={isActing} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 disabled:opacity-50">
                   Void
                 </button>
               )}
             </div>
+
+            <DocumentEmailSection
+              documentLabel="Invoice"
+              customerEmail={invoice.customerEmail}
+              hasBeenSent={invoice.status !== 'draft'}
+              pdfPath={invoicesApi.pdfPath(invoice.id)}
+              onSendEmail={(toEmail) => invoicesApi.sendEmail(invoice.id, toEmail).then(async (r) => { await mutate(); return r; })}
+              onGetHistory={() => invoicesApi.getEmailHistory(invoice.id)}
+              historyKey={`invoice-email-history-${invoice.id}`}
+            />
 
             <div className="mt-6 grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
               <div>

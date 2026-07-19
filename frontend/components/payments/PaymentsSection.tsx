@@ -4,10 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { paymentsApi, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_STYLES } from '../../lib/api/payments';
+import { settingsApi } from '../../lib/api/settings';
 import { ApiError } from '../../lib/api/api-client';
 import { cn } from '../../lib/utils';
 
-const METHODS = Object.keys(PAYMENT_METHOD_LABELS);
+const ALL_METHODS = Object.keys(PAYMENT_METHOD_LABELS);
 
 function formatMoney(value: string): string {
   return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -15,6 +16,11 @@ function formatMoney(value: string): string {
 
 export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymentRecorded }: { invoiceId: string; balanceDue: string; invoiceStatus: string; onPaymentRecorded: () => void }) {
   const { data: payments, mutate } = useSWR(['invoice-payments', invoiceId], () => paymentsApi.listByInvoice(invoiceId));
+  // Real read from Payment Settings — this is what makes "which methods
+  // can I record a payment as" actually configurable rather than the
+  // fixed, hardcoded list this form used before that page existed.
+  const { data: paymentSettings } = useSWR('payments-settings-for-form', () => settingsApi.getPaymentSettings());
+  const availableMethods = paymentSettings?.enabledPaymentMethods?.length ? paymentSettings.enabledPaymentMethods : ALL_METHODS;
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
@@ -81,7 +87,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               className="col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm sm:col-span-1"
             />
             <select value={method} onChange={(e) => setMethod(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-2 text-sm">
-              {METHODS.map((m) => (
+              {availableMethods.map((m) => (
                 <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
               ))}
             </select>

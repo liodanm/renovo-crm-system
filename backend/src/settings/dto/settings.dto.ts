@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, Matches, MaxLength, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEmail, IsIn, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, Matches, MaxLength, Min, ValidateNested } from 'class-validator';
 
 // ---- Profile ----
 
@@ -216,4 +216,45 @@ export class UpdateBrandingDto {
   @IsString()
   @MaxLength(500)
   footerMessage?: string;
+}
+
+// ---- Payment Settings ----
+// Stripe's own secret key/webhook secret are never here — they're
+// environment variables, checked read-only via IntegrationStatusService.
+// Only genuinely safe-to-store preferences live in the database.
+
+const PAYMENT_METHODS = ['card', 'ach', 'cash', 'check', 'zelle', 'other'] as const;
+
+export class UpdatePaymentSettingsDto {
+  @IsOptional()
+  @IsArray()
+  @IsIn(PAYMENT_METHODS, { each: true })
+  enabledPaymentMethods?: string[];
+}
+
+// ---- Email Settings ----
+// POSTMARK_SERVER_TOKEN/MAIL_FROM_ADDRESS are environment variables,
+// same reasoning as Stripe above. replyToEmail is the one genuinely new,
+// safe field — an address separate from the company's main contact
+// email that a customer's reply should land in instead.
+
+export class UpdateEmailSettingsDto {
+  @IsOptional()
+  @IsEmail()
+  replyToEmail?: string;
+}
+
+export class SendTestEmailDto {
+  @IsNotEmpty()
+  @IsEmail()
+  toEmail!: string;
+}
+
+// ---- SMS Settings ----
+
+export class SendTestSmsDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(20)
+  toPhone!: string;
 }

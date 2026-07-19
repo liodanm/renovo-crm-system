@@ -1,7 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PasswordService } from '../../auth/services/password.service';
-import { UpdateProfileDto, ChangePasswordDto, UpdateCompanyDto, UpdateBusinessDefaultsDto, UpdateBrandingDto } from '../dto/settings.dto';
+import { IntegrationStatusService } from '../../common/integrations/integration-status.service';
+import { MailService } from '../../mail/mail.service';
+import { SmsService } from '../../sms/sms.service';
+import {
+  UpdateProfileDto,
+  ChangePasswordDto,
+  UpdateCompanyDto,
+  UpdateBusinessDefaultsDto,
+  UpdateBrandingDto,
+  UpdatePaymentSettingsDto,
+  UpdateEmailSettingsDto,
+  SendTestEmailDto,
+  SendTestSmsDto,
+} from '../dto/settings.dto';
 
 const PROFILE_SELECT = `
   id, email, first_name AS "firstName", last_name AS "lastName", phone, avatar_url AS "avatarUrl",
@@ -29,6 +42,9 @@ export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
+    private readonly integrationStatus: IntegrationStatusService,
+    private readonly mail: MailService,
+    private readonly sms: SmsService,
   ) {}
 
   // ---- Profile ----
@@ -180,5 +196,107 @@ export class SettingsService {
       JSON.stringify(merged),
     );
     return merged;
+  }
+
+  // ---- Payment Settings ----
+  // Stripe's real secret/webhook key are environment variables, checked
+  // read-only here — never stored or editable through this endpoint.
+  // Invoice due-date defaults already live in Business Defaults; this
+  // deliberately doesn't repeat that field, just points to it.
+
+  async getPaymentSettings(companyId: string) {
+    const rows: { enabledPaymentMethods: string[] }[] = await this.prisma.tenant.$queryRawUnsafe(
+      `SELECT enabled_payment_methods AS "enabledPaymentMethods" FROM companies WHERE id = $1`,
+      companyId,
+    );
+    return {
+      stripe: this.integrationStatus.get('stripe'),
+      enabledPaymentMethods: rows[0]?.enabledPaymentMethods ?? ['card', 'cash', 'check'],
+    };
+  }
+
+  async updatePaymentSettings(companyId: string, dto: UpdatePaymentSettingsDto) {
+    if (dto.enabledPaymentMethods) {
+      await this.prisma.tenant.$executeRawUnsafe(
+        `UPDATE companies SET enabled_payment_methods = $2, updated_at = now() WHERE id = $1`,
+        companyId,
+        dto.enabledPaymentMethods,
+      );
+    }
+    return this.getPaymentSettings(companyId);
+  }
+
+  // ---- Email Settings ----
+  // POSTMARK_SERVER_TOKEN/MAIL_FROM_ADDRESS are environment variables,
+  // same reasoning as Stripe. fromName intentionally reuses Company's
+  // own name/dba rather than a second, potentially-drifting copy of it.
+
+  async getEmailSettings(companyId: string) {
+    const rows: { replyToEmail: string | null; name: string; dba: string | null }[] = await this.prisma.tenant.$queryRawUnsafe(
+      `SELECT reply_to_email AS "replyToEmail", name, dba FROM companies WHERE id = $1`,
+      companyId,
+    );
+    const row = rows[0];
+    return {
+      postmark: this.integrationStatus.get('postmark'),
+      fromAddressConfigured: !!process.env.MAIL_FROM_ADDRESS,
+      fromName: row?.dba || row?.name || null,
+      replyToEmail: row?.replyToEmail ?? null,
+    };
+  }
+
+  async updateEmailSettings(companyId: string, dto: UpdateEmailSettingsDto) {
+    if (dto.replyToEmail !== undefined) {
+      await this.prisma.tenant.$executeRawUnsafe(
+        `UPDATE companies SET reply_to_email = $2, updated_at = now() WHERE id = $1`,
+        companyId,
+        dto.replyToEmail,
+      );
+    }
+    return this.getEmailSettings(companyId);
+  }
+
+  /**
+   * A real send through the exact same queue/processor every other
+   * email in this app goes through — not a mocked "looks like it would
+   * work" check. If Postmark isn't configured, MailProcessor logs and
+   * skips (see mail.processor.ts) rather than throwing, so this always
+   * returns success at the "queued" level; whether it actually arrives
+   * is visible in Postmark's own dashboard, same as any other email
+   * this app sends.
+   */
+  async sendTestEmail(companyId: string, dto: SendTestEmailDto) {
+    await this.mail.sendAutomationEmail(dto.toEmail, 'Renovo CRM — Test Email', 'This is a test email from your Renovo CRM email settings. If you received this, your email configuration is working correctly.');
+    return { queued: true, postmarkConfigured: this.integrationStatus.get('postmark').configured };
+  }
+
+  // ---- SMS Settings ----
+  // TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER are environment variables.
+  // No database fields here at all — there is nothing safe-to-store and
+  // genuinely new to configure beyond what Automation Settings already
+  // owns (timing/toggles), so this page is status + test-send only.
+
+  getSmsSettings() {
+    return { twilio: this.integrationStatus.get('twilio') };
+  }
+
+  /** Same real SmsService AutomationService's reminders use — not a second Twilio caller. */
+  async sendTestSms(dto: SendTestSmsDto) {
+    const result = await this.sms.send(dto.toPhone, 'This is a test message from your Renovo CRM SMS settings. If you received this, your SMS configuration is working correctly.');
+    return { sent: result.sent, error: result.error, twilioConfigured: this.integrationStatus.get('twilio').configured };
+  }
+
+  // ---- Storage Settings ----
+  // AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY/AWS_S3_BUCKET are environment
+  // variables. maxUploadSizeMb is read-only here, sourced from the real
+  // Multer limit already enforced on the photo upload route
+  // (jobs.controller.ts) — never a second, editable number that could
+  // drift from what's actually enforced.
+
+  getStorageSettings() {
+    return {
+      s3: this.integrationStatus.get('s3'),
+      maxUploadSizeMb: 15,
+    };
   }
 }

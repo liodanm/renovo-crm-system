@@ -9,5 +9,6 @@ import { MailModule } from '../mail/mail.module';
   imports: [MailModule],
   controllers: [AutomationController],
   providers: [PrismaService, AutomationService, AutomationScheduler],
+  exports: [AutomationService],
 })
 export class AutomationModule {}

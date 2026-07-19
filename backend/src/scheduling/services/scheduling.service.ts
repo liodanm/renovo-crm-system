@@ -35,9 +35,8 @@ export class SchedulingService {
    * denormalized convenience field — never the other way around.
    */
   async scheduleJob(companyId: string, jobId: string, userId: string, dto: ScheduleJobDto) {
-    const jobRows = await this.prisma.tenant.$queryRaw<
-      { id: string; customerId: string; propertyId: string; title: string; status: string }[]
-    >`SELECT id, customer_id AS "customerId", property_id AS "propertyId", title, status FROM jobs WHERE id = ${jobId}::uuid AND company_id = ${companyId}::uuid`;
+    const jobRows: { id: string; customerId: string; propertyId: string; title: string; status: string }[] =
+      await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`SELECT id, customer_id AS "customerId", property_id AS "propertyId", title, status FROM jobs WHERE id = ${jobId}::uuid AND company_id = ${companyId}::uuid`);
     if (jobRows.length === 0) throw new NotFoundException('Job not found');
     const job = jobRows[0];
 
@@ -46,9 +45,9 @@ export class SchedulingService {
     if (endsAt < startsAt) throw new BadRequestException('endsAt must not be before startsAt');
 
     if (dto.assignedUserId) {
-      const belongs = await this.prisma.tenant.$queryRaw<{ id: string }[]>`
+      const belongs: { id: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
         SELECT id FROM company_users WHERE user_id = ${dto.assignedUserId}::uuid AND company_id = ${companyId}::uuid
-      `;
+      `);
       if (belongs.length === 0) throw new ForbiddenException('That user is not a member of this company');
     }
 
@@ -102,31 +101,30 @@ export class SchedulingService {
     const end = new Date(query.end);
     const searchPattern = query.search ? `%${query.search}%` : null;
 
-    const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT ${CALENDAR_SELECT} ${CALENDAR_JOINS}
+    const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) =>
+      tx.$queryRawUnsafe(
+        `SELECT ${CALENDAR_SELECT} ${CALENDAR_JOINS}
        WHERE a.company_id = $1::uuid AND a.starts_at < $2 AND a.ends_at >= $3
          AND ($4::text IS NULL OR a.status = $4)
          AND ($5::uuid IS NULL OR cu.id = $5::uuid)
          AND ($6::text IS NULL OR c.first_name ILIKE $6 OR c.last_name ILIKE $6 OR c.business_name ILIKE $6 OR p.address_line1 ILIKE $6)
        ORDER BY a.starts_at ASC`,
-      companyId,
-      end,
-      start,
-      query.status ?? null,
-      query.assignedUserId ?? null,
-      searchPattern,
+        companyId,
+        end,
+        start,
+        query.status ?? null,
+        query.assignedUserId ?? null,
+        searchPattern,
+      ),
     );
 
     return Promise.all(rows.map((r) => this.enrichAppointment(companyId, r)));
   }
 
   async getAppointment(companyId: string, id: string, txOverride?: { $queryRawUnsafe: (query: string, ...values: any[]) => Promise<any> }) {
-    const client = txOverride ?? this.prisma.tenant;
-    const rows: any[] = await client.$queryRawUnsafe(
-      `SELECT ${CALENDAR_SELECT} ${CALENDAR_JOINS} WHERE a.id = $1::uuid AND a.company_id = $2::uuid`,
-      id,
-      companyId,
-    );
+    const run = (client: { $queryRawUnsafe: any }) =>
+      client.$queryRawUnsafe(`SELECT ${CALENDAR_SELECT} ${CALENDAR_JOINS} WHERE a.id = $1::uuid AND a.company_id = $2::uuid`, id, companyId);
+    const rows: any[] = txOverride ? await run(txOverride) : await this.prisma.withTenantContext(companyId, (tx) => run(tx));
     if (rows.length === 0) throw new NotFoundException('Appointment not found');
     return this.enrichAppointment(companyId, rows[0]);
   }
@@ -136,9 +134,9 @@ export class SchedulingService {
     const endsAt = new Date(dto.endsAt);
     if (endsAt < startsAt) throw new BadRequestException('endsAt must not be before startsAt');
 
-    const existing = await this.prisma.tenant.$queryRaw<{ id: string; jobId: string | null }[]>`
+    const existing: { id: string; jobId: string | null }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, job_id AS "jobId" FROM appointments WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (existing.length === 0) throw new NotFoundException('Appointment not found');
 
     return this.prisma.withTenantContext(companyId, async (tx) => {
@@ -151,16 +149,16 @@ export class SchedulingService {
   }
 
   async updateAssignment(companyId: string, appointmentId: string, dto: UpdateAppointmentAssignmentDto) {
-    const existing = await this.prisma.tenant.$queryRaw<{ id: string; jobId: string | null }[]>`
+    const existing: { id: string; jobId: string | null }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, job_id AS "jobId" FROM appointments WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (existing.length === 0) throw new NotFoundException('Appointment not found');
 
     let assignedCompanyUserId: string | null = null;
     if (dto.assignedUserId) {
-      const rows = await this.prisma.tenant.$queryRaw<{ id: string }[]>`
+      const rows: { id: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
         SELECT id FROM company_users WHERE user_id = ${dto.assignedUserId}::uuid AND company_id = ${companyId}::uuid
-      `;
+      `);
       if (rows.length === 0) throw new ForbiddenException('That user is not a member of this company');
       assignedCompanyUserId = rows[0].id;
     }
@@ -181,9 +179,9 @@ export class SchedulingService {
   }
 
   async unschedule(companyId: string, appointmentId: string) {
-    const existing = await this.prisma.tenant.$queryRaw<{ id: string; jobId: string | null; appointmentType: string }[]>`
+    const existing: { id: string; jobId: string | null; appointmentType: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, job_id AS "jobId", appointment_type AS "appointmentType" FROM appointments WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (existing.length === 0) throw new NotFoundException('Appointment not found');
 
     return this.prisma.withTenantContext(companyId, async (tx) => {
@@ -206,12 +204,15 @@ export class SchedulingService {
   private async enrichAppointment(companyId: string, row: any) {
     let services: string[] = [];
     if (row.jobId) {
-      const items = await this.prisma.tenant.$queryRaw<{ serviceType: string | null; description: string }[]>`
+      const items: { serviceType: string | null; description: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
         SELECT service_type AS "serviceType", description FROM job_line_items WHERE job_id = ${row.jobId}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC
-      `;
+      `);
       services = items.map((i) => i.serviceType ?? i.description);
     }
 
+    // companies is not RLS-scoped by company_id (it's the tenant root
+    // itself, exempt the same way `User` is) — this one genuinely
+    // doesn't need withTenantContext, unlike job_line_items above.
     const companyRows = await this.prisma.tenant.$queryRaw<{ defaultArrivalWindowMinutes: number | null }[]>`
       SELECT default_arrival_window_minutes AS "defaultArrivalWindowMinutes" FROM companies WHERE id = ${companyId}::uuid
     `;

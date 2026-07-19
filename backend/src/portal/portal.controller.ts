@@ -15,6 +15,9 @@ import { RequestMagicLinkDto, VerifyMagicLinkDto } from './dto/portal-auth.dto';
 import { ApproveEstimateDto } from './dto/approve-estimate.dto';
 import { CreateServiceRequestDto } from './dto/service-request.dto';
 import { PortalChatDto } from './dto/portal-chat.dto';
+import { PdfService } from '../documents/services/pdf.service';
+import { CompanyContextService } from '../documents/services/company-context.service';
+import { logAutomationEvent } from '../common/utils/automation-event.util';
 
 @Controller('portal')
 export class PortalController {
@@ -25,6 +28,8 @@ export class PortalController {
     private readonly data: PortalDataService,
     private readonly stripe: StripePaymentService,
     private readonly chat: PortalChatService,
+    private readonly pdf: PdfService,
+    private readonly companyContext: CompanyContextService,
   ) {}
 
   // ===========================================================================
@@ -123,6 +128,16 @@ export class PortalController {
         },
       }),
     ]);
+
+    if (isPaidInFull) {
+      await logAutomationEvent(this.prisma, {
+        companyId: invoice.companyId,
+        customerId: invoice.customerId,
+        ruleType: 'invoice_paid',
+        dedupeKey: `invoice-paid-${invoice.id}`,
+        messageBody: `Invoice ${invoice.invoiceNumber} paid in full via Stripe`,
+      });
+    }
   }
 
   @UseGuards(PortalCustomerGuard)
@@ -156,18 +171,103 @@ export class PortalController {
   }
 
   /**
-   * Server-rendered, print-optimized invoice HTML — the customer's browser
-   * "Save as PDF" from here, same real approach the staff invoice view
-   * uses. A dedicated PDF-generation library is the natural upgrade if a
-   * literal application/pdf response ever becomes a hard requirement; this
-   * is the same pragmatic choice made for the staff-facing invoice view.
+   * The one real gap the audit for this feature found: estimates could
+   * be listed and approved/declined from the portal, but there was no
+   * way for a customer to actually open one as a document — no
+   * equivalent of the invoice view route below existed at all. Real PDF,
+   * same PdfService every staff-facing view uses, and this is what
+   * actually stamps viewedAt — "Estimate Viewed" automation depends on
+   * a customer having genuinely opened it, not just received the email.
+   */
+  @UseGuards(PortalCustomerGuard)
+  @Get('estimates/:id/view')
+  async viewEstimate(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string, @Res() res: Response) {
+    const estimate = await this.data.getEstimateForPdf(customer.companyId, customer.customerId, id);
+    await this.data.markEstimateViewed(customer.companyId, customer.customerId, id);
+    const { company, branding } = await this.companyContext.getCompanyAndBranding(customer.companyId);
+
+    const buffer = await this.pdf.generateEstimatePdf({
+      estimateNumber: estimate.estimateNumber,
+      status: estimate.status,
+      issueDate: estimate.createdAt,
+      validUntil: estimate.validUntil,
+      lineItems: estimate.lineItems.map((li) => ({
+        description: li.description,
+        quantity: Number(li.quantity),
+        unitOfMeasure: li.unitOfMeasure,
+        unitPrice: Number(li.unitPrice),
+        total: Number(li.total),
+      })),
+      subtotal: Number(estimate.subtotal),
+      discountAmount: Number(estimate.discountAmount),
+      taxRatePercent: Number(estimate.taxRate) * 100,
+      taxAmount: Number(estimate.taxAmount),
+      totalAmount: Number(estimate.totalAmount),
+      notes: estimate.notes,
+      terms: estimate.terms,
+      company,
+      branding,
+      customer: {
+        name: estimate.customer.businessName ?? `${estimate.customer.firstName ?? ''} ${estimate.customer.lastName ?? ''}`.trim(),
+        email: estimate.customer.email,
+        phone: estimate.customer.phone,
+      },
+      property: { addressLine1: estimate.property.addressLine1, city: estimate.property.city, state: estimate.property.state },
+    });
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="Estimate-${estimate.estimateNumber}.pdf"` });
+    res.send(buffer);
+  }
+
+  /**
+   * Real PDF now, replacing the bare unbranded HTML placeholder this
+   * used to return (no logo, no company info, no line items — just a
+   * total and a browser print dialog). Same PdfService/branding path as
+   * every staff-facing document, and this now stamps viewedAt too — the
+   * old version never recorded that a customer had actually opened it.
    */
   @UseGuards(PortalCustomerGuard)
   @Get('invoices/:id/view')
   async viewInvoice(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string, @Res() res: Response) {
-    const invoice = await this.data.getOwnedInvoice(customer.companyId, customer.customerId, id);
-    res.set('Content-Type', 'text/html');
-    res.send(this.renderInvoiceHtml(invoice));
+    const invoice = await this.data.getInvoiceForPdf(customer.companyId, customer.customerId, id);
+    await this.data.markInvoiceViewed(customer.companyId, customer.customerId, id);
+    const { company, branding } = await this.companyContext.getCompanyAndBranding(customer.companyId);
+    const portalUrl = `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
+    const balanceDue = invoice.totalAmount.toNumber() - invoice.amountPaid.toNumber();
+    const property = invoice.property ?? invoice.job?.property ?? null;
+
+    const buffer = await this.pdf.generateInvoicePdf({
+      invoiceNumber: invoice.invoiceNumber,
+      status: invoice.status,
+      issueDate: invoice.createdAt,
+      dueDate: invoice.dueDate,
+      lineItems: invoice.lineItems.map((li: any) => ({
+        description: li.description,
+        quantity: Number(li.quantity),
+        unitOfMeasure: li.unitOfMeasure,
+        unitPrice: Number(li.unitPrice),
+        total: Number(li.total),
+      })),
+      subtotal: invoice.subtotal.toNumber(),
+      discountAmount: invoice.discountAmount.toNumber(),
+      taxRatePercent: invoice.taxRate.toNumber() * 100,
+      taxAmount: invoice.taxAmount.toNumber(),
+      totalAmount: invoice.totalAmount.toNumber(),
+      amountPaid: invoice.amountPaid.toNumber(),
+      balanceDue,
+      notes: invoice.notes,
+      terms: invoice.terms,
+      paymentLinkUrl: balanceDue > 0 ? portalUrl : null,
+      company,
+      branding,
+      customer: {
+        name: invoice.customer.businessName ?? `${invoice.customer.firstName ?? ''} ${invoice.customer.lastName ?? ''}`.trim(),
+        email: invoice.customer.email,
+        phone: invoice.customer.phone,
+      },
+      property: { addressLine1: property?.addressLine1 ?? null, city: property?.city ?? null, state: property?.state ?? null },
+    });
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="Invoice-${invoice.invoiceNumber}.pdf"` });
+    res.send(buffer);
   }
 
   @UseGuards(PortalCustomerGuard)
@@ -227,14 +327,4 @@ export class PortalController {
     return this.chat.chat(customer.companyId, customer.customerId, dto.message, dto.history ?? []);
   }
 
-  private renderInvoiceHtml(invoice: any): string {
-    return `<!doctype html><html><head><meta charset="utf-8"><title>Invoice</title>
-      <style>body{font-family:sans-serif;padding:40px;color:#0f172a} .total{font-size:1.5rem;font-weight:600}</style>
-      </head><body>
-      <h1>Invoice ${invoice.invoiceNumber}</h1>
-      <p>Total: $${invoice.totalAmount.toNumber().toFixed(2)} — Paid: $${invoice.amountPaid.toNumber().toFixed(2)}</p>
-      <p class="total">Balance due: $${(invoice.totalAmount.toNumber() - invoice.amountPaid.toNumber()).toFixed(2)}</p>
-      <script>window.print()</script>
-      </body></html>`;
-  }
 }

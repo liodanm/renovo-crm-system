@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
+import { logAutomationEvent } from '../../common/utils/automation-event.util';
 
 /**
  * Every method here takes `customerId` as an explicit, required parameter
@@ -30,19 +31,48 @@ export class PortalDataService {
     const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
     if (estimate.status === 'accepted') throw new BadRequestException('This estimate has already been approved');
 
-    return this.prisma.estimate.update({
+    const updated = await this.prisma.estimate.update({
       where: { id: estimateId },
       data: { status: 'accepted', acceptedAt: new Date(), signatureDataUrl },
     });
+    await logAutomationEvent(this.prisma, {
+      companyId,
+      customerId,
+      ruleType: 'estimate_approved',
+      dedupeKey: `estimate-approved-${estimateId}`,
+      messageBody: `Estimate ${estimate.estimateNumber} approved by customer`,
+    });
+    return updated;
   }
 
   async declineEstimate(companyId: string, customerId: string, estimateId: string) {
-    await this.getOwnedEstimate(companyId, customerId, estimateId);
-    return this.prisma.estimate.update({ where: { id: estimateId }, data: { status: 'declined', declinedAt: new Date() } });
+    const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
+    const updated = await this.prisma.estimate.update({ where: { id: estimateId }, data: { status: 'declined', declinedAt: new Date() } });
+    await logAutomationEvent(this.prisma, {
+      companyId,
+      customerId,
+      ruleType: 'estimate_declined',
+      dedupeKey: `estimate-declined-${estimateId}`,
+      messageBody: `Estimate ${estimate.estimateNumber} declined by customer`,
+    });
+    return updated;
   }
 
   private async getOwnedEstimate(companyId: string, customerId: string, estimateId: string) {
     const estimate = await this.prisma.estimate.findFirst({ where: { id: estimateId, companyId, customerId } });
+    if (!estimate) throw new NotFoundException('Estimate not found');
+    return estimate;
+  }
+
+  /** Full includes for PDF generation — kept separate from the lightweight
+   * getOwnedEstimate() above (used by approve/decline, which only need
+   * the status field) rather than loading line items/customer/property
+   * on every call that doesn't need them. */
+  async getEstimateForPdf(companyId: string, customerId: string, estimateId: string) {
+    const estimate = await this.prisma.estimate.findFirst({
+      where: { id: estimateId, companyId, customerId },
+      include: { customer: true, property: true, lineItems: { orderBy: { sortOrder: 'asc' } } },
+    });
     if (!estimate) throw new NotFoundException('Estimate not found');
     return estimate;
   }
@@ -58,10 +88,62 @@ export class PortalDataService {
   async getOwnedInvoice(companyId: string, customerId: string, invoiceId: string) {
     const invoice = await this.prisma.invoice.findFirst({
       where: { id: invoiceId, companyId, customerId },
-      include: { job: { include: { property: true } } },
+      include: {
+        customer: true,
+        property: true,
+        job: { include: { property: true } },
+        payments: { where: { status: 'succeeded' }, select: { amount: true, processedAt: true, method: true } },
+      },
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
     return invoice;
+  }
+
+  /** Full data for PDF generation — invoice_line_items isn't wired as a
+   * typed Prisma relation on Invoice yet, so line items are fetched with
+   * one small raw query rather than left out of the customer's PDF. */
+  async getInvoiceForPdf(companyId: string, customerId: string, invoiceId: string) {
+    const invoice = await this.getOwnedInvoice(companyId, customerId, invoiceId);
+    const lineItems = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw<any[]>`
+      SELECT description, quantity, unit_price AS "unitPrice", total, unit_of_measure AS "unitOfMeasure"
+      FROM invoice_line_items WHERE invoice_id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC
+    `);
+    return { ...invoice, lineItems };
+  }
+
+  /**
+   * Stamps viewedAt the first time a customer actually opens their
+   * estimate/invoice PDF — this is the real signal "Estimate Viewed"/
+   * "Invoice Viewed" automation depends on, not just "an email was sent."
+   * Only ever set once: a customer reopening the same PDF later
+   * shouldn't reset when the business considers it "first viewed."
+   */
+  async markEstimateViewed(companyId: string, customerId: string, estimateId: string) {
+    const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
+    if (!estimate.viewedAt) {
+      await this.prisma.estimate.update({ where: { id: estimateId }, data: { viewedAt: new Date() } });
+      await logAutomationEvent(this.prisma, {
+        companyId,
+        customerId,
+        ruleType: 'estimate_viewed',
+        dedupeKey: `estimate-viewed-${estimateId}`,
+        messageBody: `Estimate ${estimate.estimateNumber} viewed by customer`,
+      });
+    }
+  }
+
+  async markInvoiceViewed(companyId: string, customerId: string, invoiceId: string) {
+    const invoice = await this.getOwnedInvoice(companyId, customerId, invoiceId);
+    if (!invoice.viewedAt) {
+      await this.prisma.invoice.update({ where: { id: invoiceId }, data: { viewedAt: new Date() } });
+      await logAutomationEvent(this.prisma, {
+        companyId,
+        customerId,
+        ruleType: 'invoice_viewed',
+        dedupeKey: `invoice-viewed-${invoiceId}`,
+        messageBody: `Invoice ${invoice.invoiceNumber} viewed by customer`,
+      });
+    }
   }
 
   async getServiceHistory(companyId: string, customerId: string) {

@@ -10,11 +10,13 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
 import { PasswordService } from '../auth/services/password.service';
 import { MailModule } from '../mail/mail.module';
+import { DocumentsModule } from '../documents/documents.module';
 
 @Module({
   imports: [
     JwtModule.register({}), // secret passed per-call (PORTAL_JWT_SECRET), same pattern as the staff AuthModule
     MailModule,
+    DocumentsModule,
   ],
   controllers: [PortalController],
   providers: [

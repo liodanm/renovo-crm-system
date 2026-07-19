@@ -8,6 +8,7 @@ import { estimatesApi, SERVICE_TYPES } from '../../../lib/api/estimates';
 import { PermissionGate } from '../../../components/auth/permission-gate';
 import { ApiError } from '../../../lib/api/api-client';
 import { AppShell } from '../../../components/layout/AppShell';
+import { DocumentEmailSection } from '../../../components/documents/DocumentEmailSection';
 
 function customerName(customer: { firstName: string | null; lastName: string | null; businessName: string | null }): string {
   return customer.businessName ?? (`${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || 'Unknown');
@@ -27,19 +28,6 @@ export default function EstimateDetailPage() {
   const { data: estimate, error, isLoading, mutate } = useSWR(['estimate', params.id], () => estimatesApi.get(params.id));
   const [actionError, setActionError] = useState<string | null>(null);
   const [isActing, setIsActing] = useState(false);
-
-  async function handleSend() {
-    setIsActing(true);
-    setActionError(null);
-    try {
-      await estimatesApi.send(params.id);
-      await mutate();
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Failed to send estimate.');
-    } finally {
-      setIsActing(false);
-    }
-  }
 
   async function handleConvertToJob() {
     setIsActing(true);
@@ -80,15 +68,6 @@ export default function EstimateDetailPage() {
             )}
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {estimate.status === 'draft' && (
-                <button
-                  onClick={handleSend}
-                  disabled={isActing}
-                  className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-                >
-                  {isActing ? 'Sending…' : 'Send Estimate'}
-                </button>
-              )}
               {estimate.status === 'accepted' && (
                 <button
                   onClick={handleConvertToJob}
@@ -99,6 +78,16 @@ export default function EstimateDetailPage() {
                 </button>
               )}
             </div>
+
+            <DocumentEmailSection
+              documentLabel="Estimate"
+              customerEmail={estimate.customer.email}
+              hasBeenSent={estimate.status !== 'draft'}
+              pdfPath={estimatesApi.pdfPath(estimate.id)}
+              onSendEmail={(toEmail) => estimatesApi.sendEmail(estimate.id, toEmail).then(async (r) => { await mutate(); return r; })}
+              onGetHistory={() => estimatesApi.getEmailHistory(estimate.id)}
+              historyKey={`estimate-email-history-${estimate.id}`}
+            />
 
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
               <table className="w-full text-sm">

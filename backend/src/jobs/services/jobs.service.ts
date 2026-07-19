@@ -19,12 +19,11 @@ export class JobsService {
    * serviceDetails — a real preservation, not a lossy summary.
    */
   async createFromEstimate(companyId: string, estimateId: string) {
-    const estimateRows = await this.prisma.tenant.$queryRaw<
-      { id: string; customerId: string; propertyId: string; status: string; totalAmount: string; notes: string | null }[]
-    >`
+    const estimateRows: { id: string; customerId: string; propertyId: string; status: string; totalAmount: string; notes: string | null }[] =
+      await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, customer_id AS "customerId", property_id AS "propertyId", status, total_amount AS "totalAmount", notes
       FROM estimates WHERE id = ${estimateId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (estimateRows.length === 0) throw new NotFoundException('Estimate not found');
     const estimate = estimateRows[0];
     if (estimate.status !== 'accepted') {
@@ -77,7 +76,10 @@ export class JobsService {
   }
 
   async findAll(companyId: string, query: QueryJobsDto) {
-    return this.prisma.tenant.$queryRaw`
+    // Same reasoning as InvoicesService.findAll's LIMIT: a safety net
+    // against unbounded growth, not a contract change — real
+    // page/pageSize pagination here is genuine follow-up work.
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT j.id, j.job_number AS "jobNumber", j.title, j.status, j.price, j.customer_id AS "customerId", j.property_id AS "propertyId",
              c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName",
              p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity", p.state AS "propertyState"
@@ -88,45 +90,54 @@ export class JobsService {
         AND (${query.status ?? null}::text IS NULL OR j.status = ${query.status ?? null})
         AND (${query.customerId ?? null}::uuid IS NULL OR j.customer_id = ${query.customerId ?? null}::uuid)
       ORDER BY j.created_at DESC
-    `;
+      LIMIT 200
+    `);
   }
 
   async findOne(companyId: string, id: string, txOverride?: { $queryRaw: any }) {
-    const client = txOverride ?? this.prisma.tenant;
-    const jobRows = await client.$queryRaw<any[]>`
-      SELECT j.*, j.job_number AS "jobNumber", j.customer_id AS "customerId", j.property_id AS "propertyId",
-             j.estimate_id AS "estimateId", j.assigned_user_id AS "assignedUserId",
-             j.internal_notes AS "internalNotes", j.calculated_labor_hours AS "calculatedLaborHours",
-             j.billable_labor_hours AS "billableLaborHours", j.actual_start AS "actualStart", j.actual_end AS "actualEnd",
-             j.scheduled_start AS "scheduledStart", j.scheduled_end AS "scheduledEnd",
-             j.start_latitude AS "startLatitude", j.start_longitude AS "startLongitude",
-             j.end_latitude AS "endLatitude", j.end_longitude AS "endLongitude",
-             j.customer_signature_data_url AS "customerSignatureDataUrl",
-             j.signature_unavailable_reason AS "signatureUnavailableReason",
-             j.completion_notes AS "completionNotes", j.recommended_future_services AS "recommendedFutureServices",
-             j.created_at AS "createdAt",
-             c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName",
-             p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity", p.state AS "propertyState"
-      FROM jobs j
-      JOIN customers c ON c.id = j.customer_id
-      JOIN properties p ON p.id = j.property_id
-      WHERE j.id = ${id}::uuid AND j.company_id = ${companyId}::uuid
-    `;
-    if (jobRows.length === 0) throw new NotFoundException('Job not found');
-    const job = jobRows[0];
+    const run = async (client: { $queryRaw: any }) => {
+      const jobRows = await client.$queryRaw`
+        SELECT j.*, j.job_number AS "jobNumber", j.customer_id AS "customerId", j.property_id AS "propertyId",
+               j.estimate_id AS "estimateId", j.assigned_user_id AS "assignedUserId",
+               j.internal_notes AS "internalNotes", j.calculated_labor_hours AS "calculatedLaborHours",
+               j.billable_labor_hours AS "billableLaborHours", j.actual_start AS "actualStart", j.actual_end AS "actualEnd",
+               j.scheduled_start AS "scheduledStart", j.scheduled_end AS "scheduledEnd",
+               j.start_latitude AS "startLatitude", j.start_longitude AS "startLongitude",
+               j.end_latitude AS "endLatitude", j.end_longitude AS "endLongitude",
+               j.customer_signature_data_url AS "customerSignatureDataUrl",
+               j.signature_unavailable_reason AS "signatureUnavailableReason",
+               j.completion_notes AS "completionNotes", j.recommended_future_services AS "recommendedFutureServices",
+               j.created_at AS "createdAt",
+               c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName",
+               p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity", p.state AS "propertyState"
+        FROM jobs j
+        JOIN customers c ON c.id = j.customer_id
+        JOIN properties p ON p.id = j.property_id
+        WHERE j.id = ${id}::uuid AND j.company_id = ${companyId}::uuid
+      `;
+      if (jobRows.length === 0) throw new NotFoundException('Job not found');
+      const job = jobRows[0];
 
-    const lineItems = await client.$queryRaw`
-      SELECT id, description, quantity, unit_price AS "unitPrice", total, service_type AS "serviceType",
-             unit_of_measure AS "unitOfMeasure", service_details AS "serviceDetails", notes,
-             service_catalog_item_id AS "serviceCatalogItemId"
-      FROM job_line_items WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC
-    `;
-    const statusHistory = await client.$queryRaw`
-      SELECT id, from_status AS "fromStatus", to_status AS "toStatus", note, changed_at AS "changedAt", latitude, longitude
-      FROM job_status_history WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid ORDER BY changed_at DESC
-    `;
+      const lineItems = await client.$queryRaw`
+        SELECT id, description, quantity, unit_price AS "unitPrice", total, service_type AS "serviceType",
+               unit_of_measure AS "unitOfMeasure", service_details AS "serviceDetails", notes,
+               service_catalog_item_id AS "serviceCatalogItemId"
+        FROM job_line_items WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC
+      `;
+      const statusHistory = await client.$queryRaw`
+        SELECT id, from_status AS "fromStatus", to_status AS "toStatus", note, changed_at AS "changedAt", latitude, longitude
+        FROM job_status_history WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid ORDER BY changed_at DESC
+      `;
 
-    return { ...job, lineItems, statusHistory };
+      return { ...job, lineItems, statusHistory };
+    };
+
+    // Same fix as every other findOne in this codebase: raw $queryRaw
+    // calls are never covered by the tenant-context Prisma extension —
+    // only skipped when a txOverride is passed, since that caller's own
+    // withTenantContext transaction already set the session variable.
+    if (txOverride) return run(txOverride);
+    return this.prisma.withTenantContext(companyId, run);
   }
 
   async update(companyId: string, id: string, dto: UpdateJobDto) {
@@ -135,13 +146,13 @@ export class JobsService {
       throw new BadRequestException(`Cannot edit a job with status '${existing.status}' — only draft or scheduled jobs can be edited`);
     }
     if (dto.assignedUserId) {
-      const belongs = await this.prisma.tenant.$queryRaw<{ id: string }[]>`
+      const belongs: { id: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
         SELECT id FROM company_users WHERE user_id = ${dto.assignedUserId}::uuid AND company_id = ${companyId}::uuid
-      `;
+      `);
       if (belongs.length === 0) throw new ForbiddenException('That user is not a member of this company');
     }
 
-    await this.prisma.tenant.$executeRaw`
+    await this.prisma.withTenantContext(companyId, (tx) => tx.$executeRaw`
       UPDATE jobs SET
         title = ${dto.title ?? existing.title},
         description = ${dto.description ?? existing.description},
@@ -150,7 +161,7 @@ export class JobsService {
         assigned_user_id = ${dto.assignedUserId ?? existing.assignedUserId ?? null}::uuid,
         updated_at = now()
       WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     return this.findOne(companyId, id);
   }
 

@@ -208,6 +208,8 @@ model Property {
   customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   jobs      Job[]
   estimates Estimate[]
+  invoices  Invoice[]
+  payments  Payment[]
   photos    Photo[]
 
   @@map("properties")
@@ -241,6 +243,7 @@ model Estimate {
   customer  Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   property  Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   lineItems EstimateLineItem[]
+  invoices  Invoice[]
 
   @@map("estimates")
 }
@@ -420,6 +423,7 @@ model ServiceCatalogItem {
 
   estimateLineItems EstimateLineItem[]
   jobLineItems      JobLineItem[]
+  invoiceLineItems  InvoiceLineItem[]
 
   @@unique([companyId, name])
   @@map("service_catalog_items")
@@ -492,42 +496,91 @@ model JobAuditLog {
 }
 
 model Invoice {
-  id            String    @id @default(uuid())
-  companyId     String    @map("company_id")
-  customerId    String    @map("customer_id")
-  jobId         String?   @map("job_id")
-  invoiceNumber String    @map("invoice_number")
-  status        String    @default("draft")
-  totalAmount   Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
-  amountPaid    Decimal   @default(0) @map("amount_paid") @db.Decimal(12, 2)
-  dueDate       DateTime? @map("due_date") @db.Date
-  paidAt        DateTime? @map("paid_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id                String    @id @default(uuid())
+  companyId         String    @map("company_id")
+  customerId        String    @map("customer_id")
+  propertyId        String?   @map("property_id")
+  jobId             String?   @map("job_id")
+  estimateId        String?   @map("estimate_id")
+  invoiceNumber     String    @map("invoice_number")
+  status            String    @default("draft")
+  subtotal          Decimal   @default(0) @db.Decimal(12, 2)
+  discountType      String?   @map("discount_type")
+  discountAmount    Decimal   @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  taxRate           Decimal   @default(0) @map("tax_rate") @db.Decimal(5, 4)
+  taxAmount         Decimal   @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount       Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  amountPaid        Decimal   @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  // Generated column — never written by the application, always read
+  // back after insert/update, same reasoning as every other generated
+  // total in this schema.
+  balanceDue        Decimal   @map("balance_due") @db.Decimal(12, 2)
+  dueDate           DateTime? @map("due_date") @db.Date
+  sentAt            DateTime? @map("sent_at")
+  viewedAt          DateTime? @map("viewed_at")
+  paidAt            DateTime? @map("paid_at")
+  notes             String?
+  terms             String?
+  createdBy         String?   @map("created_by")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  job      Job?      @relation(fields: [jobId], references: [id])
-  payments Payment[]
+  customer Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  property Property?  @relation(fields: [propertyId], references: [id])
+  job      Job?       @relation(fields: [jobId], references: [id])
+  estimate Estimate?  @relation(fields: [estimateId], references: [id])
+  lineItems InvoiceLineItem[]
+  payments  Payment[]
 
   @@map("invoices")
 }
 
 model Payment {
-  id          String    @id @default(uuid())
-  companyId   String    @map("company_id")
-  invoiceId   String    @map("invoice_id")
-  customerId  String    @map("customer_id")
-  amount      Decimal   @db.Decimal(12, 2)
-  method      String
-  status      String    @default("pending")
+  id                  String    @id @default(uuid())
+  companyId           String    @map("company_id")
+  invoiceId           String    @map("invoice_id")
+  customerId          String    @map("customer_id")
+  propertyId          String?   @map("property_id")
+  amount              Decimal   @db.Decimal(12, 2)
+  method              String
+  status              String    @default("pending")
+  referenceNumber     String?   @map("reference_number")
+  notes               String?
+  paymentDate         DateTime? @map("payment_date") @db.Date
+  receiptNumber       String?   @map("receipt_number")
+  refundedAmount      Decimal   @default(0) @map("refunded_amount") @db.Decimal(12, 2)
   stripePaymentIntentId String? @map("stripe_payment_intent_id")
-  processedAt DateTime? @map("processed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  stripeChargeId      String?   @map("stripe_charge_id")
+  processedAt         DateTime? @map("processed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
   invoice  Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id])
 
   @@map("payments")
+}
+
+model InvoiceLineItem {
+  id                    String   @id @default(uuid())
+  companyId             String   @map("company_id")
+  invoiceId             String   @map("invoice_id")
+  description           String
+  quantity              Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice             Decimal  @default(0) @map("unit_price") @db.Decimal(12, 2)
+  // Generated column, same as estimate_line_items/job_line_items — never
+  // written by the application, always read back after insert.
+  total                 Decimal  @db.Decimal(12, 2)
+  sortOrder             Int      @default(0) @map("sort_order")
+  serviceType           String?  @map("service_type")
+  unitOfMeasure         String?  @map("unit_of_measure")
+  serviceCatalogItemId  String?  @map("service_catalog_item_id")
+
+  invoice            Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  serviceCatalogItem ServiceCatalogItem? @relation(fields: [serviceCatalogItemId], references: [id])
+
+  @@map("invoice_line_items")
 }
 
 model Notification {

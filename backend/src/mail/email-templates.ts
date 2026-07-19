@@ -55,6 +55,28 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
         subject: escape(data.subject ?? 'A message from your service provider'),
         html: wrapper(`<p>${escape(data.body).replace(/\n/g, '<br>')}</p>`),
       };
+    case 'estimate-send':
+      return {
+        subject: `Estimate ${escape(data.estimateNumber)} from ${escape(data.companyName)}`,
+        html: wrapper(
+          `<p>Hi ${escape(data.customerName)},</p>` +
+            `<p>${escape(data.companyName)} has prepared an estimate for you — please find it attached as a PDF.</p>` +
+            `<p><strong>Estimate ${escape(data.estimateNumber)}</strong> · Total: ${escape(data.totalFormatted)}</p>` +
+            (data.validUntilFormatted ? `<p>Valid until ${escape(data.validUntilFormatted)}.</p>` : '') +
+            `<p><a href="${data.portalUrl}">View and respond in your customer portal</a></p>`,
+        ),
+      };
+    case 'invoice-send':
+      return {
+        subject: `Invoice ${escape(data.invoiceNumber)} from ${escape(data.companyName)}`,
+        html: wrapper(
+          `<p>Hi ${escape(data.customerName)},</p>` +
+            `<p>Your invoice from ${escape(data.companyName)} is attached as a PDF.</p>` +
+            `<p><strong>Invoice ${escape(data.invoiceNumber)}</strong> · Balance due: ${escape(data.balanceDueFormatted)}</p>` +
+            (data.dueDateFormatted ? `<p>Due ${escape(data.dueDateFormatted)}.</p>` : '') +
+            `<p><a href="${data.portalUrl}">View and pay online in your customer portal</a></p>`,
+        ),
+      };
     default:
       return null;
   }

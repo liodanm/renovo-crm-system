@@ -7,6 +7,12 @@ import { computeEstimateTotals } from './estimate-totals.util';
 import { computeLineItemProfit, resolveLaborRate } from './estimate-profit.util';
 import { validateServiceDetails } from '../dto/service-details/validate-service-details';
 import { JobsService } from '../../jobs/services/jobs.service';
+import { PdfService } from '../../documents/services/pdf.service';
+import { EmailLogService } from '../../documents/services/email-log.service';
+import { CompanyContextService } from '../../documents/services/company-context.service';
+import { MailService } from '../../mail/mail.service';
+import { ConfigService } from '@nestjs/config';
+import { AutomationService } from '../../automation/services/automation.service';
 
 // Fields only estimates.profitability holders should ever see — stripped
 // from every response otherwise, not just hidden client-side (which
@@ -22,6 +28,12 @@ export class EstimatesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jobsService: JobsService,
+    private readonly pdfService: PdfService,
+    private readonly emailLogService: EmailLogService,
+    private readonly companyContext: CompanyContextService,
+    private readonly mailService: MailService,
+    private readonly config: ConfigService,
+    private readonly automation: AutomationService,
   ) {}
 
   async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean) {
@@ -119,10 +131,121 @@ export class EstimatesService {
     // sentAt is what AutomationService.runEstimateFollowups reads to know
     // when the follow-up clock started — this is the one write in this
     // whole service that automation directly depends on.
-    return this.prisma.tenant.estimate.update({
+    const updated = await this.prisma.tenant.estimate.update({
       where: { id },
       data: { status: 'sent', sentAt: new Date() },
     });
+    // Timestamped dedupeKey (not just the estimate id) — being sent
+    // again later is a genuinely new event worth its own log row, unlike
+    // viewed/approved/declined below, which only ever happen once.
+    await this.automation.logEvent(companyId, estimate.customerId, 'estimate_sent', `estimate-sent-${id}-${Date.now()}`, `Estimate ${estimate.estimateNumber} sent`);
+    return updated;
+  }
+
+  /**
+   * The real PDF, generated fresh from live data every time — never
+   * stored as a file. An estimate's numbers can still be edited while in
+   * draft, and even after sending, the branding/company info it renders
+   * with should reflect Settings as they are *right now*, not whatever
+   * they were the day this was first sent.
+   */
+  async generatePdf(companyId: string, id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const estimate = await this.findOne(companyId, id, true);
+    const { company, branding } = await this.companyContext.getCompanyAndBranding(companyId);
+
+    const buffer = await this.pdfService.generateEstimatePdf({
+      estimateNumber: estimate.estimateNumber,
+      status: estimate.status,
+      issueDate: estimate.createdAt,
+      validUntil: estimate.validUntil,
+      lineItems: estimate.lineItems.map((li: any) => ({
+        description: li.description,
+        quantity: Number(li.quantity),
+        unitOfMeasure: li.unitOfMeasure,
+        unitPrice: Number(li.unitPrice),
+        total: Number(li.total),
+      })),
+      subtotal: Number(estimate.subtotal),
+      discountAmount: Number(estimate.discountAmount),
+      taxRatePercent: Number(estimate.taxRate) * 100,
+      taxAmount: Number(estimate.taxAmount),
+      totalAmount: Number(estimate.totalAmount),
+      notes: estimate.notes,
+      terms: estimate.terms,
+      company,
+      branding,
+      customer: {
+        name: estimate.customer.businessName ?? `${estimate.customer.firstName ?? ''} ${estimate.customer.lastName ?? ''}`.trim(),
+        email: estimate.customer.email,
+        phone: estimate.customer.phone,
+      },
+      property: {
+        addressLine1: estimate.property.addressLine1,
+        city: estimate.property.city,
+        state: estimate.property.state,
+      },
+    });
+
+    return { buffer, filename: `Estimate-${estimate.estimateNumber}.pdf` };
+  }
+
+  /**
+   * The real send/resend path. First send transitions draft -> sent
+   * (reusing send() above rather than re-implementing that check);
+   * resending an already-sent estimate skips straight to generating and
+   * emailing again — a genuinely new email_log row each time, which is
+   * exactly what "email history" and "resend" are supposed to produce:
+   * a real trail of every attempt, not one row silently overwritten.
+   */
+  async sendEmail(companyId: string, id: string, userId: string, toEmailOverride?: string) {
+    const existing = await this.findOne(companyId, id, true);
+    if (existing.status === 'draft') {
+      await this.send(companyId, id);
+    } else if (['declined', 'expired'].includes(existing.status)) {
+      throw new BadRequestException(`Cannot email an estimate with status '${existing.status}'`);
+    }
+
+    const recipientEmail = toEmailOverride || existing.customer.email;
+    if (!recipientEmail) throw new BadRequestException('This customer has no email address on file');
+
+    const { buffer, filename } = await this.generatePdf(companyId, id);
+    const { company } = await this.companyContext.getCompanyAndBranding(companyId);
+    const replyTo = await this.companyContext.getReplyToEmail(companyId);
+    const portalUrl = `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
+
+    const emailLogId = await this.emailLogService.create({
+      companyId,
+      relatedType: 'estimate',
+      relatedId: id,
+      recipientEmail,
+      subject: `Estimate ${existing.estimateNumber} from ${company.dba || company.name}`,
+      template: 'estimate-send',
+      sentByUserId: userId,
+    });
+
+    await this.mailService.sendDocumentEmail({
+      to: recipientEmail,
+      template: 'estimate-send',
+      companyId,
+      emailLogId,
+      replyTo: replyTo ?? undefined,
+      data: {
+        customerName: existing.customer.businessName ?? `${existing.customer.firstName ?? ''} ${existing.customer.lastName ?? ''}`.trim(),
+        companyName: company.dba || company.name,
+        estimateNumber: existing.estimateNumber,
+        totalFormatted: `$${Number(existing.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+        validUntilFormatted: existing.validUntil ? new Date(existing.validUntil).toLocaleDateString('en-US', { dateStyle: 'medium' }) : null,
+        portalUrl,
+      },
+      attachment: { filename, contentBase64: buffer.toString('base64'), contentType: 'application/pdf' },
+    });
+
+    return { success: true, emailLogId, recipientEmail };
+  }
+
+  async getEmailHistory(companyId: string, id: string) {
+    await this.findOne(companyId, id); // 404s if the estimate doesn't exist/isn't this company's
+    return this.emailLogService.listForDocument(companyId, 'estimate', id);
   }
 
   async remove(companyId: string, id: string) {

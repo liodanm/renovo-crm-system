@@ -78,7 +78,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Automation', href: '/automation', icon: Zap, comingSoon: true },
       { label: 'Service Catalog', href: '/service-catalog', icon: BookOpen },
       { label: 'Assets', href: '/assets', icon: Boxes, comingSoon: true },
-      { label: 'Reports', href: '/reports', icon: BarChart3, comingSoon: true },
+      { label: 'Reports', href: '/reports', icon: BarChart3 },
     ],
   },
 ];

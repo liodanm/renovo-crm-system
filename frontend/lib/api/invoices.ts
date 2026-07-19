@@ -70,6 +70,12 @@ export const invoicesApi = {
   update: (id: string, input: { dueDate?: string; discountType?: string; discountValue?: number; taxRatePercent?: number; notes?: string; terms?: string }) =>
     apiFetch<Invoice>(`/invoices/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   send: (id: string) => apiFetch<Invoice>(`/invoices/${id}/send`, { method: 'POST' }),
+  sendEmail: (id: string, toEmail?: string) =>
+    apiFetch<{ success: boolean; emailLogId: string; recipientEmail: string }>(`/invoices/${id}/send-email`, { method: 'POST', body: JSON.stringify({ toEmail }) }),
+  resendEmail: (id: string, toEmail?: string) =>
+    apiFetch<{ success: boolean; emailLogId: string; recipientEmail: string }>(`/invoices/${id}/resend-email`, { method: 'POST', body: JSON.stringify({ toEmail }) }),
+  getEmailHistory: (id: string) => apiFetch<import('./estimates').EmailLogEntry[]>(`/invoices/${id}/email-history`),
+  pdfPath: (id: string) => `/invoices/${id}/pdf`,
   void: (id: string) => apiFetch<Invoice>(`/invoices/${id}/void`, { method: 'POST' }),
 };
 

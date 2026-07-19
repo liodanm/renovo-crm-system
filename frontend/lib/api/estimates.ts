@@ -28,7 +28,7 @@ export interface Estimate {
   status: string;
   customerId: string;
   propertyId: string;
-  customer: { id: string; firstName: string | null; lastName: string | null; businessName: string | null };
+  customer: { id: string; firstName: string | null; lastName: string | null; businessName: string | null; email: string | null; phone: string | null };
   property: { id: string; addressLine1: string; city: string; state: string };
   lineItems: EstimateLineItem[];
   subtotal: string;
@@ -93,8 +93,28 @@ export const estimatesApi = {
 
   convertToJob: (id: string) => apiFetch<{ id: string; jobNumber: string; status: string }>(`/estimates/${id}/convert-to-job`, { method: 'POST' }),
 
+  sendEmail: (id: string, toEmail?: string) =>
+    apiFetch<{ success: boolean; emailLogId: string; recipientEmail: string }>(`/estimates/${id}/send-email`, { method: 'POST', body: JSON.stringify({ toEmail }) }),
+
+  resendEmail: (id: string, toEmail?: string) =>
+    apiFetch<{ success: boolean; emailLogId: string; recipientEmail: string }>(`/estimates/${id}/resend-email`, { method: 'POST', body: JSON.stringify({ toEmail }) }),
+
+  getEmailHistory: (id: string) => apiFetch<EmailLogEntry[]>(`/estimates/${id}/email-history`),
+
+  pdfPath: (id: string) => `/estimates/${id}/pdf`,
+
   remove: (id: string) => apiFetch<{ deleted: boolean }>(`/estimates/${id}`, { method: 'DELETE' }),
 };
+
+export interface EmailLogEntry {
+  id: string;
+  recipientEmail: string;
+  subject: string;
+  status: 'queued' | 'sent' | 'delivered' | 'failed' | 'bounced';
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 function buildQueryString(params: Record<string, unknown>): string {
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');

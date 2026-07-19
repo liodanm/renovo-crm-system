@@ -2,8 +2,12 @@ import { Module } from '@nestjs/common';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './services/invoices.service';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { DocumentsModule } from '../documents/documents.module';
+import { MailModule } from '../mail/mail.module';
+import { AutomationModule } from '../automation/automation.module';
 
 @Module({
+  imports: [DocumentsModule, MailModule, AutomationModule],
   controllers: [InvoicesController],
   providers: [PrismaService, InvoicesService],
   exports: [InvoicesService],

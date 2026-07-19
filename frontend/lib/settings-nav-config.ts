@@ -33,8 +33,16 @@ export const settingsNavGroups: SettingsNavGroup[] = [
   {
     label: 'Money',
     items: [
-      { key: 'payments', label: 'Payments', description: 'Payment methods and processing', comingSoon: true },
+      { key: 'payments', label: 'Payments', description: 'Payment methods and Stripe status' },
       { key: 'api-keys', label: 'API Keys', description: 'Programmatic access to your account', comingSoon: true },
+    ],
+  },
+  {
+    label: 'Communication',
+    items: [
+      { key: 'email', label: 'Email', description: 'Postmark status, sender identity, test email' },
+      { key: 'sms', label: 'SMS', description: 'Twilio status, test message' },
+      { key: 'storage', label: 'Storage', description: 'File storage status and upload limits' },
     ],
   },
   {

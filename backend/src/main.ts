@@ -1,9 +1,10 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, INestApplication } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { IntegrationStatusService } from './common/integrations/integration-status.service';
 
 /**
  * DATABASE_URL/PORTAL_JWT_SECRET (and JWT_ACCESS_SECRET/JWT_REFRESH_SECRET,
@@ -30,24 +31,24 @@ function assertRequiredEnvVars() {
   }
 }
 
-function logIntegrationStatus() {
-  const integrations: Array<{ name: string; requiredVars: string[]; feature: string }> = [
-    { name: 'Twilio (SMS)', requiredVars: ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'], feature: 'automation SMS reminders, AI receptionist' },
-    { name: 'Postmark (email)', requiredVars: ['POSTMARK_SERVER_TOKEN', 'MAIL_FROM_ADDRESS'], feature: 'all transactional/automation email' },
-    { name: 'Stripe (payments)', requiredVars: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'], feature: 'portal invoice payment' },
-    { name: 'AWS S3 (file storage)', requiredVars: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_S3_BUCKET'], feature: 'photo uploads' },
-  ];
-
+function logIntegrationStatus(app: INestApplication) {
+  // Resolved from the same DI-registered service Settings' new
+  // Payment/Email/SMS/Storage pages read at request time — this was a
+  // second, hand-maintained copy of the same env-var list before;
+  // eliminated by moving this call to after app creation (it only needs
+  // optional integrations, unlike assertRequiredEnvVars above, which
+  // must run before anything else since a broken DATABASE_URL could
+  // hang module initialization itself).
+  const service = app.get(IntegrationStatusService);
   // eslint-disable-next-line no-console
   console.log('\n--- Integration status ---');
-  for (const integration of integrations) {
-    const missing = integration.requiredVars.filter((key) => !process.env[key]);
-    if (missing.length === 0) {
+  for (const integration of service.getAll()) {
+    if (integration.configured) {
       // eslint-disable-next-line no-console
       console.log(`  [OK] ${integration.name}`);
     } else {
       // eslint-disable-next-line no-console
-      console.warn(`  [NOT CONFIGURED] ${integration.name} — ${integration.feature} will not work. Missing: ${missing.join(', ')}`);
+      console.warn(`  [NOT CONFIGURED] ${integration.name} — ${integration.feature} will not work. Missing: ${integration.missingVars.join(', ')}`);
     }
   }
   // eslint-disable-next-line no-console
@@ -56,10 +57,11 @@ function logIntegrationStatus() {
 
 async function bootstrap() {
   assertRequiredEnvVars();
-  logIntegrationStatus();
 
   const app = await NestFactory.create(AppModule, { rawBody: true, bufferLogs: true }); // Stripe webhook signature verification needs the exact raw bytes sent, not a re-serialized JSON.parse(body) — see PortalController.handleStripeWebhook
   app.useLogger(app.get(Logger)); // pino replaces Nest's default console logger for everything from here on — bufferLogs above holds early framework logs (module init, route mapping) until this line, so nothing before it is lost to the old logger
+
+  logIntegrationStatus(app);
 
   app.use(helmet());
   app.use(cookieParser());

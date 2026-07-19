@@ -23,21 +23,21 @@ export class JobFieldOpsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async assertJobExists(companyId: string, jobId: string) {
-    const rows = await this.prisma.tenant.$queryRaw<{ id: string }[]>`
+    const rows: { id: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id FROM jobs WHERE id = ${jobId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (rows.length === 0) throw new NotFoundException('Job not found');
   }
 
   // ---- Chemical usage ----
 
   async listChemicalUsage(companyId: string, jobId: string): Promise<ChemicalUsageRow[]> {
-    return this.prisma.tenant.$queryRaw<ChemicalUsageRow[]>`
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, chemical_name AS "chemicalName", quantity, unit, notes, created_at AS "createdAt"
       FROM job_chemical_usage
       WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
       ORDER BY created_at ASC
-    `;
+    `);
   }
 
   async addChemicalUsage(companyId: string, jobId: string, userId: string, dto: CreateChemicalUsageDto, gps?: { latitude?: number; longitude?: number }) {
@@ -55,10 +55,10 @@ export class JobFieldOpsService {
   }
 
   async updateChemicalUsage(companyId: string, jobId: string, usageId: string, userId: string, dto: UpdateChemicalUsageDto, gps?: { latitude?: number; longitude?: number }) {
-    const existingRows = await this.prisma.tenant.$queryRaw<ChemicalUsageRow[]>`
+    const existingRows: ChemicalUsageRow[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, chemical_name AS "chemicalName", quantity, unit, notes, created_at AS "createdAt"
       FROM job_chemical_usage WHERE id = ${usageId}::uuid AND job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (existingRows.length === 0) throw new NotFoundException('Chemical usage entry not found');
     const previous = existingRows[0];
 
@@ -80,10 +80,10 @@ export class JobFieldOpsService {
   }
 
   async removeChemicalUsage(companyId: string, jobId: string, usageId: string, userId: string, gps?: { latitude?: number; longitude?: number }) {
-    const existingRows = await this.prisma.tenant.$queryRaw<ChemicalUsageRow[]>`
+    const existingRows: ChemicalUsageRow[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, chemical_name AS "chemicalName", quantity, unit, notes, created_at AS "createdAt"
       FROM job_chemical_usage WHERE id = ${usageId}::uuid AND job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (existingRows.length === 0) throw new NotFoundException('Chemical usage entry not found');
     const previous = existingRows[0];
 
@@ -97,12 +97,12 @@ export class JobFieldOpsService {
   // ---- Equipment usage ----
 
   async listEquipmentUsage(companyId: string, jobId: string): Promise<EquipmentUsageRow[]> {
-    return this.prisma.tenant.$queryRaw<EquipmentUsageRow[]>`
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, equipment_name AS "equipmentName", notes, created_at AS "createdAt"
       FROM job_equipment_usage
       WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
       ORDER BY created_at ASC
-    `;
+    `);
   }
 
   async addEquipmentUsage(companyId: string, jobId: string, userId: string, dto: CreateEquipmentUsageDto, gps?: { latitude?: number; longitude?: number }) {
@@ -120,10 +120,10 @@ export class JobFieldOpsService {
   }
 
   async removeEquipmentUsage(companyId: string, jobId: string, usageId: string, userId: string, gps?: { latitude?: number; longitude?: number }) {
-    const existingRows = await this.prisma.tenant.$queryRaw<EquipmentUsageRow[]>`
+    const existingRows: EquipmentUsageRow[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, equipment_name AS "equipmentName", notes, created_at AS "createdAt"
       FROM job_equipment_usage WHERE id = ${usageId}::uuid AND job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
-    `;
+    `);
     if (existingRows.length === 0) throw new NotFoundException('Equipment usage entry not found');
     const previous = existingRows[0];
 
@@ -150,14 +150,14 @@ export class JobFieldOpsService {
   // ---- Audit log ----
 
   async listAuditLog(companyId: string, jobId: string) {
-    return this.prisma.tenant.$queryRaw`
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, action_type AS "actionType", performed_by_user_id AS "performedByUserId",
              latitude, longitude, previous_value AS "previousValue", new_value AS "newValue",
              created_at AS "createdAt"
       FROM job_audit_log
       WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
       ORDER BY created_at DESC
-    `;
+    `);
   }
 
   /**

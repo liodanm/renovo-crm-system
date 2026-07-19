@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { MailService } from '../../mail/mail.service';
+import { SmsService } from '../../sms/sms.service';
 
 /**
  * This is what "make the automation actually fire" meant concretely: the
@@ -28,6 +29,7 @@ export class AutomationService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    private readonly sms: SmsService,
   ) {}
 
   async runForCompany(companyId: string): Promise<{ sent: number; failed: number }> {
@@ -193,6 +195,30 @@ export class AutomationService {
    * sending — the database is the source of truth for "have we already
    * sent this," not an application-level check that has a race window.
    */
+  /**
+   * The real hook point for "Estimate Sent/Viewed/Approved/Rejected,
+   * Invoice Sent/Viewed/Paid" automation, called directly from
+   * EstimatesService/InvoicesService/PortalDataService the moment each
+   * event actually happens. Reuses automation_log — the same table and
+   * the same dedupe mechanism (companyId + dedupeKey unique constraint)
+   * sendOnce already relies on — rather than a second logging table.
+   * Deliberately just a log entry, not a new send: the email itself was
+   * already sent by MailService/sendDocumentEmail; this is the durable
+   * record a future rule-execution engine or a "what happened to this
+   * estimate" timeline can query.
+   */
+  async logEvent(companyId: string, customerId: string | null, ruleType: string, dedupeKey: string, note: string): Promise<void> {
+    try {
+      await this.prisma.automationLog.create({
+        data: { companyId, customerId, ruleType, dedupeKey, channel: 'system', messageBody: note, status: 'sent' },
+      });
+    } catch {
+      // Unique constraint on (companyId, dedupeKey) — this exact event was
+      // already logged once (e.g. a customer reopening an already-viewed
+      // estimate). Correctly a no-op, not an error.
+    }
+  }
+
   private async sendOnce(input: { companyId: string; customerId: string; ruleType: string; dedupeKey: string; phone: string | null; email: string | null; subject: string; body: string }): Promise<boolean> {
     // Email is a fallback, not a second send — a customer with both a
     // phone and an email on file still only gets one message, via SMS
@@ -248,25 +274,7 @@ export class AutomationService {
   }
 
   private async sendSms(to: string, body: string): Promise<{ sent: boolean; error?: string }> {
-    const accountSid = this.config.get<string>('TWILIO_ACCOUNT_SID');
-    const authToken = this.config.get<string>('TWILIO_AUTH_TOKEN');
-    const fromNumber = this.config.get<string>('TWILIO_PHONE_NUMBER');
-    if (!accountSid || !authToken || !fromNumber) return { sent: false, error: 'twilio_not_configured' };
-
-    try {
-      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
-        },
-        body: new URLSearchParams({ To: to, From: fromNumber, Body: body }).toString(),
-      });
-      if (!response.ok) return { sent: false, error: `twilio_error_${response.status}` };
-      return { sent: true };
-    } catch {
-      return { sent: false, error: 'network_error' };
-    }
+    return this.sms.send(to, body);
   }
 
   private formatMoney(amount: number): string {

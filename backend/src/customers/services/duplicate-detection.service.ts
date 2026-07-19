@@ -53,9 +53,8 @@ export class DuplicateDetectionService {
 
     const nameQuery = input.businessName || `${input.firstName ?? ''} ${input.lastName ?? ''}`.trim();
     if (nameQuery.length >= 3) {
-      const similarityMatches = await this.prisma.$queryRaw<
-        Array<{ id: string; first_name: string | null; last_name: string | null; business_name: string | null; email: string | null; phone: string | null; sim: number }>
-      >`
+      const similarityMatches: Array<{ id: string; first_name: string | null; last_name: string | null; business_name: string | null; email: string | null; phone: string | null; sim: number }> =
+        await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
         SELECT id, first_name, last_name, business_name, email, phone,
                similarity(coalesce(first_name,'') || ' ' || coalesce(last_name,'') || ' ' || coalesce(business_name,''), ${nameQuery}) AS sim
         FROM customers
@@ -64,7 +63,7 @@ export class DuplicateDetectionService {
           AND similarity(coalesce(first_name,'') || ' ' || coalesce(last_name,'') || ' ' || coalesce(business_name,''), ${nameQuery}) > ${NAME_SIMILARITY_THRESHOLD}
         ORDER BY sim DESC
         LIMIT 5
-      `;
+      `);
       candidates.push(
         ...similarityMatches.map((m) => ({
           id: m.id,
@@ -97,25 +96,25 @@ export class DuplicateDetectionService {
    * background job with pagination well before that stops being true.
    */
   async scanForDuplicateClusters(companyId: string): Promise<DuplicateCluster[]> {
-    const emailGroups = await this.prisma.$queryRaw<Array<{ email: string; ids: string[] }>>`
+    const emailGroups: Array<{ email: string; ids: string[] }> = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT email, array_agg(id) AS ids
       FROM customers
       WHERE company_id = ${companyId}::uuid AND deleted_at IS NULL AND email IS NOT NULL AND email != ''
       GROUP BY email
       HAVING count(*) > 1
-    `;
+    `);
 
-    const phoneGroups = await this.prisma.$queryRaw<Array<{ phone: string; ids: string[] }>>`
+    const phoneGroups: Array<{ phone: string; ids: string[] }> = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT phone, array_agg(id) AS ids
       FROM customers
       WHERE company_id = ${companyId}::uuid AND deleted_at IS NULL AND phone IS NOT NULL AND phone != ''
       GROUP BY phone
       HAVING count(*) > 1
-    `;
+    `);
 
     // Trigram self-join: pair up customers whose combined name string is
     // similar, excluding pairs already caught by exact email/phone above.
-    const nameMatches = await this.prisma.$queryRaw<Array<{ id_a: string; id_b: string; sim: number }>>`
+    const nameMatches: Array<{ id_a: string; id_b: string; sim: number }> = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT a.id AS id_a, b.id AS id_b,
              similarity(
                coalesce(a.first_name,'') || ' ' || coalesce(a.last_name,'') || ' ' || coalesce(a.business_name,''),
@@ -130,7 +129,7 @@ export class DuplicateDetectionService {
             ) > ${NAME_SIMILARITY_THRESHOLD}
       ORDER BY sim DESC
       LIMIT 50
-    `;
+    `);
 
     // Was: one hydrateCustomers() round-trip PER cluster — with, say, 30
     // email groups + 20 phone groups + 50 name matches, up to 100 separate

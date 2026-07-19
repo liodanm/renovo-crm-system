@@ -83,6 +83,23 @@ function authHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * A plain <a href="..."> to a PDF endpoint can't carry the Bearer auth
+ * header this app uses (no cookie-based auth here), so browser
+ * navigation alone would 401 on every document view/download. This
+ * fetches the PDF as a real authenticated request and hands back an
+ * object URL the caller can point a new tab or a download link at.
+ * Caller is responsible for calling URL.revokeObjectURL when done.
+ */
+export async function fetchPdfObjectUrl(path: string): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers: authHeader() });
+  if (!response.ok) {
+    throw new ApiError(response.status, `Couldn't load the PDF (${response.status})`);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
 async function safeJson(response: Response) {
   try {
     return await response.json();
