@@ -50,7 +50,7 @@ export class SettingsService {
   // ---- Profile ----
 
   async getProfile(userId: string) {
-    const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT ${PROFILE_SELECT} FROM users WHERE id = $1`, userId);
+    const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT ${PROFILE_SELECT} FROM users WHERE id = $1::uuid`, userId);
     if (rows.length === 0) throw new NotFoundException('User not found');
     return rows[0];
   }
@@ -59,7 +59,7 @@ export class SettingsService {
     const existing = await this.getProfile(userId);
     const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(
       `UPDATE users SET first_name = $2, last_name = $3, phone = $4, avatar_url = $5, timezone = $6, date_format = $7, language = $8, updated_at = now()
-       WHERE id = $1 RETURNING ${PROFILE_SELECT}`,
+       WHERE id = $1::uuid RETURNING ${PROFILE_SELECT}`,
       userId,
       dto.firstName ?? existing.firstName,
       dto.lastName ?? existing.lastName,
@@ -81,7 +81,7 @@ export class SettingsService {
    */
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const rows: { passwordHash: string | null }[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT password_hash AS "passwordHash" FROM users WHERE id = $1`,
+      `SELECT password_hash AS "passwordHash" FROM users WHERE id = $1::uuid`,
       userId,
     );
     if (rows.length === 0) throw new NotFoundException('User not found');
@@ -92,14 +92,14 @@ export class SettingsService {
     if (!isValid) throw new UnauthorizedException('Current password is incorrect');
 
     const newHash = await this.passwordService.hash(dto.newPassword);
-    await this.prisma.tenant.$executeRawUnsafe(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, userId, newHash);
+    await this.prisma.tenant.$executeRawUnsafe(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1::uuid`, userId, newHash);
     return { success: true };
   }
 
   // ---- Company ----
 
   async getCompany(companyId: string) {
-    const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT ${COMPANY_SELECT} FROM companies WHERE id = $1`, companyId);
+    const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT ${COMPANY_SELECT} FROM companies WHERE id = $1::uuid`, companyId);
     if (rows.length === 0) throw new NotFoundException('Company not found');
     return rows[0];
   }
@@ -111,7 +111,7 @@ export class SettingsService {
          name = $2, dba = $3, logo_url = $4, address_line1 = $5, address_line2 = $6, city = $7, state = $8,
          postal_code = $9, phone = $10, email = $11, website = $12, tax_id = $13, license_number = $14,
          business_hours = $15, updated_at = now()
-       WHERE id = $1 RETURNING ${COMPANY_SELECT}`,
+       WHERE id = $1::uuid RETURNING ${COMPANY_SELECT}`,
       companyId,
       dto.name ?? existing.name,
       dto.dba ?? existing.dba,
@@ -134,7 +134,7 @@ export class SettingsService {
   // ---- Business Defaults ----
 
   async getBusinessDefaults(companyId: string) {
-    const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT ${BUSINESS_DEFAULTS_SELECT} FROM companies WHERE id = $1`, companyId);
+    const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT ${BUSINESS_DEFAULTS_SELECT} FROM companies WHERE id = $1::uuid`, companyId);
     if (rows.length === 0) throw new NotFoundException('Company not found');
     return rows[0];
   }
@@ -146,7 +146,7 @@ export class SettingsService {
          default_tax_rate_percent = $2, default_arrival_window_minutes = $3, default_estimate_expiration_days = $4,
          default_invoice_due_days = $5, default_labor_rate = $6, currency = $7, measurement_unit_system = $8,
          distance_unit = $9, timezone = $10, updated_at = now()
-       WHERE id = $1 RETURNING ${BUSINESS_DEFAULTS_SELECT}`,
+       WHERE id = $1::uuid RETURNING ${BUSINESS_DEFAULTS_SELECT}`,
       companyId,
       dto.defaultTaxRatePercent ?? existing.defaultTaxRatePercent,
       dto.defaultArrivalWindowMinutes ?? existing.defaultArrivalWindowMinutes,
@@ -164,7 +164,7 @@ export class SettingsService {
   // ---- Branding (companies.settings JSONB — its originally intended purpose) ----
 
   async getBranding(companyId: string) {
-    const rows: { settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT settings FROM companies WHERE id = $1`, companyId);
+    const rows: { settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT settings FROM companies WHERE id = $1::uuid`, companyId);
     if (rows.length === 0) throw new NotFoundException('Company not found');
     const settings = rows[0].settings ?? {};
     return {
@@ -191,7 +191,7 @@ export class SettingsService {
     // overwriting it — companies.settings may one day carry other keys
     // (feature flags, etc.) that branding updates must never clobber.
     await this.prisma.tenant.$executeRawUnsafe(
-      `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{branding}', $2::jsonb, true), updated_at = now() WHERE id = $1`,
+      `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{branding}', $2::jsonb, true), updated_at = now() WHERE id = $1::uuid`,
       companyId,
       JSON.stringify(merged),
     );
@@ -206,7 +206,7 @@ export class SettingsService {
 
   async getPaymentSettings(companyId: string) {
     const rows: { enabledPaymentMethods: string[] }[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT enabled_payment_methods AS "enabledPaymentMethods" FROM companies WHERE id = $1`,
+      `SELECT enabled_payment_methods AS "enabledPaymentMethods" FROM companies WHERE id = $1::uuid`,
       companyId,
     );
     return {
@@ -218,7 +218,7 @@ export class SettingsService {
   async updatePaymentSettings(companyId: string, dto: UpdatePaymentSettingsDto) {
     if (dto.enabledPaymentMethods) {
       await this.prisma.tenant.$executeRawUnsafe(
-        `UPDATE companies SET enabled_payment_methods = $2, updated_at = now() WHERE id = $1`,
+        `UPDATE companies SET enabled_payment_methods = $2, updated_at = now() WHERE id = $1::uuid`,
         companyId,
         dto.enabledPaymentMethods,
       );
@@ -233,7 +233,7 @@ export class SettingsService {
 
   async getEmailSettings(companyId: string) {
     const rows: { replyToEmail: string | null; name: string; dba: string | null }[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT reply_to_email AS "replyToEmail", name, dba FROM companies WHERE id = $1`,
+      `SELECT reply_to_email AS "replyToEmail", name, dba FROM companies WHERE id = $1::uuid`,
       companyId,
     );
     const row = rows[0];
@@ -248,7 +248,7 @@ export class SettingsService {
   async updateEmailSettings(companyId: string, dto: UpdateEmailSettingsDto) {
     if (dto.replyToEmail !== undefined) {
       await this.prisma.tenant.$executeRawUnsafe(
-        `UPDATE companies SET reply_to_email = $2, updated_at = now() WHERE id = $1`,
+        `UPDATE companies SET reply_to_email = $2, updated_at = now() WHERE id = $1::uuid`,
         companyId,
         dto.replyToEmail,
       );
