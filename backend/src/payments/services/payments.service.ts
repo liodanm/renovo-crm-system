@@ -3,7 +3,6 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { RecordPaymentDto, RefundPaymentDto, VoidPaymentDto } from '../dto/payment.dto';
 import { computeInvoiceStatusAfterPayment } from './invoice-status.util';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
-import { AutomationService } from '../../automation/services/automation.service';
 
 const PAYMENT_SELECT = `
   p.id, p.invoice_id AS "invoiceId", p.customer_id AS "customerId", p.property_id AS "propertyId",
@@ -16,7 +15,6 @@ const PAYMENT_SELECT = `
 export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly automation: AutomationService,
   ) {}
 
   /**
