@@ -21,7 +21,7 @@ export class ServiceCatalogService {
 
   async findAll(companyId: string, activeOnly = false) {
     const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT ${SELECT_COLUMNS} FROM service_catalog_items WHERE company_id = $1 ${activeOnly ? 'AND is_active = true' : ''} ORDER BY sort_order ASC, name ASC`,
+      `SELECT ${SELECT_COLUMNS} FROM service_catalog_items WHERE company_id = $1::uuid ${activeOnly ? 'AND is_active = true' : ''} ORDER BY sort_order ASC, name ASC`,
       companyId,
     );
     return rows;
@@ -29,7 +29,7 @@ export class ServiceCatalogService {
 
   async findOne(companyId: string, id: string) {
     const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT ${SELECT_COLUMNS} FROM service_catalog_items WHERE id = $1 AND company_id = $2`,
+      `SELECT ${SELECT_COLUMNS} FROM service_catalog_items WHERE id = $1::uuid AND company_id = $2::uuid`,
       id,
       companyId,
     );
@@ -48,7 +48,7 @@ export class ServiceCatalogService {
     const filtered = excludeId ? ids.filter((id) => id !== excludeId) : ids;
     if (filtered.length === 0) return;
     const rows: { id: string }[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT id FROM service_catalog_items WHERE company_id = $1 AND id = ANY($2::uuid[])`,
+      `SELECT id FROM service_catalog_items WHERE company_id = $1::uuid AND id = ANY($2::uuid[])`,
       companyId,
       filtered,
     );
@@ -109,7 +109,7 @@ export class ServiceCatalogService {
          default_chemicals = $13, default_equipment = $14, required_equipment = $15,
          warranty_days = $16, warranty_terms = $17, preparation_instructions = $18, aftercare_instructions = $19,
          default_notes = $20, default_terms = $21, suggested_upsell_service_ids = $22, suggested_future_service_ids = $23
-       WHERE id = $1 AND company_id = $2
+       WHERE id = $1::uuid AND company_id = $2::uuid
        RETURNING ${SELECT_COLUMNS}`,
       id,
       companyId,
@@ -148,7 +148,7 @@ export class ServiceCatalogService {
   async archive(companyId: string, id: string) {
     await this.findOne(companyId, id);
     const rows: any[] = await this.prisma.tenant.$queryRawUnsafe(
-      `UPDATE service_catalog_items SET is_active = false WHERE id = $1 AND company_id = $2 RETURNING ${SELECT_COLUMNS}`,
+      `UPDATE service_catalog_items SET is_active = false WHERE id = $1::uuid AND company_id = $2::uuid RETURNING ${SELECT_COLUMNS}`,
       id,
       companyId,
     );
