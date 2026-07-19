@@ -84,7 +84,7 @@ export class PaymentsService {
        FROM payments p
        JOIN invoices i ON i.id = p.invoice_id
        JOIN customers c ON c.id = p.customer_id
-       WHERE p.company_id = $1 AND ($2::text IS NULL OR p.status = $2)
+       WHERE p.company_id = $1::uuid AND ($2::text IS NULL OR p.status = $2)
        ORDER BY p.created_at DESC`,
       companyId,
       status ?? null,
@@ -93,7 +93,7 @@ export class PaymentsService {
 
   async listByInvoice(companyId: string, invoiceId: string) {
     return this.prisma.tenant.$queryRawUnsafe(
-      `SELECT ${PAYMENT_SELECT} FROM payments p WHERE p.invoice_id = $1 AND p.company_id = $2 ORDER BY p.created_at ASC`,
+      `SELECT ${PAYMENT_SELECT} FROM payments p WHERE p.invoice_id = $1::uuid AND p.company_id = $2::uuid ORDER BY p.created_at ASC`,
       invoiceId,
       companyId,
     );
@@ -101,7 +101,7 @@ export class PaymentsService {
 
   async findOne(companyId: string, id: string, txOverride?: { $queryRawUnsafe: (q: string, ...v: any[]) => Promise<any> }) {
     const client = txOverride ?? this.prisma.tenant;
-    const rows: any[] = await client.$queryRawUnsafe(`SELECT ${PAYMENT_SELECT} FROM payments p WHERE p.id = $1 AND p.company_id = $2`, id, companyId);
+    const rows: any[] = await client.$queryRawUnsafe(`SELECT ${PAYMENT_SELECT} FROM payments p WHERE p.id = $1::uuid AND p.company_id = $2::uuid`, id, companyId);
     if (rows.length === 0) throw new NotFoundException('Payment not found');
     return rows[0];
   }
@@ -189,7 +189,7 @@ export class PaymentsService {
        JOIN customers c ON c.id = p.customer_id
        LEFT JOIN properties pr ON pr.id = p.property_id
        JOIN companies co ON co.id = p.company_id
-       WHERE p.id = $1 AND p.company_id = $2`,
+       WHERE p.id = $1::uuid AND p.company_id = $2::uuid`,
       paymentId,
       companyId,
     );
