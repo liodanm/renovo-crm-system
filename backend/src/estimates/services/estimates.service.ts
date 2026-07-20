@@ -283,23 +283,31 @@ export class EstimatesService {
         },
       });
 
-      for (const li of source.lineItems as any[]) {
-        await tx.estimateLineItem.create({
-          data: {
-            companyId,
-            estimateId: created.id,
-            serviceType: li.serviceType,
-            description: li.description,
-            unitOfMeasure: li.unitOfMeasure,
-            quantity: li.quantity,
-            unitPrice: li.unitPrice,
-            notes: li.notes,
-            serviceDetails: li.serviceDetails,
-            sortOrder: li.sortOrder ?? 0,
-            serviceCatalogItemId: li.serviceCatalogItemId,
-          },
-        });
-      }
+      // Reuses the exact same insert path create() already uses — total
+      // is a database-generated column (quantity * unit_price), which a
+      // typed Prisma .create() call can't correctly omit; insertLineItems
+      // already solves this with raw SQL, so this goes through it too
+      // rather than a second, broken copy of line-item insertion.
+      await this.insertLineItems(
+        tx,
+        companyId,
+        created.id,
+        (source.lineItems as any[]).map((li) => ({
+          serviceType: li.serviceType,
+          description: li.description,
+          unitOfMeasure: li.unitOfMeasure,
+          quantity: Number(li.quantity),
+          unitPrice: Number(li.unitPrice),
+          notes: li.notes,
+          serviceDetails: li.serviceDetails,
+          estimatedLaborHours: li.estimatedLaborHours != null ? Number(li.estimatedLaborHours) : undefined,
+          estimatedChemicalCost: li.estimatedChemicalCost != null ? Number(li.estimatedChemicalCost) : undefined,
+          estimatedEquipmentCost: li.estimatedEquipmentCost != null ? Number(li.estimatedEquipmentCost) : undefined,
+          estimatedFuelCost: li.estimatedFuelCost != null ? Number(li.estimatedFuelCost) : undefined,
+          estimatedMiscCost: li.estimatedMiscCost != null ? Number(li.estimatedMiscCost) : undefined,
+          serviceCatalogItemId: li.serviceCatalogItemId,
+        })),
+      );
 
       await this.writeStatusHistory(companyId, created.id, null, 'draft', userId, 'staff', `Duplicated from ${source.estimateNumber}`);
       return this.findOne(companyId, created.id, true);
