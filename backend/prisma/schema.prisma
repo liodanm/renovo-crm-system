@@ -59,6 +59,7 @@ model User {
   companyUsers        CompanyUser[]
   oauthAccounts       OauthAccount[]
   assignedLineItems   EstimateLineItem[]
+  acceptedEstimates   Estimate[]
   assignedJobs        Job[]              @relation("JobAssignedUser")
   jobStatusChanges    JobStatusHistory[]
 
@@ -234,14 +235,23 @@ model Estimate {
   acceptedAt        DateTime? @map("accepted_at")
   declinedAt        DateTime? @map("declined_at")
   declineReason     String?   @map("decline_reason")
+  declineComments   String?   @map("decline_comments")
+  acceptedVia       String?   @map("accepted_via") // 'portal' | 'staff' | 'manual'
+  acceptedByUserId  String?   @map("accepted_by_user_id")
   notes             String?
   terms             String?
+  // Staff-only — never rendered on a PDF or exposed through the
+  // Customer Portal. Carries over to the Job's own internal_notes
+  // (which already existed) on conversion.
+  internalNotes     String?   @map("internal_notes")
   signatureDataUrl  String?   @map("signature_data_url")
+  createdBy         String?   @map("created_by")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
   customer  Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   property  Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  acceptedByUser User?          @relation(fields: [acceptedByUserId], references: [id])
   lineItems EstimateLineItem[]
   invoices  Invoice[]
 

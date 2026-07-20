@@ -19,9 +19,9 @@ export class JobsService {
    * serviceDetails — a real preservation, not a lossy summary.
    */
   async createFromEstimate(companyId: string, estimateId: string) {
-    const estimateRows: { id: string; customerId: string; propertyId: string; status: string; totalAmount: string; notes: string | null }[] =
+    const estimateRows: { id: string; customerId: string; propertyId: string; status: string; totalAmount: string; notes: string | null; internalNotes: string | null }[] =
       await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
-      SELECT id, customer_id AS "customerId", property_id AS "propertyId", status, total_amount AS "totalAmount", notes
+      SELECT id, customer_id AS "customerId", property_id AS "propertyId", status, total_amount AS "totalAmount", notes, internal_notes AS "internalNotes"
       FROM estimates WHERE id = ${estimateId}::uuid AND company_id = ${companyId}::uuid
     `);
     if (estimateRows.length === 0) throw new NotFoundException('Estimate not found');
@@ -51,8 +51,8 @@ export class JobsService {
       const title = lineItems.map((li) => li.description).join(', ').slice(0, 200) || 'Job from estimate';
 
       const jobRows = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO jobs (company_id, customer_id, property_id, estimate_id, job_number, title, service_type, status, price, notes)
-        VALUES (${companyId}::uuid, ${estimate.customerId}::uuid, ${estimate.propertyId}::uuid, ${estimateId}::uuid, ${jobNumber}, ${title}, ${primaryServiceType}, 'draft', ${estimate.totalAmount}, ${estimate.notes})
+        INSERT INTO jobs (company_id, customer_id, property_id, estimate_id, job_number, title, service_type, status, price, notes, internal_notes)
+        VALUES (${companyId}::uuid, ${estimate.customerId}::uuid, ${estimate.propertyId}::uuid, ${estimateId}::uuid, ${jobNumber}, ${title}, ${primaryServiceType}, 'draft', ${estimate.totalAmount}, ${estimate.notes}, ${estimate.internalNotes})
         RETURNING id
       `;
       const jobId = jobRows[0].id;

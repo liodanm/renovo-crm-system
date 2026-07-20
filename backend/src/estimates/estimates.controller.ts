@@ -4,7 +4,7 @@ import { EstimatesService } from './services/estimates.service';
 import { CreateEstimateDto } from './dto/create-estimate.dto';
 import { UpdateEstimateDto } from './dto/update-estimate.dto';
 import { QueryEstimatesDto } from './dto/query-estimates.dto';
-import { SendEstimateEmailDto } from './dto/send-email.dto';
+import { SendEstimateEmailDto, DeclineEstimateDto } from './dto/send-email.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -64,6 +64,41 @@ export class EstimatesController {
   @Get(':id/email-history')
   getEmailHistory(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
     return this.estimatesService.getEmailHistory(user.companyId, id);
+  }
+
+  @Get(':id/status-history')
+  getStatusHistory(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.estimatesService.getStatusHistory(user.companyId, id);
+  }
+
+  @Post(':id/accept')
+  @RequirePermissions('estimates.write')
+  acceptManually(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.estimatesService.acceptManually(user.companyId, id, user.userId, 'staff');
+  }
+
+  @Post(':id/decline')
+  @RequirePermissions('estimates.write')
+  declineManually(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: DeclineEstimateDto) {
+    return this.estimatesService.declineManually(user.companyId, id, user.userId, dto.declineReason, dto.declineComments);
+  }
+
+  @Post(':id/mark-expired')
+  @RequirePermissions('estimates.write')
+  markExpired(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.estimatesService.markExpired(user.companyId, id, user.userId);
+  }
+
+  @Post(':id/reopen')
+  @RequirePermissions('estimates.reopen')
+  reopen(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.estimatesService.reopen(user.companyId, id, user.userId);
+  }
+
+  @Post(':id/duplicate')
+  @RequirePermissions('estimates.write')
+  duplicate(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.estimatesService.duplicate(user.companyId, id, user.userId);
   }
 
   @Post(':id/convert-to-job')

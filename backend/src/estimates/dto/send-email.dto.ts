@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class SendEstimateEmailDto {
   // Optional override — defaults to the customer's email on file.
@@ -8,4 +8,16 @@ export class SendEstimateEmailDto {
   @IsOptional()
   @IsEmail()
   toEmail?: string;
+}
+
+export class DeclineEstimateDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  declineReason?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  declineComments?: string;
 }

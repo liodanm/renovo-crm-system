@@ -20,10 +20,19 @@ export class PortalDataService {
   ) {}
 
   async getEstimates(companyId: string, customerId: string) {
+    // Explicit select, not include — Prisma's default with only
+    // `include` returns every scalar column, which would silently leak
+    // internalNotes (staff-only) to the customer the moment it exists
+    // on the model. Naming every field here is the real guarantee.
     return this.prisma.estimate.findMany({
       where: { companyId, customerId },
       orderBy: { createdAt: 'desc' },
-      include: { property: { select: { addressLine1: true, city: true, state: true } } },
+      select: {
+        id: true, estimateNumber: true, status: true, subtotal: true, discountAmount: true,
+        taxRate: true, taxAmount: true, totalAmount: true, validUntil: true, sentAt: true,
+        viewedAt: true, acceptedAt: true, declinedAt: true, notes: true, terms: true, createdAt: true,
+        property: { select: { addressLine1: true, city: true, state: true } },
+      },
     });
   }
 
@@ -33,8 +42,10 @@ export class PortalDataService {
 
     const updated = await this.prisma.estimate.update({
       where: { id: estimateId },
-      data: { status: 'accepted', acceptedAt: new Date(), signatureDataUrl },
+      data: { status: 'accepted', acceptedAt: new Date(), signatureDataUrl, acceptedVia: 'portal' },
+      select: { id: true, status: true, acceptedAt: true, totalAmount: true, estimateNumber: true },
     });
+    await this.writeEstimateHistory(companyId, estimateId, estimate.status, 'accepted', null, 'portal', 'Accepted by customer via portal');
     await logAutomationEvent(this.prisma, {
       companyId,
       customerId,
@@ -47,7 +58,12 @@ export class PortalDataService {
 
   async declineEstimate(companyId: string, customerId: string, estimateId: string) {
     const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
-    const updated = await this.prisma.estimate.update({ where: { id: estimateId }, data: { status: 'declined', declinedAt: new Date() } });
+    const updated = await this.prisma.estimate.update({
+      where: { id: estimateId },
+      data: { status: 'declined', declinedAt: new Date() },
+      select: { id: true, status: true, declinedAt: true, estimateNumber: true },
+    });
+    await this.writeEstimateHistory(companyId, estimateId, estimate.status, 'declined', null, 'portal', 'Declined by customer via portal');
     await logAutomationEvent(this.prisma, {
       companyId,
       customerId,
@@ -56,6 +72,14 @@ export class PortalDataService {
       messageBody: `Estimate ${estimate.estimateNumber} declined by customer`,
     });
     return updated;
+  }
+
+  /** Same shape as EstimatesService's own writer — portal-initiated changes go through the identical audit table, not a second one. */
+  private async writeEstimateHistory(companyId: string, estimateId: string, fromStatus: string | null, toStatus: string, changedByUserId: string | null, source: string, note: string) {
+    await this.prisma.withTenantContext(companyId, (tx) => tx.$executeRaw`
+      INSERT INTO estimate_status_history (company_id, estimate_id, from_status, to_status, changed_by_user_id, source, note)
+      VALUES (${companyId}::uuid, ${estimateId}::uuid, ${fromStatus}, ${toStatus}, ${changedByUserId}::uuid, ${source}, ${note})
+    `);
   }
 
   private async getOwnedEstimate(companyId: string, customerId: string, estimateId: string) {

@@ -5,10 +5,9 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { JobsModule } from '../jobs/jobs.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { MailModule } from '../mail/mail.module';
-import { AutomationModule } from '../automation/automation.module';
 
 @Module({
-  imports: [JobsModule, DocumentsModule, MailModule, AutomationModule], // JobsModule: convertToJob -> JobsService.createFromEstimate; DocumentsModule: PDF + email logging; MailModule: real send; AutomationModule: event logging
+  imports: [JobsModule, DocumentsModule, MailModule], // JobsModule: convertToJob -> JobsService.createFromEstimate; DocumentsModule: PDF + email logging; MailModule: real send. Automation event logging goes through the standalone logAutomationEvent utility, no module import needed.
   controllers: [EstimatesController],
   providers: [PrismaService, EstimatesService],
 })

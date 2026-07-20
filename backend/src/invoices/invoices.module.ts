@@ -4,10 +4,9 @@ import { InvoicesService } from './services/invoices.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { DocumentsModule } from '../documents/documents.module';
 import { MailModule } from '../mail/mail.module';
-import { AutomationModule } from '../automation/automation.module';
 
 @Module({
-  imports: [DocumentsModule, MailModule, AutomationModule],
+  imports: [DocumentsModule, MailModule],
   controllers: [InvoicesController],
   providers: [PrismaService, InvoicesService],
   exports: [InvoicesService],

@@ -4,11 +4,18 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
+import { Pencil, CheckCircle2, Briefcase, Mail, FileDown, Printer, Copy, XCircle, Clock, Trash2, RotateCcw } from 'lucide-react';
 import { estimatesApi, SERVICE_TYPES } from '../../../lib/api/estimates';
 import { PermissionGate } from '../../../components/auth/permission-gate';
-import { ApiError } from '../../../lib/api/api-client';
+import { useAuth } from '../../../lib/auth/auth-context';
+import { ApiError, fetchPdfObjectUrl } from '../../../lib/api/api-client';
 import { AppShell } from '../../../components/layout/AppShell';
 import { DocumentEmailSection } from '../../../components/documents/DocumentEmailSection';
+import { ActionBar, type ActionBarItem } from '../../../components/action-center/ActionBar';
+import { ConfirmDialog } from '../../../components/action-center/ConfirmDialog';
+import { StatusBadge, ESTIMATE_STATUS_COLORS } from '../../../components/action-center/StatusBadge';
+import { StatusTimeline } from '../../../components/action-center/StatusTimeline';
+import { CustomerActivity } from '../../../components/action-center/CustomerActivity';
 
 function customerName(customer: { firstName: string | null; lastName: string | null; businessName: string | null }): string {
   return customer.businessName ?? (`${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || 'Unknown');
@@ -22,12 +29,34 @@ function serviceLabel(value: string): string {
   return SERVICE_TYPES.find((s) => s.value === value)?.label ?? value;
 }
 
+const DECLINE_REASONS = ['Price too high', 'Chose another company', 'No longer needed', 'Timing not right', 'Other'];
+
+type DialogType = 'accept' | 'decline' | 'delete' | 'markExpired' | 'reopen' | null;
+
 export default function EstimateDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { hasPermission } = useAuth();
   const { data: estimate, error, isLoading, mutate } = useSWR(['estimate', params.id], () => estimatesApi.get(params.id));
+  const { data: statusHistory } = useSWR(estimate ? ['estimate-history', params.id] : null, () => estimatesApi.getStatusHistory(params.id));
+  const { data: emailHistory } = useSWR(estimate ? ['estimate-email-history', params.id] : null, () => estimatesApi.getEmailHistory(params.id));
+
   const [actionError, setActionError] = useState<string | null>(null);
   const [isActing, setIsActing] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [openDialog, setOpenDialog] = useState<DialogType>(null);
+  const [declineReason, setDeclineReason] = useState('');
+  const [declineComments, setDeclineComments] = useState('');
+
+  if (isLoading) {
+    return <AppShell><main className="mx-auto max-w-5xl px-4 py-6"><p className="text-sm text-slate-500">Loading…</p></main></AppShell>;
+  }
+  if (error || !estimate) {
+    return <AppShell><main className="mx-auto max-w-5xl px-4 py-6"><p className="text-sm text-red-600">Couldn't load this estimate.</p></main></AppShell>;
+  }
+
+  const hasBeenConverted = statusHistory?.some((h) => h.note?.toLowerCase().includes('convert')) ?? false;
+  const displayStatus = hasBeenConverted && estimate.status === 'accepted' ? 'converted' : estimate.status;
 
   async function handleConvertToJob() {
     setIsActing(true);
@@ -41,55 +70,80 @@ export default function EstimateDetailPage() {
     }
   }
 
+  async function handlePrint() {
+    setIsPreviewing(true);
+    setActionError(null);
+    try {
+      const url = await fetchPdfObjectUrl(estimatesApi.pdfPath(estimate!.id));
+      const win = window.open(url, '_blank');
+      win?.addEventListener('load', () => win.print());
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Couldn't load the PDF to print.");
+    } finally {
+      setIsPreviewing(false);
+    }
+  }
+
+  async function handleDuplicate() {
+    setIsActing(true);
+    setActionError(null);
+    try {
+      const copy = await estimatesApi.duplicate(params.id);
+      router.push(`/estimates/${copy.id}`);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to duplicate this estimate.');
+      setIsActing(false);
+    }
+  }
+
+  const isDraft = estimate.status === 'draft';
+  const isAccepted = estimate.status === 'accepted';
+  const canReopen = hasPermission('estimates.reopen');
+
+  const primary: ActionBarItem[] = [
+    { key: 'edit', label: 'Edit', icon: <Pencil className="h-4 w-4" />, onClick: () => router.push(`/estimates/${estimate.id}/edit`), hidden: !isDraft },
+    { key: 'accept', label: 'Accept', icon: <CheckCircle2 className="h-4 w-4" />, onClick: () => setOpenDialog('accept'), hidden: ['accepted', 'declined', 'expired'].includes(estimate.status) },
+    { key: 'convert', label: 'Convert to Job', icon: <Briefcase className="h-4 w-4" />, onClick: handleConvertToJob, hidden: !isAccepted, loading: isActing },
+  ];
+
+  const secondary: ActionBarItem[] = [
+    { key: 'email', label: 'Email', icon: <Mail className="h-4 w-4" />, onClick: () => document.getElementById('email-section')?.scrollIntoView({ behavior: 'smooth' }) },
+    { key: 'pdf', label: 'Generate PDF', icon: <FileDown className="h-4 w-4" />, onClick: async () => { const url = await fetchPdfObjectUrl(estimatesApi.pdfPath(estimate.id)); window.open(url, '_blank'); } },
+    { key: 'print', label: 'Print', icon: <Printer className="h-4 w-4" />, onClick: handlePrint, loading: isPreviewing },
+    { key: 'duplicate', label: 'Duplicate', icon: <Copy className="h-4 w-4" />, onClick: handleDuplicate, loading: isActing },
+  ];
+
+  const danger: ActionBarItem[] = [
+    { key: 'decline', label: 'Decline', icon: <XCircle className="h-4 w-4" />, onClick: () => setOpenDialog('decline'), hidden: ['declined', 'accepted', 'expired'].includes(estimate.status) },
+    { key: 'markExpired', label: 'Mark Expired', icon: <Clock className="h-4 w-4" />, onClick: () => setOpenDialog('markExpired'), hidden: ['accepted', 'declined', 'expired'].includes(estimate.status) },
+    { key: 'delete', label: 'Delete', icon: <Trash2 className="h-4 w-4" />, onClick: () => setOpenDialog('delete'), hidden: !isDraft },
+    { key: 'reopen', label: 'Reopen', icon: <RotateCcw className="h-4 w-4" />, onClick: () => setOpenDialog('reopen'), hidden: isDraft || !canReopen },
+  ];
+
   return (
     <AppShell>
-      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
         <Link href="/estimates" className="text-sm text-slate-500 hover:text-slate-800">← Back to Estimates</Link>
 
-        {isLoading && <div className="mt-6 text-sm text-slate-500">Loading…</div>}
-        {error && <div className="mt-6 text-sm text-red-600">Couldn't load this estimate.</div>}
+        <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">{estimate.estimateNumber}</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {customerName(estimate.customer)} · {estimate.property.addressLine1}, {estimate.property.city}
+            </p>
+          </div>
+          <StatusBadge status={displayStatus} colorMap={ESTIMATE_STATUS_COLORS} />
+        </div>
 
-        {estimate && (
-          <>
-            <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h1 className="text-xl font-semibold text-slate-900">{estimate.estimateNumber}</h1>
-                <p className="mt-1 text-sm text-slate-500">
-                  {customerName(estimate.customer)} · {estimate.property.addressLine1}, {estimate.property.city}
-                </p>
-              </div>
-              <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium capitalize text-slate-700">
-                {estimate.status}
-              </span>
-            </div>
+        {actionError && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>}
 
-            {actionError && (
-              <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>
-            )}
+        <div className="mt-4">
+          <ActionBar primary={primary} secondary={secondary} danger={danger} />
+        </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {estimate.status === 'accepted' && (
-                <button
-                  onClick={handleConvertToJob}
-                  disabled={isActing}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-                >
-                  {isActing ? 'Converting…' : 'Convert to Job'}
-                </button>
-              )}
-            </div>
-
-            <DocumentEmailSection
-              documentLabel="Estimate"
-              customerEmail={estimate.customer.email}
-              hasBeenSent={estimate.status !== 'draft'}
-              pdfPath={estimatesApi.pdfPath(estimate.id)}
-              onSendEmail={(toEmail) => estimatesApi.sendEmail(estimate.id, toEmail).then(async (r) => { await mutate(); return r; })}
-              onGetHistory={() => estimatesApi.getEmailHistory(estimate.id)}
-              historyKey={`estimate-email-history-${estimate.id}`}
-            />
-
-            <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
@@ -127,10 +181,7 @@ export default function EstimateDetailPage() {
 
               <div className="border-t border-slate-200 px-4 py-4">
                 <div className="ml-auto max-w-xs space-y-1 text-sm">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Subtotal</span>
-                    <span>{formatMoney(estimate.subtotal)}</span>
-                  </div>
+                  <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatMoney(estimate.subtotal)}</span></div>
                   {Number(estimate.discountAmount) > 0 && (
                     <div className="flex justify-between text-slate-600">
                       <span>Discount {estimate.discountType === 'percentage' ? '(%)' : '(flat)'}</span>
@@ -144,8 +195,7 @@ export default function EstimateDetailPage() {
                     </div>
                   )}
                   <div className="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-slate-900">
-                    <span>Total</span>
-                    <span>{formatMoney(estimate.totalAmount)}</span>
+                    <span>Total</span><span>{formatMoney(estimate.totalAmount)}</span>
                   </div>
                 </div>
 
@@ -154,13 +204,10 @@ export default function EstimateDetailPage() {
                     <div className="ml-auto mt-3 max-w-xs rounded-lg bg-slate-50 px-3 py-2 text-sm">
                       <div className="flex justify-between font-medium text-slate-700">
                         <span>Est. Profit</span>
-                        <span className={estimate.totalEstimatedProfit < 0 ? 'text-red-600' : 'text-emerald-600'}>
-                          {formatMoney(estimate.totalEstimatedProfit)}
-                        </span>
+                        <span className={estimate.totalEstimatedProfit < 0 ? 'text-red-600' : 'text-emerald-600'}>{formatMoney(estimate.totalEstimatedProfit)}</span>
                       </div>
                       <div className="flex justify-between text-slate-500">
-                        <span>Margin</span>
-                        <span>{estimate.overallProfitMarginPercent?.toFixed(1)}%</span>
+                        <span>Margin</span><span>{estimate.overallProfitMarginPercent?.toFixed(1)}%</span>
                       </div>
                     </div>
                   )}
@@ -169,12 +216,116 @@ export default function EstimateDetailPage() {
             </div>
 
             {estimate.notes && (
-              <div className="mt-6">
+              <div>
                 <h2 className="text-sm font-medium text-slate-700">Notes</h2>
                 <p className="mt-1 text-sm text-slate-600">{estimate.notes}</p>
               </div>
             )}
-          </>
+
+            {estimate.declineReason && (
+              <div className="rounded-lg bg-red-50 px-4 py-3">
+                <p className="text-sm font-medium text-red-800">Decline reason: {estimate.declineReason}</p>
+                {estimate.declineComments && <p className="mt-1 text-sm text-red-700">{estimate.declineComments}</p>}
+              </div>
+            )}
+
+            {estimate.internalNotes && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Internal Notes — staff only, never shown to the customer</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-amber-900">{estimate.internalNotes}</p>
+              </div>
+            )}
+
+            <div id="email-section">
+              <DocumentEmailSection
+                documentLabel="Estimate"
+                customerEmail={estimate.customer.email}
+                hasBeenSent={estimate.status !== 'draft'}
+                pdfPath={estimatesApi.pdfPath(estimate.id)}
+                onSendEmail={(toEmail) => estimatesApi.sendEmail(estimate.id, toEmail).then(async (r) => { await mutate(); return r; })}
+                onGetHistory={() => estimatesApi.getEmailHistory(estimate.id)}
+                historyKey={`estimate-email-history-${estimate.id}`}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <h2 className="text-sm font-semibold text-slate-700">Timeline</h2>
+              <div className="mt-3">
+                <StatusTimeline entries={statusHistory ?? []} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <h2 className="text-sm font-semibold text-slate-700">Customer Activity</h2>
+              <div className="mt-3">
+                <CustomerActivity statusHistory={statusHistory ?? []} emailHistory={emailHistory ?? []} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {openDialog === 'accept' && (
+          <ConfirmDialog
+            title="Accept this estimate?"
+            message="This records office-staff acceptance and enables Convert to Job. This can't be undone unless it's reopened by an Owner or Admin."
+            confirmLabel="Accept Estimate"
+            onClose={() => setOpenDialog(null)}
+            onConfirm={async () => { await estimatesApi.acceptManually(estimate.id); await mutate(); }}
+          />
+        )}
+
+        {openDialog === 'decline' && (
+          <ConfirmDialog
+            title="Decline this estimate?"
+            message="Select a reason and add any optional details."
+            confirmLabel="Decline Estimate"
+            danger
+            onClose={() => setOpenDialog(null)}
+            onConfirm={async () => { await estimatesApi.declineManually(estimate.id, declineReason || undefined, declineComments || undefined); await mutate(); }}
+          >
+            <div className="space-y-2">
+              <select value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="">Select a reason…</option>
+                {DECLINE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <textarea value={declineComments} onChange={(e) => setDeclineComments(e.target.value)} placeholder="Optional comments…" rows={2} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </div>
+          </ConfirmDialog>
+        )}
+
+        {openDialog === 'delete' && (
+          <ConfirmDialog
+            title="Delete this draft estimate?"
+            message="This permanently deletes the estimate. Only draft estimates can be deleted — this can't be undone."
+            confirmLabel="Delete Estimate"
+            danger
+            onClose={() => setOpenDialog(null)}
+            onConfirm={async () => { await estimatesApi.remove(estimate.id); router.push('/estimates'); }}
+          />
+        )}
+
+        {openDialog === 'markExpired' && (
+          <ConfirmDialog
+            title="Mark this estimate as expired?"
+            message="The customer will no longer be able to accept it from the portal."
+            confirmLabel="Mark Expired"
+            danger
+            onClose={() => setOpenDialog(null)}
+            onConfirm={async () => { await estimatesApi.markExpired(estimate.id); await mutate(); }}
+          />
+        )}
+
+        {openDialog === 'reopen' && (
+          <ConfirmDialog
+            title="Reopen this estimate?"
+            message="This reverts the estimate to Draft so it can be edited again — clearing its accepted/declined status. Only Owners and Admins can do this."
+            confirmLabel="Reopen Estimate"
+            danger
+            onClose={() => setOpenDialog(null)}
+            onConfirm={async () => { await estimatesApi.reopen(estimate.id); await mutate(); }}
+          />
         )}
       </main>
     </AppShell>

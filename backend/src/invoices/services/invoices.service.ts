@@ -7,7 +7,6 @@ import { PdfService } from '../../documents/services/pdf.service';
 import { EmailLogService } from '../../documents/services/email-log.service';
 import { CompanyContextService } from '../../documents/services/company-context.service';
 import { MailService } from '../../mail/mail.service';
-import { AutomationService } from '../../automation/services/automation.service';
 
 @Injectable()
 export class InvoicesService {
@@ -18,7 +17,6 @@ export class InvoicesService {
     private readonly companyContext: CompanyContextService,
     private readonly mailService: MailService,
     private readonly config: ConfigService,
-    private readonly automation: AutomationService,
   ) {}
 
   /**
@@ -198,7 +196,6 @@ export class InvoicesService {
     await this.prisma.withTenantContext(companyId, (tx) => tx.$executeRaw`
       UPDATE invoices SET status = 'sent', sent_at = now(), updated_at = now() WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid
     `);
-    await this.automation.logEvent(companyId, existing.customerId, 'invoice_sent', `invoice-sent-${id}-${Date.now()}`, `Invoice ${existing.invoiceNumber} sent`);
     return this.findOne(companyId, id);
   }
 

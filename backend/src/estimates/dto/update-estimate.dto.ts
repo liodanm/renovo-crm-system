@@ -38,5 +38,10 @@ export class UpdateEstimateDto {
   @IsOptional()
   @IsString()
   @MaxLength(5000)
+  internalNotes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
   terms?: string;
 }

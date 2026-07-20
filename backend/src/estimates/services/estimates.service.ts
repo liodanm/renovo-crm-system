@@ -12,7 +12,7 @@ import { EmailLogService } from '../../documents/services/email-log.service';
 import { CompanyContextService } from '../../documents/services/company-context.service';
 import { MailService } from '../../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
-import { AutomationService } from '../../automation/services/automation.service';
+import { logAutomationEvent } from '../../common/utils/automation-event.util';
 
 // Fields only estimates.profitability holders should ever see — stripped
 // from every response otherwise, not just hidden client-side (which
@@ -33,7 +33,6 @@ export class EstimatesService {
     private readonly companyContext: CompanyContextService,
     private readonly mailService: MailService,
     private readonly config: ConfigService,
-    private readonly automation: AutomationService,
   ) {}
 
   async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean) {
@@ -52,6 +51,7 @@ export class EstimatesService {
           discountType: dto.discountType,
           notes: dto.notes,
           terms: dto.terms,
+          internalNotes: dto.internalNotes,
         },
       });
 
@@ -112,7 +112,7 @@ export class EstimatesService {
         await this.computeAndSaveLineItemProfitability(tx, companyId, id);
       }
       if (dto.notes !== undefined || dto.terms !== undefined) {
-        await tx.estimate.update({ where: { id }, data: { notes: dto.notes, terms: dto.terms } });
+        await tx.estimate.update({ where: { id }, data: { notes: dto.notes, terms: dto.terms, internalNotes: dto.internalNotes } });
       }
       return this.recalculateAndSave(tx, companyId, id, dto.discountType ?? existing.discountType ?? undefined, dto.discountValue, dto.taxRatePercent);
     });
@@ -135,11 +135,175 @@ export class EstimatesService {
       where: { id },
       data: { status: 'sent', sentAt: new Date() },
     });
-    // Timestamped dedupeKey (not just the estimate id) — being sent
-    // again later is a genuinely new event worth its own log row, unlike
-    // viewed/approved/declined below, which only ever happen once.
-    await this.automation.logEvent(companyId, estimate.customerId, 'estimate_sent', `estimate-sent-${id}-${Date.now()}`, `Estimate ${estimate.estimateNumber} sent`);
+    await this.writeStatusHistory(companyId, id, estimate.status, 'sent', null, 'staff', 'Estimate sent');
     return updated;
+  }
+
+  /**
+   * The one shared write-path every status-changing method below goes
+   * through — mirrors job_status_history's own writeAuditLog helper
+   * exactly, not a second pattern for the same idea. source distinguishes
+   * *who/what* acted (portal/staff/manual/automation); changedByUserId is
+   * only ever set for staff-initiated changes — a portal-driven change
+   * has no `users` row to attribute it to.
+   */
+  private async writeStatusHistory(
+    companyId: string,
+    estimateId: string,
+    fromStatus: string | null,
+    toStatus: string,
+    changedByUserId: string | null,
+    source: 'portal' | 'staff' | 'manual' | 'automation',
+    note?: string,
+  ) {
+    await this.prisma.withTenantContext(companyId, (tx) => tx.$executeRaw`
+      INSERT INTO estimate_status_history (company_id, estimate_id, from_status, to_status, changed_by_user_id, source, note)
+      VALUES (${companyId}::uuid, ${estimateId}::uuid, ${fromStatus}, ${toStatus}, ${changedByUserId}::uuid, ${source}, ${note ?? null})
+    `);
+  }
+
+  async getStatusHistory(companyId: string, id: string) {
+    await this.findOne(companyId, id, true); // 404s if this isn't the caller's estimate
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT h.id, h.from_status AS "fromStatus", h.to_status AS "toStatus", h.source, h.note, h.changed_at AS "changedAt",
+             u.first_name AS "userFirstName", u.last_name AS "userLastName"
+      FROM estimate_status_history h
+      LEFT JOIN users u ON u.id = h.changed_by_user_id
+      WHERE h.estimate_id = ${id}::uuid AND h.company_id = ${companyId}::uuid
+      ORDER BY h.changed_at ASC
+    `);
+  }
+
+  /**
+   * Staff recording an acceptance that happened outside the portal — a
+   * phone call, an in-person signature, an email reply. Duplicate
+   * protection: an already-accepted estimate can't be accepted again,
+   * same reasoning as every other guard in this file.
+   */
+  async acceptManually(companyId: string, id: string, userId: string, source: 'staff' | 'manual') {
+    const estimate = await this.findOne(companyId, id, true);
+    if (estimate.status === 'accepted') throw new BadRequestException('This estimate has already been accepted');
+    if (['declined', 'expired'].includes(estimate.status)) {
+      throw new BadRequestException(`Cannot accept an estimate with status '${estimate.status}'`);
+    }
+    const updated = await this.prisma.tenant.estimate.update({
+      where: { id },
+      data: { status: 'accepted', acceptedAt: new Date(), acceptedVia: source, acceptedByUserId: userId },
+    });
+    await this.writeStatusHistory(companyId, id, estimate.status, 'accepted', userId, source, `Accepted by ${source === 'staff' ? 'office staff' : 'manual entry'}`);
+    await logAutomationEvent(this.prisma, {
+      companyId,
+      customerId: estimate.customerId,
+      ruleType: 'estimate_approved',
+      dedupeKey: `estimate-approved-${id}`,
+      messageBody: `Estimate ${estimate.estimateNumber} approved (${source})`,
+    });
+    return updated;
+  }
+
+  async declineManually(companyId: string, id: string, userId: string, declineReason: string | undefined, declineComments: string | undefined) {
+    const estimate = await this.findOne(companyId, id, true);
+    if (estimate.status === 'declined') throw new BadRequestException('This estimate has already been declined');
+    if (['accepted', 'expired'].includes(estimate.status)) {
+      throw new BadRequestException(`Cannot decline an estimate with status '${estimate.status}'`);
+    }
+    const updated = await this.prisma.tenant.estimate.update({
+      where: { id },
+      data: { status: 'declined', declinedAt: new Date(), declineReason: declineReason ?? null, declineComments: declineComments ?? null },
+    });
+    await this.writeStatusHistory(companyId, id, estimate.status, 'declined', userId, 'staff', declineReason ?? 'Declined by office staff');
+    await logAutomationEvent(this.prisma, {
+      companyId,
+      customerId: estimate.customerId,
+      ruleType: 'estimate_declined',
+      dedupeKey: `estimate-declined-${id}`,
+      messageBody: `Estimate ${estimate.estimateNumber} declined`,
+    });
+    return updated;
+  }
+
+  async markExpired(companyId: string, id: string, userId: string) {
+    const estimate = await this.findOne(companyId, id, true);
+    if (estimate.status === 'expired') throw new BadRequestException('This estimate is already marked expired');
+    if (['accepted', 'declined'].includes(estimate.status)) {
+      throw new BadRequestException(`Cannot mark an estimate with status '${estimate.status}' as expired`);
+    }
+    const updated = await this.prisma.tenant.estimate.update({ where: { id }, data: { status: 'expired' } });
+    await this.writeStatusHistory(companyId, id, estimate.status, 'expired', userId, 'staff', 'Marked expired');
+    return updated;
+  }
+
+  /**
+   * Admin/owner only (gated by the estimates.reopen permission at the
+   * controller) — an accepted estimate that genuinely needs another
+   * look becomes editable again rather than requiring a whole new
+   * estimate. Duplicate protection: reopening something already in
+   * draft is a no-op error, not silently allowed.
+   */
+  async reopen(companyId: string, id: string, userId: string) {
+    const estimate = await this.findOne(companyId, id, true);
+    if (estimate.status === 'draft') throw new BadRequestException('This estimate is already a draft');
+    const updated = await this.prisma.tenant.estimate.update({
+      where: { id },
+      data: { status: 'draft', acceptedAt: null, acceptedVia: null, acceptedByUserId: null, declinedAt: null, declineReason: null, declineComments: null },
+    });
+    await this.writeStatusHistory(companyId, id, estimate.status, 'draft', userId, 'staff', 'Reopened for editing');
+    return updated;
+  }
+
+  /**
+   * Copies customer, property, line items, pricing, tax, notes, terms,
+   * and internal notes — never sent/viewed/accepted/declined dates,
+   * decline reason/comments, signature, or history, since a duplicate
+   * is a genuinely new document, not a continuation of the old one's
+   * lifecycle.
+   */
+  async duplicate(companyId: string, id: string, userId: string) {
+    const source = await this.findOne(companyId, id, true);
+    const newEstimateNumber = `EST-${Date.now().toString().slice(-6)}`;
+
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const created = await tx.estimate.create({
+        data: {
+          companyId,
+          customerId: source.customerId,
+          propertyId: source.propertyId,
+          estimateNumber: newEstimateNumber,
+          status: 'draft',
+          subtotal: source.subtotal,
+          taxRate: source.taxRate,
+          taxAmount: source.taxAmount,
+          discountAmount: source.discountAmount,
+          discountType: source.discountType,
+          totalAmount: source.totalAmount,
+          notes: source.notes,
+          terms: source.terms,
+          internalNotes: source.internalNotes,
+          createdBy: userId,
+        },
+      });
+
+      for (const li of source.lineItems as any[]) {
+        await tx.estimateLineItem.create({
+          data: {
+            companyId,
+            estimateId: created.id,
+            serviceType: li.serviceType,
+            description: li.description,
+            unitOfMeasure: li.unitOfMeasure,
+            quantity: li.quantity,
+            unitPrice: li.unitPrice,
+            notes: li.notes,
+            serviceDetails: li.serviceDetails,
+            sortOrder: li.sortOrder ?? 0,
+            serviceCatalogItemId: li.serviceCatalogItemId,
+          },
+        });
+      }
+
+      await this.writeStatusHistory(companyId, created.id, null, 'draft', userId, 'staff', `Duplicated from ${source.estimateNumber}`);
+      return this.findOne(companyId, created.id, true);
+    });
   }
 
   /**

@@ -11,6 +11,19 @@ Entries move from here into `CHANGELOG.md` once actually built.
 
 ---
 
+## Current Approved Priority Order (as of the v1.0 readiness audit)
+
+Full detail in `V1_READINESS_AUDIT.md` and `ROADMAP_PHASE_2_PLAN.md` —
+this is the short version so it's not lost in a longer document.
+
+1. UI Standardization (StatusBadge consolidation, ConfirmDialog everywhere) + production readiness (real pagination, empty/loading/error state consistency)
+2. Real business integrations live (Postmark/Stripe/Twilio credentials — config only, no code)
+3. **Lead Management** — new module, new `leads` table
+4. **Property Management** — mostly extends what already exists (`photos.property_id` already supports this)
+5. **Automation settings UI** — the real engine (follow-ups, recurring reminders, review requests) already exists and already runs on a daily cron; this phase is mostly surfacing it through settings UI
+
+---
+
 ## Future Module: Release Management & Versioning
 
 **Status:** Recorded, not started. Explicitly deferred until the CRM

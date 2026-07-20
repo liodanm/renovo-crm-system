@@ -1,5 +1,16 @@
 import { apiFetch } from './api-client';
 
+export interface StatusHistoryEntry {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  source: 'portal' | 'staff' | 'manual' | 'automation';
+  note: string | null;
+  changedAt: string;
+  userFirstName: string | null;
+  userLastName: string | null;
+}
+
 export interface EstimateLineItem {
   id: string;
   serviceType: string;
@@ -10,6 +21,7 @@ export interface EstimateLineItem {
   total: string;
   notes: string | null;
   serviceDetails?: Record<string, unknown> | null;
+  serviceCatalogItemId?: string | null;
   // Present only when the caller has the estimates.profitability permission
   // — the backend strips these entirely for anyone else, this isn't just a
   // client-side hide.
@@ -39,9 +51,14 @@ export interface Estimate {
   totalAmount: string;
   notes: string | null;
   terms: string | null;
+  internalNotes: string | null;
   sentAt: string | null;
+  viewedAt: string | null;
   acceptedAt: string | null;
+  acceptedVia: string | null;
   declinedAt: string | null;
+  declineReason: string | null;
+  declineComments: string | null;
   createdAt: string;
   // Estimate-level aggregate, same permission gating as the per-line fields
   totalEstimatedProfit?: number;
@@ -73,6 +90,7 @@ export interface CreateEstimateInput {
   taxRatePercent?: number;
   notes?: string;
   terms?: string;
+  internalNotes?: string;
 }
 
 export const estimatesApi = {
@@ -102,6 +120,14 @@ export const estimatesApi = {
   getEmailHistory: (id: string) => apiFetch<EmailLogEntry[]>(`/estimates/${id}/email-history`),
 
   pdfPath: (id: string) => `/estimates/${id}/pdf`,
+
+  getStatusHistory: (id: string) => apiFetch<StatusHistoryEntry[]>(`/estimates/${id}/status-history`),
+  acceptManually: (id: string) => apiFetch<Estimate>(`/estimates/${id}/accept`, { method: 'POST' }),
+  declineManually: (id: string, declineReason?: string, declineComments?: string) =>
+    apiFetch<Estimate>(`/estimates/${id}/decline`, { method: 'POST', body: JSON.stringify({ declineReason, declineComments }) }),
+  markExpired: (id: string) => apiFetch<Estimate>(`/estimates/${id}/mark-expired`, { method: 'POST' }),
+  reopen: (id: string) => apiFetch<Estimate>(`/estimates/${id}/reopen`, { method: 'POST' }),
+  duplicate: (id: string) => apiFetch<Estimate>(`/estimates/${id}/duplicate`, { method: 'POST' }),
 
   remove: (id: string) => apiFetch<{ deleted: boolean }>(`/estimates/${id}`, { method: 'DELETE' }),
 };
