@@ -122,7 +122,7 @@ export class InvoicesService {
                i.job_id AS "jobId", i.estimate_id AS "estimateId", i.discount_type AS "discountType",
                i.discount_amount AS "discountAmount", i.tax_rate AS "taxRate", i.tax_amount AS "taxAmount",
                i.total_amount AS "totalAmount", i.amount_paid AS "amountPaid", i.balance_due AS "balanceDue",
-               i.due_date AS "dueDate", i.sent_at AS "sentAt", i.paid_at AS "paidAt", i.created_at AS "createdAt",
+               i.due_date AS "dueDate", i.sent_at AS "sentAt", i.viewed_at AS "viewedAt", i.paid_at AS "paidAt", i.created_at AS "createdAt",
                c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName",
                c.email AS "customerEmail", c.phone AS "customerPhone",
                p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity", p.state AS "propertyState",
