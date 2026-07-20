@@ -527,6 +527,7 @@ model Invoice {
   balanceDue        Decimal   @map("balance_due") @db.Decimal(12, 2)
   dueDate           DateTime? @map("due_date") @db.Date
   sentAt            DateTime? @map("sent_at")
+  viewedAt          DateTime? @map("viewed_at")
   paidAt            DateTime? @map("paid_at")
   notes             String?
   terms             String?
