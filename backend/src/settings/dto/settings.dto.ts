@@ -68,6 +68,48 @@ class BusinessHoursDayDto {
   closed?: boolean;
 }
 
+// Each weekday declared explicitly (rather than a generic Record<string, ...>)
+// so the global ValidationPipe's forbidNonWhitelisted check actually
+// recognizes these keys instead of stripping/rejecting all of them —
+// a Record<string, ...> shape has no real class properties for
+// class-validator's whitelist to match against.
+class BusinessHoursDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BusinessHoursDayDto)
+  monday?: BusinessHoursDayDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BusinessHoursDayDto)
+  tuesday?: BusinessHoursDayDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BusinessHoursDayDto)
+  wednesday?: BusinessHoursDayDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BusinessHoursDayDto)
+  thursday?: BusinessHoursDayDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BusinessHoursDayDto)
+  friday?: BusinessHoursDayDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BusinessHoursDayDto)
+  saturday?: BusinessHoursDayDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BusinessHoursDayDto)
+  sunday?: BusinessHoursDayDto;
+}
+
 export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
@@ -136,8 +178,8 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsObject()
   @ValidateNested()
-  @Type(() => Object)
-  businessHours?: Record<string, { open?: string; close?: string; closed?: boolean }>;
+  @Type(() => BusinessHoursDto)
+  businessHours?: BusinessHoursDto;
 }
 
 // ---- Business Defaults ----
