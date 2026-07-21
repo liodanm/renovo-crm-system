@@ -1,9 +1,9 @@
 # Run this from PowerShell while inside the backend folder.
-# It reads DATABASE_URL from .env automatically — nothing to copy/paste.
+# It reads DATABASE_URL from .env automatically - nothing to copy/paste.
 
 $envFile = ".env"
 if (-not (Test-Path $envFile)) {
-    Write-Host "ERROR: Could not find .env in this folder. Make sure you're inside the 'backend' folder first (cd C:\Users\LEO\Downloads\renovo-crm-system\backend)." -ForegroundColor Red
+    Write-Host "ERROR: Could not find .env in this folder. Make sure you are inside the backend folder first (cd C:\Users\LEO\Downloads\renovo-crm-system\backend)." -ForegroundColor Red
     exit
 }
 
@@ -20,7 +20,7 @@ Write-Host "Found DATABASE_URL, starting migrations..." -ForegroundColor Cyan
 
 $psql = "C:\Program Files\PostgreSQL\18\bin\psql.exe"
 if (-not (Test-Path $psql)) {
-    Write-Host "psql.exe not found at $psql — checking if it's on PATH instead..." -ForegroundColor Yellow
+    Write-Host "psql.exe not found at that path, trying PATH instead..." -ForegroundColor Yellow
     $psql = "psql"
 }
 
@@ -32,11 +32,13 @@ $migrations = @(
 )
 
 foreach ($m in $migrations) {
-    Write-Host "`n=== Running $m ===" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "=== Running $m ===" -ForegroundColor Cyan
     & $psql $dbUrl -f $m
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "!!! $m may have failed — check the output above before continuing !!!" -ForegroundColor Red
+        Write-Host "WARNING: $m may have failed. Check the output above before continuing." -ForegroundColor Red
     }
 }
 
-Write-Host "`nAll 4 migrations attempted. Scroll up to check each one finished with COMMIT and no red errors." -ForegroundColor Green
+Write-Host ""
+Write-Host "All 4 migrations attempted. Scroll up to check each one finished with COMMIT and no red errors." -ForegroundColor Green
