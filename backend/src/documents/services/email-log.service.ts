@@ -48,7 +48,7 @@ export class EmailLogService {
     return this.prisma.withTenantContext(companyId, async (tx) => {
       return tx.$queryRawUnsafe(
         `SELECT id, recipient_email AS "recipientEmail", subject, status, error_message AS "errorMessage", created_at AS "createdAt", updated_at AS "updatedAt"
-         FROM email_log WHERE company_id = $1 AND related_type = $2 AND related_id = $3
+         FROM email_log WHERE company_id = $1::uuid AND related_type = $2 AND related_id = $3::uuid
          ORDER BY created_at DESC`,
         companyId,
         relatedType,
@@ -61,7 +61,7 @@ export class EmailLogService {
     return this.prisma.withTenantContext(companyId, async (tx) => {
       const rows: { recipientEmail: string }[] = await tx.$queryRawUnsafe(
         `SELECT recipient_email AS "recipientEmail" FROM email_log
-         WHERE company_id = $1 AND related_type = $2 AND related_id = $3
+         WHERE company_id = $1::uuid AND related_type = $2 AND related_id = $3::uuid
          ORDER BY created_at DESC LIMIT 1`,
         companyId,
         relatedType,
