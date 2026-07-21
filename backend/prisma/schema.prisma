@@ -805,6 +805,12 @@ model AutomationSettings {
   recurringReminderIntervalMonths  Int      @default(12) @map("recurring_reminder_interval_months")
   reviewRequestEnabled             Boolean  @default(true) @map("review_request_enabled")
   reviewRequestDelayDays           Int      @default(1) @map("review_request_delay_days")
+  paymentReminderEnabled           Boolean  @default(true) @map("payment_reminder_enabled")
+  paymentReminderDaysAfterDue      Int      @default(3) @map("payment_reminder_days_after_due")
+  estimateExpirationReminderEnabled     Boolean @default(true) @map("estimate_expiration_reminder_enabled")
+  estimateExpirationReminderDaysBefore  Int     @default(2) @map("estimate_expiration_reminder_days_before")
+  jobThankYouEnabled                Boolean @default(true) @map("job_thank_you_enabled")
+  templates                         Json    @default("{}") @map("templates")
   updatedAt                        DateTime @updatedAt @map("updated_at")
 
   @@map("automation_settings")

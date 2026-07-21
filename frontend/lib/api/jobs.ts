@@ -185,7 +185,12 @@ export const jobsApi = {
 };
 
 export const JOB_STATUS_LABELS: Record<string, string> = {
-  draft: 'Draft',
+  // Same underlying 'draft' status as always — jobs are only ever
+  // created from an accepted estimate, so this state has always meant
+  // "exists, not yet scheduled." Relabeled to say that plainly rather
+  // than changing the database value, which would need a migration and
+  // touch every existing job row for zero real behavioral change.
+  draft: 'Needs Scheduling',
   scheduled: 'Scheduled',
   in_progress: 'In Progress',
   paused: 'Paused',

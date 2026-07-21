@@ -51,7 +51,7 @@ export const settingsNavGroups: SettingsNavGroup[] = [
       { key: 'service-catalog', label: 'Service Catalog', description: 'Predefined services with pricing and defaults', externalHref: '/service-catalog' },
       { key: 'chemical-inventory', label: 'Chemical Inventory', description: 'Track chemical stock and usage', comingSoon: true },
       { key: 'equipment-inventory', label: 'Equipment Inventory', description: 'Track equipment and maintenance', comingSoon: true },
-      { key: 'automation', label: 'Automation', description: 'Automated follow-ups and reminders', comingSoon: true },
+      { key: 'automation', label: 'Automation', description: 'Automated follow-ups and reminders' },
     ],
   },
   {

@@ -19,7 +19,7 @@ export class CompanyContextService {
       const rows: any[] = await tx.$queryRawUnsafe(
         `SELECT name, dba, address_line1 AS "addressLine1", city, state, postal_code AS "postalCode",
                 phone, email, website, settings
-         FROM companies WHERE id = $1::uuid`,
+         FROM companies WHERE id = $1`,
         companyId,
       );
       const row = rows[0];
@@ -57,7 +57,7 @@ export class CompanyContextService {
    */
   async getReplyToEmail(companyId: string): Promise<string | null> {
     return this.prisma.withTenantContext(companyId, async (tx) => {
-      const rows: { replyToEmail: string | null }[] = await tx.$queryRawUnsafe(`SELECT reply_to_email AS "replyToEmail" FROM companies WHERE id = $1::uuid`, companyId);
+      const rows: { replyToEmail: string | null }[] = await tx.$queryRawUnsafe(`SELECT reply_to_email AS "replyToEmail" FROM companies WHERE id = $1`, companyId);
       return rows[0]?.replyToEmail ?? null;
     });
   }

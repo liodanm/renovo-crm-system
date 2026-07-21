@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
+import { JobsService } from '../../jobs/services/jobs.service';
 
 /**
  * Every method here takes `customerId` as an explicit, required parameter
@@ -17,6 +18,7 @@ export class PortalDataService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly jobsService: JobsService,
   ) {}
 
   async getEstimates(companyId: string, customerId: string) {
@@ -39,6 +41,8 @@ export class PortalDataService {
   async approveEstimate(companyId: string, customerId: string, estimateId: string, signatureDataUrl: string) {
     const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
     if (estimate.status === 'accepted') throw new BadRequestException('This estimate has already been approved');
+    if (estimate.status === 'declined') throw new BadRequestException('This estimate was already declined and can no longer be accepted');
+    if (estimate.status === 'expired') throw new BadRequestException('This estimate has expired and can no longer be accepted. Please contact us for an updated quote.');
 
     const updated = await this.prisma.estimate.update({
       where: { id: estimateId },
@@ -53,6 +57,13 @@ export class PortalDataService {
       dedupeKey: `estimate-approved-${estimateId}`,
       messageBody: `Estimate ${estimate.estimateNumber} approved by customer`,
     });
+
+    // Same automatic conversion as staff acceptance — a customer
+    // accepting from the portal should mean exactly the same thing as
+    // office staff recording it, not a second, lesser path.
+    const job = await this.jobsService.createFromEstimate(companyId, estimateId);
+    await this.writeEstimateHistory(companyId, estimateId, 'accepted', 'accepted', null, 'portal', `Job ${job.jobNumber} created automatically`);
+
     return updated;
   }
 

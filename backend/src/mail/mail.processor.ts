@@ -127,7 +127,7 @@ export class MailProcessor extends WorkerHost {
     try {
       await this.prisma.withTenantContext(companyId, async (tx) => {
         await tx.$executeRawUnsafe(
-          `UPDATE email_log SET status = $2, provider_message_id = $3, error_message = $4, updated_at = now() WHERE id = $1::uuid`,
+          `UPDATE email_log SET status = $2, provider_message_id = $3, error_message = $4, updated_at = now() WHERE id = $1`,
           id,
           status,
           providerMessageId ?? null,

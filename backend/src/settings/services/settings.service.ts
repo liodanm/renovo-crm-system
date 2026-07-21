@@ -110,7 +110,7 @@ export class SettingsService {
       `UPDATE companies SET
          name = $2, dba = $3, logo_url = $4, address_line1 = $5, address_line2 = $6, city = $7, state = $8,
          postal_code = $9, phone = $10, email = $11, website = $12, tax_id = $13, license_number = $14,
-         business_hours = $15::jsonb, updated_at = now()
+         business_hours = $15, updated_at = now()
        WHERE id = $1::uuid RETURNING ${COMPANY_SELECT}`,
       companyId,
       dto.name ?? existing.name,

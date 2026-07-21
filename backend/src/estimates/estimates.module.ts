@@ -10,5 +10,6 @@ import { MailModule } from '../mail/mail.module';
   imports: [JobsModule, DocumentsModule, MailModule], // JobsModule: convertToJob -> JobsService.createFromEstimate; DocumentsModule: PDF + email logging; MailModule: real send. Automation event logging goes through the standalone logAutomationEvent utility, no module import needed.
   controllers: [EstimatesController],
   providers: [PrismaService, EstimatesService],
+  exports: [EstimatesService], // AutomationService.runEstimateExpiration reuses markExpired directly rather than a second implementation
 })
 export class EstimatesModule {}

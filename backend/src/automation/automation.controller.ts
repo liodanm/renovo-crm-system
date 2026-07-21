@@ -26,6 +26,12 @@ export class AutomationController {
         recurringReminderIntervalMonths: 12,
         reviewRequestEnabled: true,
         reviewRequestDelayDays: 1,
+        paymentReminderEnabled: true,
+        paymentReminderDaysAfterDue: 3,
+        estimateExpirationReminderEnabled: true,
+        estimateExpirationReminderDaysBefore: 2,
+        jobThankYouEnabled: true,
+        templates: {},
       }
     );
   }

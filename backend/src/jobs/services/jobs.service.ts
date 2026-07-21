@@ -19,6 +19,18 @@ export class JobsService {
    * serviceDetails — a real preservation, not a lossy summary.
    */
   async createFromEstimate(companyId: string, estimateId: string) {
+    // Now called automatically on acceptance (both staff and portal
+    // paths) rather than only from a manual click — this guard is what
+    // makes that safe. Without it, a retried request or someone also
+    // clicking a manual "Convert to Job" affordance after auto-creation
+    // already ran would create a second job for the same estimate.
+    const existingJob: { id: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT id FROM jobs WHERE estimate_id = ${estimateId}::uuid AND company_id = ${companyId}::uuid
+    `);
+    if (existingJob.length > 0) {
+      return this.findOne(companyId, existingJob[0].id);
+    }
+
     const estimateRows: { id: string; customerId: string; propertyId: string; status: string; totalAmount: string; notes: string | null; internalNotes: string | null }[] =
       await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT id, customer_id AS "customerId", property_id AS "propertyId", status, total_amount AS "totalAmount", notes, internal_notes AS "internalNotes"

@@ -94,7 +94,7 @@ export class ReportsService {
     return this.prisma.withTenantContext(companyId, async (tx) => {
       const estimates: any[] = await tx.$queryRaw`
         SELECT
-          COUNT(*) FILTER (WHERE status IN ('sent','viewed','accepted','declined')) AS "estimatesSent",
+          COUNT(*) FILTER (WHERE status IN ('sent','viewed','accepted','declined','expired')) AS "estimatesSent",
           COUNT(*) FILTER (WHERE status = 'accepted') AS "estimatesAccepted",
           COALESCE(AVG(total_amount) FILTER (WHERE status = 'accepted'), 0) AS "averageTicket"
         FROM estimates WHERE company_id = ${companyId}::uuid AND created_at >= ${start} AND created_at < ${end}
@@ -175,7 +175,7 @@ export class ReportsService {
   async getEstimatePipeline(companyId: string) {
     return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT status, COUNT(*) AS "count", COALESCE(SUM(total_amount), 0) AS "totalValue"
-      FROM estimates WHERE company_id = ${companyId}::uuid AND status IN ('draft','sent','viewed','accepted','declined')
+      FROM estimates WHERE company_id = ${companyId}::uuid AND status IN ('draft','sent','viewed','accepted','declined','expired')
       GROUP BY status
     `);
   }

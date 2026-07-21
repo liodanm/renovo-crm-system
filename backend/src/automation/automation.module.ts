@@ -4,9 +4,10 @@ import { AutomationService } from './services/automation.service';
 import { AutomationScheduler } from './services/automation-scheduler.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { MailModule } from '../mail/mail.module';
+import { EstimatesModule } from '../estimates/estimates.module';
 
 @Module({
-  imports: [MailModule],
+  imports: [MailModule, EstimatesModule],
   controllers: [AutomationController],
   providers: [PrismaService, AutomationService, AutomationScheduler],
   exports: [AutomationService],

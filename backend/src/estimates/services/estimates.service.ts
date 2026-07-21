@@ -198,6 +198,16 @@ export class EstimatesService {
       dedupeKey: `estimate-approved-${id}`,
       messageBody: `Estimate ${estimate.estimateNumber} approved (${source})`,
     });
+
+    // Acceptance now automatically creates the Job — this is the one
+    // real workflow change: "Convert to Job" used to be a separate,
+    // deliberate click; now it's a direct consequence of acceptance,
+    // matching how a real pressure-washing business actually thinks
+    // about the moment a customer says yes. createFromEstimate's own
+    // duplicate guard makes this safe even if something retries.
+    const job = await this.jobsService.createFromEstimate(companyId, id);
+    await this.writeStatusHistory(companyId, id, 'accepted', 'accepted', userId, source, `Job ${job.jobNumber} created automatically`);
+
     return updated;
   }
 
@@ -222,14 +232,30 @@ export class EstimatesService {
     return updated;
   }
 
-  async markExpired(companyId: string, id: string, userId: string) {
+  /**
+   * Shared by both the manual staff action and the automatic daily
+   * transition (AutomationService.runEstimateExpiration calls this
+   * directly) — one status-transition implementation, not two. userId
+   * is null for the automatic path, since there's no acting staff
+   * member to attribute it to; source records which one actually ran.
+   */
+  async markExpired(companyId: string, id: string, userId: string | null, source: 'staff' | 'automation' = 'staff') {
     const estimate = await this.findOne(companyId, id, true);
     if (estimate.status === 'expired') throw new BadRequestException('This estimate is already marked expired');
     if (['accepted', 'declined'].includes(estimate.status)) {
       throw new BadRequestException(`Cannot mark an estimate with status '${estimate.status}' as expired`);
     }
     const updated = await this.prisma.tenant.estimate.update({ where: { id }, data: { status: 'expired' } });
-    await this.writeStatusHistory(companyId, id, estimate.status, 'expired', userId, 'staff', 'Marked expired');
+    await this.writeStatusHistory(companyId, id, estimate.status, 'expired', userId, source, source === 'automation' ? 'Automatically expired (past valid until date)' : 'Marked expired');
+    if (source === 'automation') {
+      await logAutomationEvent(this.prisma, {
+        companyId,
+        customerId: estimate.customerId,
+        ruleType: 'estimate_expired',
+        dedupeKey: `estimate-expired-${id}`,
+        messageBody: `Estimate ${estimate.estimateNumber} automatically expired`,
+      });
+    }
     return updated;
   }
 

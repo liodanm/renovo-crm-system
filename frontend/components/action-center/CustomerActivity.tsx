@@ -1,4 +1,4 @@
-import { Mail, Eye, CheckCircle2, XCircle, Send, Briefcase } from 'lucide-react';
+import { Mail, Eye, CheckCircle2, XCircle, Send, Briefcase, Clock } from 'lucide-react';
 import type { TimelineEntry } from './StatusTimeline';
 import type { EmailLogEntry } from '../../lib/api/estimates';
 
@@ -13,11 +13,11 @@ export function CustomerActivity({ statusHistory, emailHistory }: { statusHistor
   type ActivityItem = { at: string; icon: React.ReactNode; label: string };
 
   const fromStatus: ActivityItem[] = statusHistory
-    .filter((e) => ['viewed', 'accepted', 'declined'].includes(e.toStatus))
+    .filter((e) => ['viewed', 'accepted', 'declined', 'expired'].includes(e.toStatus))
     .map((e) => ({
       at: e.changedAt,
-      icon: e.toStatus === 'accepted' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : e.toStatus === 'declined' ? <XCircle className="h-4 w-4 text-red-600" /> : <Eye className="h-4 w-4 text-purple-600" />,
-      label: e.toStatus === 'viewed' ? 'Customer viewed the estimate' : e.toStatus === 'accepted' ? 'Customer accepted' : 'Customer declined',
+      icon: e.toStatus === 'accepted' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : e.toStatus === 'declined' ? <XCircle className="h-4 w-4 text-red-600" /> : e.toStatus === 'expired' ? <Clock className="h-4 w-4 text-orange-600" /> : <Eye className="h-4 w-4 text-purple-600" />,
+      label: e.toStatus === 'viewed' ? 'Customer viewed the estimate' : e.toStatus === 'accepted' ? 'Customer accepted' : e.toStatus === 'expired' ? 'Estimate expired automatically' : 'Customer declined',
     }));
 
   const fromEmail: ActivityItem[] = emailHistory.map((e) => ({

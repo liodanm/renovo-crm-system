@@ -103,7 +103,13 @@ export default function EstimateDetailPage() {
   const primary: ActionBarItem[] = [
     { key: 'edit', label: 'Edit', icon: <Pencil className="h-4 w-4" />, onClick: () => router.push(`/estimates/${estimate.id}/edit`), hidden: !isDraft },
     { key: 'accept', label: 'Accept', icon: <CheckCircle2 className="h-4 w-4" />, onClick: () => setOpenDialog('accept'), hidden: ['accepted', 'declined', 'expired'].includes(estimate.status) },
-    { key: 'convert', label: 'Convert to Job', icon: <Briefcase className="h-4 w-4" />, onClick: handleConvertToJob, hidden: !isAccepted, loading: isActing },
+    // Job creation now happens automatically on acceptance — this button
+    // is a navigation shortcut to that job, not a separate creation
+    // step. It still calls the same (now-idempotent) endpoint rather
+    // than assuming a job ID, which is what keeps this safe for
+    // estimates accepted before this change shipped, before any job
+    // existed for them yet.
+    { key: 'convert', label: 'View Job', icon: <Briefcase className="h-4 w-4" />, onClick: handleConvertToJob, hidden: !isAccepted, loading: isActing },
   ];
 
   const secondary: ActionBarItem[] = [
@@ -229,6 +235,15 @@ export default function EstimateDetailPage() {
               </div>
             )}
 
+            {estimate.status === 'expired' && (
+              <div className="rounded-lg bg-orange-50 px-4 py-3">
+                <p className="text-sm font-medium text-orange-800">This estimate expired automatically and can no longer be accepted or converted to a job.</p>
+                <p className="mt-1 text-sm text-orange-700">
+                  {canReopen ? 'Use Reopen in the Danger Zone below to send it back to Draft, update pricing if needed, and resend it.' : 'An Owner or Admin can reopen it to send a fresh quote.'}
+                </p>
+              </div>
+            )}
+
             {estimate.internalNotes && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Internal Notes — staff only, never shown to the customer</p>
@@ -269,7 +284,7 @@ export default function EstimateDetailPage() {
         {openDialog === 'accept' && (
           <ConfirmDialog
             title="Accept this estimate?"
-            message="This records office-staff acceptance and enables Convert to Job. This can't be undone unless it's reopened by an Owner or Admin."
+            message="This records office-staff acceptance and automatically creates a Job, ready to be scheduled. This can't be undone unless it's reopened by an Owner or Admin."
             confirmLabel="Accept Estimate"
             onClose={() => setOpenDialog(null)}
             onConfirm={async () => { await estimatesApi.acceptManually(estimate.id); await mutate(); }}

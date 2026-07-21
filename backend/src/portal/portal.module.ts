@@ -11,12 +11,14 @@ import { StorageService } from '../common/storage/storage.service';
 import { PasswordService } from '../auth/services/password.service';
 import { MailModule } from '../mail/mail.module';
 import { DocumentsModule } from '../documents/documents.module';
+import { JobsModule } from '../jobs/jobs.module';
 
 @Module({
   imports: [
     JwtModule.register({}), // secret passed per-call (PORTAL_JWT_SECRET), same pattern as the staff AuthModule
     MailModule,
     DocumentsModule,
+    JobsModule, // automatic Job creation on estimate acceptance — see PortalDataService.approveEstimate
   ],
   controllers: [PortalController],
   providers: [
