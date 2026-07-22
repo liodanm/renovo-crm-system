@@ -14,6 +14,7 @@ export class AutomationController {
 
   @Get('settings')
   async getSettings(@CurrentUser() user: AuthenticatedRequestUser) {
+console.log('>>> MARKER-12345 THIS IS THE NEW CODE <<<');
     // Deliberately select only the fields UpdateAutomationSettingsDto
     // declares — the frontend round-trips this whole response straight
     // back on save, and the global ValidationPipe's strict whitelist
