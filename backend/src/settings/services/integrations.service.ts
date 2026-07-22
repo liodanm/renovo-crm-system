@@ -9,7 +9,7 @@ import { AiSuggestionsService } from '../../ai/ai-suggestions.service';
 import { StripePaymentService } from '../../portal/services/stripe-payment.service';
 import { UpdateBusinessLinksDto } from '../dto/settings.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-import pkg from '../../../package.json';
+
 
 type ProviderKey = 'stripe' | 'postmark' | 'twilio' | 's3' | 'anthropic';
 const PROVIDER_KEYS: ProviderKey[] = ['stripe', 'postmark', 'twilio', 's3', 'anthropic'];
@@ -192,12 +192,12 @@ export class IntegrationsService {
     ]);
 
     const postmark = this.integrationStatus.get('postmark');
-    const twilio = this.integrationStatus.get('twilio');
-    const stripe = this.integrationStatus.get('stripe');
-    const anthropic = this.integrationStatus.get('anthropic');
-    const s3 = this.integrationStatus.get('s3');
-
-    return {
+const twilio = this.integrationStatus.get('twilio');
+const stripe = this.integrationStatus.get('stripe');
+const anthropic = this.integrationStatus.get('anthropic');
+const s3 = this.integrationStatus.get('s3');
+const pkg = require('../../../package.json');
+return {
       database: { status: dbOk ? 'healthy' : 'unhealthy', checkedAt: new Date().toISOString() },
       redis: { status: redisOk ? 'healthy' : 'unhealthy', checkedAt: new Date().toISOString() },
       email: { status: postmark.configured ? 'configured' : 'not_configured' },
