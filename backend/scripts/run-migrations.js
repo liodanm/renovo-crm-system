@@ -36,6 +36,16 @@ async function main() {
       results.push({ file, status: 'applied' });
       console.log(`OK    ${file}`);
     } catch (err) {
+      // Without this, a failed statement (e.g. "already exists" on an
+      // already-applied migration) leaves the session's transaction in
+      // an aborted state, and EVERY subsequent file's queries get
+      // silently skipped with "current transaction is aborted" —
+      // which is exactly what happened without this rollback.
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // no transaction was open — fine, nothing to roll back
+      }
       results.push({ file, status: 'error', message: err.message });
       console.log(`ERROR ${file}: ${err.message.split('\n')[0]}`);
     }
