@@ -39,6 +39,7 @@ console.log('>>> MARKER-12345 THIS IS THE NEW CODE <<<');
         templates: true,
       },
     });
+if (settings) (settings as any).__PROOF_THIS_IS_NEW_CODE = true;
     // Same "no row yet = defaults" reasoning as AutomationService itself —
     // this is what the settings screen shows before anyone's touched it.
     return (
