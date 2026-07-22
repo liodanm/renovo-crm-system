@@ -14,12 +14,34 @@ export class AutomationController {
 
   @Get('settings')
   async getSettings(@CurrentUser() user: AuthenticatedRequestUser) {
-    const settings = await this.prisma.automationSettings.findUnique({ where: { companyId: user.companyId } });
+    // Deliberately select only the fields UpdateAutomationSettingsDto
+    // declares — the frontend round-trips this whole response straight
+    // back on save, and the global ValidationPipe's strict whitelist
+    // rejects any field the DTO doesn't know about. A plain findUnique()
+    // with no select returns id/companyId/updatedAt too, which would 400
+    // EVERY save (not just the first) with "property X should not exist"
+    // once a real row exists — found and fixed during this session.
+    const settings = await this.prisma.automationSettings.findUnique({
+      where: { companyId: user.companyId },
+      select: {
+        estimateFollowupEnabled: true,
+        estimateFollowupAfterDays: true,
+        recurringReminderEnabled: true,
+        recurringReminderIntervalMonths: true,
+        reviewRequestEnabled: true,
+        reviewRequestDelayDays: true,
+        paymentReminderEnabled: true,
+        paymentReminderDaysAfterDue: true,
+        estimateExpirationReminderEnabled: true,
+        estimateExpirationReminderDaysBefore: true,
+        jobThankYouEnabled: true,
+        templates: true,
+      },
+    });
     // Same "no row yet = defaults" reasoning as AutomationService itself —
     // this is what the settings screen shows before anyone's touched it.
     return (
       settings ?? {
-        companyId: user.companyId,
         estimateFollowupEnabled: true,
         estimateFollowupAfterDays: 3,
         recurringReminderEnabled: true,
