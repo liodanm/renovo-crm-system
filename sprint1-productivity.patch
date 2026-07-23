@@ -1,0 +1,542 @@
+diff --git a/backend/src/customers/services/customers.service.ts b/backend/src/customers/services/customers.service.ts
+index c49d2eb..0efc016 100644
+--- a/backend/src/customers/services/customers.service.ts
++++ b/backend/src/customers/services/customers.service.ts
+@@ -71,8 +71,35 @@ export class CustomersService {
+       }),
+     ]);
+ 
++    // Balance due + last service date, batched for just this page's
++    // customer IDs (not the whole table) — same underlying fields the
++    // Invoices/Jobs modules already use, just aggregated per-customer
++    // for the list view. Optional columns; adds one query pair per
++    // page load, not per row.
++    const customerIds = customers.map((c) => c.id);
++    const [balances, lastServices] = customerIds.length
++      ? await Promise.all([
++          this.prisma.invoice.groupBy({
++            by: ['customerId'],
++            where: { companyId, customerId: { in: customerIds }, status: { notIn: ['draft', 'void'] } },
++            _sum: { balanceDue: true },
++          }),
++          this.prisma.job.groupBy({
++            by: ['customerId'],
++            where: { companyId, customerId: { in: customerIds }, actualEnd: { not: null } },
++            _max: { actualEnd: true },
++          }),
++        ])
++      : [[], []];
++    const balanceByCustomer = new Map(balances.map((b) => [b.customerId, (b._sum.balanceDue ?? 0).toString()]));
++    const lastServiceByCustomer = new Map(lastServices.map((j) => [j.customerId, j._max.actualEnd]));
++
+     return {
+-      data: customers.map((c) => this.toSummary(c)),
++      data: customers.map((c) => ({
++        ...this.toSummary(c),
++        balanceDue: balanceByCustomer.get(c.id) ?? '0',
++        lastServiceDate: lastServiceByCustomer.get(c.id) ?? null,
++      })),
+       pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+     };
+   }
+@@ -169,10 +196,28 @@ export class CustomersService {
+ 
+     if (!customer) throw new NotFoundException('Customer not found');
+ 
+-    const customFieldValues = await this.prisma.customFieldValue.findMany({
+-      where: { companyId, entityId: customerId },
+-      include: { fieldDefinition: true },
+-    });
++    const [customFieldValues, balanceAgg, openEstimatesCount, openInvoicesCount] = await Promise.all([
++      this.prisma.customFieldValue.findMany({
++        where: { companyId, entityId: customerId },
++        include: { fieldDefinition: true },
++      }),
++      // "Money at a glance" — the customer profile previously had no
++      // visibility into whether this person owes money, forcing a
++      // separate trip to the Invoices module for something that should
++      // be answerable the moment the phone rings. Sums real balanceDue
++      // across their non-draft, non-void invoices — same field the
++      // Invoices module itself displays, not a re-derived duplicate.
++      this.prisma.invoice.aggregate({
++        where: { companyId, customerId, status: { notIn: ['draft', 'void'] } },
++        _sum: { balanceDue: true },
++      }),
++      this.prisma.estimate.count({
++        where: { companyId, customerId, status: { in: ['draft', 'sent', 'viewed'] } },
++      }),
++      this.prisma.invoice.count({
++        where: { companyId, customerId, status: { notIn: ['draft', 'void'] }, balanceDue: { gt: 0 } },
++      }),
++    ]);
+ 
+     return {
+       ...customer,
+@@ -182,6 +227,9 @@ export class CustomersService {
+         fieldType: v.fieldDefinition.fieldType,
+         value: v.value,
+       })),
++      balanceDue: (balanceAgg._sum.balanceDue ?? 0).toString(),
++      openEstimatesCount,
++      openInvoicesCount,
+     };
+   }
+ 
+diff --git a/frontend/app/estimates/new/page.tsx b/frontend/app/estimates/new/page.tsx
+index f9ca230..192b97f 100644
+--- a/frontend/app/estimates/new/page.tsx
++++ b/frontend/app/estimates/new/page.tsx
+@@ -1,7 +1,19 @@
+ 'use client';
+ 
++import { Suspense } from 'react';
++import { useSearchParams } from 'next/navigation';
+ import { EstimateForm } from '../../../components/estimates/EstimateForm';
+ 
++function NewEstimateInner() {
++  const searchParams = useSearchParams();
++  const customerId = searchParams.get('customerId') ?? undefined;
++  return <EstimateForm initialCustomerId={customerId} />;
++}
++
+ export default function NewEstimatePage() {
+-  return <EstimateForm />;
++  return (
++    <Suspense fallback={null}>
++      <NewEstimateInner />
++    </Suspense>
++  );
+ }
+diff --git a/frontend/app/jobs/[id]/page.tsx b/frontend/app/jobs/[id]/page.tsx
+index f78d488..1e1a51d 100644
+--- a/frontend/app/jobs/[id]/page.tsx
++++ b/frontend/app/jobs/[id]/page.tsx
+@@ -245,12 +245,16 @@ export default function JobDetailPage() {
+               </div>
+             )}
+ 
+-            {/* Phase 2: Field operations */}
+-            <div className="mt-6 space-y-4">
+-              <PhotoSection jobId={job.id} />
+-              <ChemicalSection jobId={job.id} />
+-              <EquipmentSection jobId={job.id} />
+-            </div>
++            {/* Phase 2: Field operations — hidden until the job has
++                actually started; nothing to log on a job that hasn't
++                begun, and the empty sections were just extra scroll. */}
++            {job.status !== 'draft' && job.status !== 'scheduled' && (
++              <div className="mt-6 space-y-4">
++                <div id="job-photos"><PhotoSection jobId={job.id} /></div>
++                <div id="job-chemicals"><ChemicalSection jobId={job.id} /></div>
++                <div id="job-equipment"><EquipmentSection jobId={job.id} /></div>
++              </div>
++            )}
+ 
+             {(job.notes || job.internalNotes) && (
+               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+diff --git a/frontend/app/jobs/page.tsx b/frontend/app/jobs/page.tsx
+index fd6681e..e59dd71 100644
+--- a/frontend/app/jobs/page.tsx
++++ b/frontend/app/jobs/page.tsx
+@@ -1,8 +1,9 @@
+ 'use client';
+ 
++import { useMemo, useState } from 'react';
+ import Link from 'next/link';
+ import useSWR from 'swr';
+-import { jobsApi, JOB_STATUS_LABELS } from '../../lib/api/jobs';
++import { jobsApi, JOB_STATUS_LABELS, type JobListItem } from '../../lib/api/jobs';
+ import { AppShell } from '../../components/layout/AppShell';
+ 
+ const STATUS_STYLES: Record<string, string> = {
+@@ -15,6 +16,8 @@ const STATUS_STYLES: Record<string, string> = {
+   on_hold: 'bg-slate-100 text-slate-500',
+ };
+ 
++type RangeFilter = 'today' | 'week' | 'all';
++
+ function customerName(job: { customerBusinessName: string | null; customerFirstName: string | null; customerLastName: string | null }): string {
+   return job.customerBusinessName ?? (`${job.customerFirstName ?? ''} ${job.customerLastName ?? ''}`.trim() || 'Unknown');
+ }
+@@ -23,17 +26,65 @@ function formatMoney(value: string): string {
+   return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+ }
+ 
++function isSameDay(a: Date, b: Date): boolean {
++  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
++}
++
++function applyRangeFilter(jobs: JobListItem[], range: RangeFilter): JobListItem[] {
++  if (range === 'all') return jobs;
++  const now = new Date();
++  if (range === 'today') {
++    return jobs.filter((j) => j.scheduledStart && isSameDay(new Date(j.scheduledStart), now));
++  }
++  // This Week — rest of the current week starting today, matching how a
++  // field owner actually thinks about "what's coming up," not a Sun–Sat grid.
++  const weekEnd = new Date(now);
++  weekEnd.setDate(weekEnd.getDate() + 7);
++  return jobs.filter((j) => j.scheduledStart && new Date(j.scheduledStart) >= new Date(now.setHours(0, 0, 0, 0)) && new Date(j.scheduledStart) <= weekEnd);
++}
++
+ export default function JobsPage() {
+-  const { data: jobs, error, isLoading } = useSWR('jobs', () => jobsApi.list());
++  const { data: allJobs, error, isLoading } = useSWR('jobs', () => jobsApi.list());
++  const [range, setRange] = useState<RangeFilter>('today');
++
++  const jobs = useMemo(() => {
++    if (!allJobs) return undefined;
++    const filtered = applyRangeFilter(allJobs, range);
++    // Sort by scheduled time — unscheduled jobs (drafts) sink to the
++    // bottom rather than interrupting the day's actual order.
++    return [...filtered].sort((a, b) => {
++      if (!a.scheduledStart && !b.scheduledStart) return 0;
++      if (!a.scheduledStart) return 1;
++      if (!b.scheduledStart) return -1;
++      return new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime();
++    });
++  }, [allJobs, range]);
+ 
+   return (
+     <AppShell>
+       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+-        <div>
+-          <h1 className="text-xl font-semibold text-slate-900">Jobs</h1>
+-          <p className="mt-1 text-sm text-slate-500">
+-            {jobs ? `${jobs.length} total` : 'Loading…'}
+-          </p>
++        <div className="flex flex-wrap items-center justify-between gap-3">
++          <div>
++            <h1 className="text-xl font-semibold text-slate-900">Jobs</h1>
++            <p className="mt-1 text-sm text-slate-500">
++              {jobs ? `${jobs.length} ${range === 'all' ? 'total' : 'shown'}` : 'Loading…'}
++            </p>
++          </div>
++          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
++            {([
++              { key: 'today', label: 'Today' },
++              { key: 'week', label: 'This Week' },
++              { key: 'all', label: 'All' },
++            ] as { key: RangeFilter; label: string }[]).map((opt) => (
++              <button
++                key={opt.key}
++                onClick={() => setRange(opt.key)}
++                className={`rounded-md px-3 py-1.5 text-sm font-medium ${range === opt.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
++              >
++                {opt.label}
++              </button>
++            ))}
++          </div>
+         </div>
+ 
+         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+@@ -41,8 +92,14 @@ export default function JobsPage() {
+           {error && <div className="p-8 text-center text-sm text-red-600">Couldn't load jobs. Try refreshing.</div>}
+           {jobs && jobs.length === 0 && (
+             <div className="p-8 text-center text-sm text-slate-500">
+-              No jobs yet. Convert an accepted estimate from the{' '}
+-              <Link href="/estimates" className="text-[var(--color-brand)]">Estimates</Link> page to create one.
++              {range === 'today' ? (
++                <>Nothing scheduled today. <button onClick={() => setRange('all')} className="text-[var(--color-brand)]">View all jobs</button></>
++              ) : (
++                <>
++                  No jobs yet. Convert an accepted estimate from the{' '}
++                  <Link href="/estimates" className="text-[var(--color-brand)]">Estimates</Link> page to create one.
++                </>
++              )}
+             </div>
+           )}
+           {jobs && jobs.length > 0 && (
+@@ -50,6 +107,7 @@ export default function JobsPage() {
+               <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                 <tr>
+                   <th className="px-4 py-3">Job #</th>
++                  <th className="px-4 py-3">Scheduled</th>
+                   <th className="px-4 py-3">Customer</th>
+                   <th className="px-4 py-3">Property</th>
+                   <th className="px-4 py-3">Status</th>
+@@ -64,6 +122,11 @@ export default function JobsPage() {
+                         {job.jobNumber}
+                       </Link>
+                     </td>
++                    <td className="px-4 py-3 text-slate-500">
++                      {job.scheduledStart
++                        ? new Date(job.scheduledStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
++                        : '—'}
++                    </td>
+                     <td className="px-4 py-3 text-slate-700">{customerName(job)}</td>
+                     <td className="px-4 py-3 text-slate-500">{job.propertyAddressLine1}, {job.propertyCity}</td>
+                     <td className="px-4 py-3">
+diff --git a/frontend/components/customers/customer-table.tsx b/frontend/components/customers/customer-table.tsx
+index bc53d80..a649d16 100644
+--- a/frontend/components/customers/customer-table.tsx
++++ b/frontend/components/customers/customer-table.tsx
+@@ -31,6 +31,8 @@ export function CustomerTable({ customers }: { customers: CustomerSummary[] }) {
+             <th className="px-3 py-2.5 font-medium">Location</th>
+             <th className="px-3 py-2.5 font-medium">Tags</th>
+             <th className="px-3 py-2.5 text-right font-medium">Lifetime Value</th>
++            <th className="px-3 py-2.5 text-right font-medium">Balance Due</th>
++            <th className="px-3 py-2.5 font-medium">Last Service</th>
+           </tr>
+         </thead>
+         <tbody className="divide-y divide-slate-100">
+@@ -64,6 +66,12 @@ export function CustomerTable({ customers }: { customers: CustomerSummary[] }) {
+                 </div>
+               </td>
+               <td className="px-3 py-3 text-right font-medium text-slate-700">{currency.format(c.lifetimeValue)}</td>
++              <td className={`px-3 py-3 text-right font-medium ${Number(c.balanceDue) > 0 ? 'text-red-600' : 'text-slate-400'}`}>
++                {Number(c.balanceDue) > 0 ? currency.format(Number(c.balanceDue)) : '—'}
++              </td>
++              <td className="px-3 py-3 text-slate-500">
++                {c.lastServiceDate ? new Date(c.lastServiceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
++              </td>
+             </tr>
+           ))}
+         </tbody>
+diff --git a/frontend/components/customers/tabs/overview-tab.tsx b/frontend/components/customers/tabs/overview-tab.tsx
+index 144db56..c40dd10 100644
+--- a/frontend/components/customers/tabs/overview-tab.tsx
++++ b/frontend/components/customers/tabs/overview-tab.tsx
+@@ -1,10 +1,15 @@
+ 'use client';
+ 
+ import { useState } from 'react';
++import Link from 'next/link';
+ import useSWR from 'swr';
+ import { customersApi, CustomerProfile } from '../../../lib/api/customers';
+ import { CardSkeleton } from '../../dashboard/dashboard-card';
+ 
++function formatMoney(value: string | number): string {
++  return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
++}
++
+ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile; onUpdated: () => void }) {
+   const { data: customFields, isLoading } = useSWR(
+     [`custom-fields`, customer.id],
+@@ -38,13 +43,44 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
+     saveTags(tags.filter((t) => t !== tag));
+   }
+ 
++  const hasBalance = Number(customer.balanceDue) > 0;
++
+   return (
+     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
++      {/* Money at a glance — the whole reason this card exists is so a call
++          coming in doesn't require a separate trip to Invoices/Estimates
++          just to answer "does this person owe me anything." */}
++      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
++        <div className="flex flex-wrap items-center justify-between gap-3">
++          <h3 className="text-sm font-semibold text-slate-800">Money at a Glance</h3>
++          <Link
++            href={`/estimates/new?customerId=${customer.id}`}
++            className="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
++          >
++            + New Estimate
++          </Link>
++        </div>
++        <div className="mt-3 grid grid-cols-3 gap-3">
++          <div>
++            <p className="text-xs text-slate-400">Balance Due</p>
++            <p className={`mt-0.5 text-lg font-semibold ${hasBalance ? 'text-red-600' : 'text-slate-900'}`}>{formatMoney(customer.balanceDue)}</p>
++          </div>
++          <div>
++            <p className="text-xs text-slate-400">Open Estimates</p>
++            <p className="mt-0.5 text-lg font-semibold text-slate-900">{customer.openEstimatesCount}</p>
++          </div>
++          <div>
++            <p className="text-xs text-slate-400">Open Invoices</p>
++            <p className="mt-0.5 text-lg font-semibold text-slate-900">{customer.openInvoicesCount}</p>
++          </div>
++        </div>
++      </div>
++
+       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+         <h3 className="text-sm font-semibold text-slate-800">Contact Information</h3>
+         <dl className="mt-3 space-y-2 text-sm">
+-          <Row label="Phone" value={customer.phone} />
+-          <Row label="Secondary phone" value={customer.secondaryPhone} />
++          <PhoneRow label="Phone" value={customer.phone} />
++          <PhoneRow label="Secondary phone" value={customer.secondaryPhone} />
+           <Row label="Email" value={customer.email} />
+           <Row label="Source" value={customer.source} />
+           <Row label="Lead status" value={customer.leadStatus} capitalize />
+@@ -134,3 +170,20 @@ function Row({ label, value, capitalize }: { label: string; value: string | null
+     </div>
+   );
+ }
++
++function PhoneRow({ label, value }: { label: string; value: string | null }) {
++  return (
++    <div className="flex justify-between">
++      <dt className="text-slate-400">{label}</dt>
++      <dd>
++        {value ? (
++          <a href={`tel:${value}`} className="font-medium text-[var(--color-brand)]">
++            {value}
++          </a>
++        ) : (
++          <span className="text-slate-700">—</span>
++        )}
++      </dd>
++    </div>
++  );
++}
+diff --git a/frontend/components/dashboard/todays-jobs-list-card.tsx b/frontend/components/dashboard/todays-jobs-list-card.tsx
+index c1a0514..8abde93 100644
+--- a/frontend/components/dashboard/todays-jobs-list-card.tsx
++++ b/frontend/components/dashboard/todays-jobs-list-card.tsx
+@@ -1,5 +1,6 @@
+ 'use client';
+ 
++import Link from 'next/link';
+ import { useDashboardSummary } from '../../lib/hooks/use-dashboard';
+ import { DashboardCard, CardSkeleton, CardError, CardEmpty, CardLocked } from './dashboard-card';
+ 
+@@ -30,23 +31,25 @@ export function TodaysJobsListCard() {
+       {!isLoading && !error && data?.todaysJobs && data.todaysJobs.jobs.length > 0 && (
+         <ul className="divide-y divide-slate-100">
+           {data.todaysJobs.jobs.map((job) => (
+-            <li key={job.id} className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+-              <div className="min-w-0">
+-                <div className="flex items-center gap-2">
+-                  <span className="truncate text-sm font-medium text-slate-900">{job.title}</span>
+-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[job.status] ?? 'bg-slate-100 text-slate-700'}`}>
+-                    {job.status.replace('_', ' ')}
+-                  </span>
++            <li key={job.id} className="py-2.5 first:pt-0 last:pb-0">
++              <Link href={`/jobs/${job.id}`} className="flex items-start justify-between gap-3 rounded-lg -mx-2 px-2 py-0.5 hover:bg-slate-50">
++                <div className="min-w-0">
++                  <div className="flex items-center gap-2">
++                    <span className="truncate text-sm font-medium text-slate-900">{job.title}</span>
++                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[job.status] ?? 'bg-slate-100 text-slate-700'}`}>
++                      {job.status.replace('_', ' ')}
++                    </span>
++                  </div>
++                  <div className="mt-0.5 truncate text-xs text-slate-500">
++                    {job.customerName} · {job.address}
++                  </div>
++                  {job.crewName && <div className="mt-0.5 text-xs text-slate-400">Crew: {job.crewName}</div>}
+                 </div>
+-                <div className="mt-0.5 truncate text-xs text-slate-500">
+-                  {job.customerName} · {job.address}
++                <div className="shrink-0 text-right text-xs text-slate-500">
++                  {formatTime(job.scheduledStart)}
++                  {job.scheduledEnd && <> – {formatTime(job.scheduledEnd)}</>}
+                 </div>
+-                {job.crewName && <div className="mt-0.5 text-xs text-slate-400">Crew: {job.crewName}</div>}
+-              </div>
+-              <div className="shrink-0 text-right text-xs text-slate-500">
+-                {formatTime(job.scheduledStart)}
+-                {job.scheduledEnd && <> – {formatTime(job.scheduledEnd)}</>}
+-              </div>
++              </Link>
+             </li>
+           ))}
+         </ul>
+diff --git a/frontend/components/estimates/EstimateForm.tsx b/frontend/components/estimates/EstimateForm.tsx
+index 0beb7bb..4eeea2b 100644
+--- a/frontend/components/estimates/EstimateForm.tsx
++++ b/frontend/components/estimates/EstimateForm.tsx
+@@ -106,7 +106,7 @@ function lineItemFromExisting(li: Estimate['lineItems'][number]): DraftLineItem
+  * this logic. `existingEstimate` being present is what switches every
+  * behavior below from create to edit; there is no other mode flag.
+  */
+-export function EstimateForm({ existingEstimate }: { existingEstimate?: Estimate }) {
++export function EstimateForm({ existingEstimate, initialCustomerId }: { existingEstimate?: Estimate; initialCustomerId?: string }) {
+   const router = useRouter();
+   const isEdit = !!existingEstimate;
+ 
+@@ -114,7 +114,7 @@ export function EstimateForm({ existingEstimate }: { existingEstimate?: Estimate
+     customersApi.list({ pageSize: 100, sortBy: 'name', sortDir: 'asc' }),
+   );
+ 
+-  const [customerId, setCustomerId] = useState(existingEstimate?.customer.id ?? '');
++  const [customerId, setCustomerId] = useState(existingEstimate?.customer.id ?? initialCustomerId ?? '');
+   const [propertyId, setPropertyId] = useState(existingEstimate?.property.id ?? '');
+   const {
+     data: properties,
+diff --git a/frontend/components/jobs/CompletionFlow.tsx b/frontend/components/jobs/CompletionFlow.tsx
+index e79598e..c511a6f 100644
+--- a/frontend/components/jobs/CompletionFlow.tsx
++++ b/frontend/components/jobs/CompletionFlow.tsx
+@@ -39,6 +39,21 @@ export function CompletionFlow({ onSubmit, onCancel, isSubmitting }: CompletionF
+     <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+       <h2 className="text-sm font-semibold text-slate-700">Complete This Job</h2>
+ 
++      {/* Quick links to field-ops sections further down this same page —
++          they're not part of this form (nothing moved), this just saves
++          the scroll-and-hunt to find them before/after completing. */}
++      <div className="flex flex-wrap gap-2">
++        <a href="#job-photos" className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
++          📷 Photos
++        </a>
++        <a href="#job-chemicals" className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
++          🧪 Chemicals Used
++        </a>
++        <a href="#job-equipment" className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
++          🛠️ Equipment Used
++        </a>
++      </div>
++
+       {/* Signature — genuinely optional, per explicit decision */}
+       <div>
+         <div className="flex gap-2">
+diff --git a/frontend/components/payments/PaymentsSection.tsx b/frontend/components/payments/PaymentsSection.tsx
+index 84b05fc..3b6c46c 100644
+--- a/frontend/components/payments/PaymentsSection.tsx
++++ b/frontend/components/payments/PaymentsSection.tsx
+@@ -69,7 +69,18 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
+       <div className="flex items-center justify-between">
+         <h2 className="text-sm font-semibold text-slate-700">Payments</h2>
+         {canRecordPayment && (
+-          <button onClick={() => setShowForm((v) => !v)} className="text-sm font-medium text-[var(--color-brand)]">
++          <button
++            onClick={() => {
++              // Opening the form pre-fills the amount with what's actually
++              // owed — the CRM already knows this number, so the common
++              // case (paid in full) needs zero typing. Still just a text
++              // input underneath, so partial/adjusted amounts are a normal
++              // edit, not a special mode.
++              if (!showForm) setAmount(balanceDue);
++              setShowForm((v) => !v);
++            }}
++            className="text-sm font-medium text-[var(--color-brand)]"
++          >
+             {showForm ? 'Cancel' : '+ Record Payment'}
+           </button>
+         )}
+diff --git a/frontend/lib/api/customers.ts b/frontend/lib/api/customers.ts
+index 79d6e39..7346481 100644
+--- a/frontend/lib/api/customers.ts
++++ b/frontend/lib/api/customers.ts
+@@ -13,6 +13,8 @@ export interface CustomerSummary {
+   primaryLocation: string | null;
+   createdAt: string;
+   updatedAt: string;
++  balanceDue: string;
++  lastServiceDate: string | null;
+ }
+ 
+ export interface PaginatedCustomers {
+@@ -69,6 +71,9 @@ export interface CustomerProfile {
+   customFields: CustomFieldValue[];
+   createdAt: string;
+   updatedAt: string;
++  balanceDue: string;
++  openEstimatesCount: number;
++  openInvoicesCount: number;
+ }
+ 
+ export interface DuplicateCandidate {
+diff --git a/frontend/lib/api/jobs.ts b/frontend/lib/api/jobs.ts
+index d4b8544..e04ef46 100644
+--- a/frontend/lib/api/jobs.ts
++++ b/frontend/lib/api/jobs.ts
+@@ -74,6 +74,7 @@ export interface JobListItem {
+   propertyAddressLine1: string;
+   propertyCity: string;
+   propertyState: string;
++  scheduledStart: string | null;
+ }
+ 
+ export interface UpdateJobInput {
