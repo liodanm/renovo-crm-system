@@ -23,3 +23,7 @@ npm-debug.log*
 
 # Prisma
 backend/prisma/generated/
+
+sprint*-files/
+*.patch
+integrations-page-files/
