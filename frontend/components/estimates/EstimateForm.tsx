@@ -406,7 +406,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                     {
                       key: crypto.randomUUID(),
                       serviceType: catalogItem.serviceType,
-                      description: catalogItem.name,
+                      description: catalogItem.description || catalogItem.name,
                       unitOfMeasure: catalogItem.defaultUnitOfMeasure ?? 'each',
                       quantity: '1',
                       unitPrice: catalogItem.defaultUnitPrice ?? '',
