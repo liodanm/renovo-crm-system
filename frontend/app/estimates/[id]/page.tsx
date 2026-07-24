@@ -47,6 +47,7 @@ export default function EstimateDetailPage() {
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
   const [declineReason, setDeclineReason] = useState('');
   const [declineComments, setDeclineComments] = useState('');
+  const [flashEmailSection, setFlashEmailSection] = useState(false);
 
   if (isLoading) {
     return <AppShell><main className="mx-auto max-w-5xl px-4 py-6"><p className="text-sm text-slate-500">Loading…</p></main></AppShell>;
@@ -83,8 +84,6 @@ export default function EstimateDetailPage() {
       setIsPreviewing(false);
     }
   }
-
-  const [flashEmailSection, setFlashEmailSection] = useState(false);
 
   function handleJumpToEmail() {
     document.getElementById('email-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
