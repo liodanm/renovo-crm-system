@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../lib/auth/auth-context';
 import { AppShell } from '../components/layout/AppShell';
 import { SummaryStats } from '../components/dashboard/summary-stats';
@@ -13,20 +15,24 @@ import { NotificationsCard } from '../components/dashboard/notifications-card';
 
 export default function DashboardPage() {
   const { user, isLoading } = useAuth();
+  const router = useRouter();
 
-  if (isLoading) {
+  useEffect(() => {
+    // middleware.ts is the primary guard and normally catches this
+    // server-side before this component ever renders. This is the real
+    // fallback for the case middleware can't cover — a session that goes
+    // stale mid-visit (token expired, cookie cleared) during client-side
+    // navigation, where no new server request happens for middleware to
+    // intercept. Previously this branch only displayed text describing a
+    // redirect without ever performing one, silently stranding the user
+    // here — found via a real report, not assumed.
+    if (!isLoading && !user) {
+      router.replace('/login');
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Loading…</div>;
-  }
-
-  if (!user) {
-    // middleware.ts should already have redirected unauthenticated requests
-    // to /login; this is a defensive fallback for client-side navigation
-    // (e.g. token expired mid-session, before the next refresh cycle runs).
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
-        Redirecting to login…
-      </div>
-    );
   }
 
   return (
