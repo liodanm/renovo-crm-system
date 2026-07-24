@@ -36,6 +36,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // On app boot there's no access token in memory (see token-storage.ts),
   // only a possible refresh token in sessionStorage. Silently attempt a
   // refresh -> fetch /auth/me before rendering anything gated on auth.
+  //
+  // Critical: the `renovo_session` marker cookie (middleware.ts's only
+  // signal) persists for 30 days, but the refresh token it's meant to
+  // track lives in sessionStorage — cleared on tab close / new tab. Those
+  // two lifetimes can and do diverge: open a new tab weeks into a 30-day
+  // marker window and the marker says "logged in" while the token that
+  // would prove it is already gone. Previously nothing cleared the
+  // marker in that case (only explicit logout did), so middleware kept
+  // believing a session existed, sent you to `/`, this component
+  // correctly determined you weren't authenticated and sent you back to
+  // `/login`, and middleware sent you to `/` again — an infinite loop.
+  // Clearing the marker here, whenever this check lands on "not
+  // authenticated" for any reason, keeps the marker honest.
   useEffect(() => {
     (async () => {
       setIsLoading(true);
@@ -45,6 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     })();
   }, [loadUser]);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      clearTokens();
+    }
+  }, [isLoading, user]);
 
   const login = useCallback(
     async (email: string, password: string) => {
