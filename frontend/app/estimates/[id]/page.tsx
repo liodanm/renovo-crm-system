@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { Pencil, CheckCircle2, Briefcase, Mail, FileDown, Printer, Copy, XCircle, Clock, Trash2, RotateCcw } from 'lucide-react';
+import { Pencil, CheckCircle2, Briefcase, Mail, FileDown, Printer, XCircle, Clock, Trash2, RotateCcw } from 'lucide-react';
 import { estimatesApi, SERVICE_TYPES } from '../../../lib/api/estimates';
 import { PermissionGate } from '../../../components/auth/permission-gate';
 import { useAuth } from '../../../lib/auth/auth-context';
@@ -84,16 +84,16 @@ export default function EstimateDetailPage() {
     }
   }
 
-  async function handleDuplicate() {
-    setIsActing(true);
-    setActionError(null);
-    try {
-      const copy = await estimatesApi.duplicate(params.id);
-      router.push(`/estimates/${copy.id}`);
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Failed to duplicate this estimate.');
-      setIsActing(false);
-    }
+  const [flashEmailSection, setFlashEmailSection] = useState(false);
+
+  function handleJumpToEmail() {
+    document.getElementById('email-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // scrollIntoView is a no-op when the target is already fully on
+    // screen (common on shorter estimates like this one) — the click
+    // otherwise looks like it did nothing. This flash gives visible
+    // feedback every time, regardless of scroll position.
+    setFlashEmailSection(true);
+    setTimeout(() => setFlashEmailSection(false), 1200);
   }
 
   const isDraft = estimate.status === 'draft';
@@ -113,10 +113,9 @@ export default function EstimateDetailPage() {
   ];
 
   const secondary: ActionBarItem[] = [
-    { key: 'email', label: 'Email', icon: <Mail className="h-4 w-4" />, onClick: () => document.getElementById('email-section')?.scrollIntoView({ behavior: 'smooth' }) },
+    { key: 'email', label: 'Email', icon: <Mail className="h-4 w-4" />, onClick: handleJumpToEmail },
     { key: 'pdf', label: 'Generate PDF', icon: <FileDown className="h-4 w-4" />, onClick: async () => { const url = await fetchPdfObjectUrl(estimatesApi.pdfPath(estimate.id)); window.open(url, '_blank'); } },
     { key: 'print', label: 'Print', icon: <Printer className="h-4 w-4" />, onClick: handlePrint, loading: isPreviewing },
-    { key: 'duplicate', label: 'Duplicate', icon: <Copy className="h-4 w-4" />, onClick: handleDuplicate, loading: isActing },
   ];
 
   const danger: ActionBarItem[] = [
@@ -251,7 +250,7 @@ export default function EstimateDetailPage() {
               </div>
             )}
 
-            <div id="email-section">
+            <div id="email-section" className={`rounded-lg transition-shadow duration-300 ${flashEmailSection ? 'ring-2 ring-[var(--color-brand)] ring-offset-2' : ''}`}>
               <DocumentEmailSection
                 documentLabel="Estimate"
                 customerEmail={estimate.customer.email}
