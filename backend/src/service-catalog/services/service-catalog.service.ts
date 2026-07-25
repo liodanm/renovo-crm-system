@@ -67,7 +67,7 @@ export class ServiceCatalogService {
          default_chemicals, default_equipment, required_equipment,
          warranty_days, warranty_terms, preparation_instructions, aftercare_instructions,
          default_notes, default_terms, suggested_upsell_service_ids, suggested_future_service_ids
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+       ) VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21::uuid[],$22::uuid[])
        RETURNING ${SELECT_COLUMNS}`,
         companyId,
         dto.name,
@@ -107,9 +107,9 @@ export class ServiceCatalogService {
          name = $3, service_type = $4, category = $5, description = $6, is_active = $7,
          default_unit_of_measure = $8, default_unit_price = $9, minimum_price = $10,
          default_labor_hours = $11, estimated_duration_minutes = $12,
-         default_chemicals = $13, default_equipment = $14, required_equipment = $15,
+         default_chemicals = $13::jsonb, default_equipment = $14::jsonb, required_equipment = $15::jsonb,
          warranty_days = $16, warranty_terms = $17, preparation_instructions = $18, aftercare_instructions = $19,
-         default_notes = $20, default_terms = $21, suggested_upsell_service_ids = $22, suggested_future_service_ids = $23
+         default_notes = $20, default_terms = $21, suggested_upsell_service_ids = $22::uuid[], suggested_future_service_ids = $23::uuid[]
        WHERE id = $1::uuid AND company_id = $2::uuid
        RETURNING ${SELECT_COLUMNS}`,
         id,
