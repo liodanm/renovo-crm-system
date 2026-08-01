@@ -1,4 +1,4 @@
-@'
+
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -217,4 +217,3 @@ function MonthView({ appointments, gridStart, monthAnchor, onSelect }: { appoint
     </div>
   );
 }
-'@ | Set-Content -Path app\scheduling\page.tsx
