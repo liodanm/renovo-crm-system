@@ -17,8 +17,6 @@ import {
 } from '../../lib/api/scheduling';
 import { cn } from '../../lib/utils';
 
-// Leaflet touches `window` at import time — ssr:false is required the
-// same way the dashboard's customer map already handles this.
 const ScheduleMapInner = dynamic(() => import('../../components/scheduling/ScheduleMapInner').then((m) => m.ScheduleMapInner), {
   ssr: false,
   loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading map…</div>,
@@ -53,9 +51,6 @@ function rangeForView(anchor: Date, view: ViewMode): { start: Date; end: Date } 
     const gridStart = startOfWeek(monthStart);
     return { start: gridStart, end: addDays(gridStart, 42) };
   }
-  // Map view: current week's worth of appointments, a reasonable default
-  // scope for "what's on the map right now" without pulling the entire
-  // history.
   return { start: startOfWeek(anchor), end: addDays(startOfWeek(anchor), 7) };
 }
 
@@ -67,11 +62,6 @@ export default function SchedulingPage() {
   const [selected, setSelected] = useState<CalendarAppointment | null>(null);
   const [rescheduling, setRescheduling] = useState<CalendarAppointment | null>(null);
 
-  // Mobile improvement: a 7-column week grid or 42-cell month grid is
-  // genuinely hard to use on a phone-width screen. Day view — one column,
-  // full width, real touch targets — is what the calendar actually opens
-  // to below the sm breakpoint, without removing the other views for
-  // anyone who wants them.
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
       setView('day');
