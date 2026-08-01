@@ -36,8 +36,6 @@ function applyRangeFilter(jobs: JobListItem[], range: RangeFilter): JobListItem[
   if (range === 'today') {
     return jobs.filter((j) => j.scheduledStart && isSameDay(new Date(j.scheduledStart), now));
   }
-  // This Week — rest of the current week starting today, matching how a
-  // field owner actually thinks about "what's coming up," not a Sun–Sat grid.
   const weekEnd = new Date(now);
   weekEnd.setDate(weekEnd.getDate() + 7);
   return jobs.filter((j) => j.scheduledStart && new Date(j.scheduledStart) >= new Date(now.setHours(0, 0, 0, 0)) && new Date(j.scheduledStart) <= weekEnd);
@@ -50,8 +48,6 @@ export default function JobsPage() {
   const jobs = useMemo(() => {
     if (!allJobs) return undefined;
     const filtered = applyRangeFilter(allJobs, range);
-    // Sort by scheduled time — unscheduled jobs (drafts) sink to the
-    // bottom rather than interrupting the day's actual order.
     return [...filtered].sort((a, b) => {
       if (!a.scheduledStart && !b.scheduledStart) return 0;
       if (!a.scheduledStart) return 1;
