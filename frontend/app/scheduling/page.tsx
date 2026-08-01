@@ -1,3 +1,4 @@
+@'
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -60,7 +61,7 @@ function rangeForView(anchor: Date, view: ViewMode): { start: Date; end: Date } 
 }
 
 export default function SchedulingPage() {
-  const [view, setView] = useState<ViewMode>('week');
+  const [view, setView] = useState<ViewMode>('month');
   const [anchor, setAnchor] = useState(() => new Date());
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -216,3 +217,4 @@ function MonthView({ appointments, gridStart, monthAnchor, onSelect }: { appoint
     </div>
   );
 }
+'@ | Set-Content -Path app\scheduling\page.tsx
