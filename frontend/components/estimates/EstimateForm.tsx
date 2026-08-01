@@ -611,7 +611,7 @@ function LineItemRow({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        <div className="col-span-3">
+        <div className="lg:col-span-3">
           <label className="text-xs font-medium text-slate-500">Service</label>
           <select
             value={item.serviceType}
@@ -624,7 +624,7 @@ function LineItemRow({
             {SERVICE_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
-        <div className="col-span-5">
+        <div className="lg:col-span-5">
           <label className="text-xs font-medium text-slate-500">Description</label>
           <input
             ref={descriptionRef}
@@ -634,13 +634,13 @@ function LineItemRow({
             className={`mt-1 w-full rounded-lg border px-2 py-1.5 text-sm ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300'}`}
           />
         </div>
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           <label className="text-xs font-medium text-slate-500">Unit Type</label>
           <select value={item.unitOfMeasure} onChange={(e) => onChange({ unitOfMeasure: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
             {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
         </div>
-        <div className="col-span-1">
+        <div className="lg:col-span-1">
           <label className="text-xs font-medium text-slate-500">Qty</label>
           <input
             ref={quantityRef}
@@ -653,7 +653,7 @@ function LineItemRow({
             className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300'}`}
           />
         </div>
-        <div className="col-span-1">
+        <div className="lg:col-span-1">
           <label className="text-xs font-medium text-slate-500">Unit Price</label>
           <input
             ref={unitPriceRef}
