@@ -1,3 +1,4 @@
+@'
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -45,7 +46,7 @@ function applyRangeFilter(jobs: JobListItem[], range: RangeFilter): JobListItem[
 
 export default function JobsPage() {
   const { data: allJobs, error, isLoading } = useSWR('jobs', () => jobsApi.list());
-  const [range, setRange] = useState<RangeFilter>('today');
+  const [range, setRange] = useState<RangeFilter>('all');
 
   const jobs = useMemo(() => {
     if (!allJobs) return undefined;
@@ -145,3 +146,4 @@ export default function JobsPage() {
     </AppShell>
   );
 }
+'@ | Set-Content -Path app\jobs\page.tsx
