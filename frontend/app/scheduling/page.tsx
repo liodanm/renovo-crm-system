@@ -1,4 +1,4 @@
-'use client';
+ï»¿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -19,7 +19,7 @@ import { cn } from '../../lib/utils';
 
 const ScheduleMapInner = dynamic(() => import('../../components/scheduling/ScheduleMapInner').then((m) => m.ScheduleMapInner), {
   ssr: false,
-  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading map…</div>,
+  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading map...</div>,
 });
 
 type ViewMode = 'day' | 'week' | 'month' | 'map';
@@ -83,7 +83,7 @@ export default function SchedulingPage() {
   const rangeLabel = useMemo(() => {
     if (view === 'day') return anchor.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     if (view === 'month') return anchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   }, [anchor, view, start]);
 
   function refreshAfterChange() {
@@ -142,8 +142,8 @@ export default function SchedulingPage() {
           </div>
         </div>
 
-        {isLoading && <div className="mt-8 text-center text-sm text-slate-500">Loading…</div>}
-        {error && <div className="mt-8 text-center text-sm text-red-600">Couldn't load the calendar.</div>}
+        {isLoading && <div className="mt-8 text-center text-sm text-slate-500">Loading...</div>}
+        {error && <div className="mt-8 text-center text-sm text-red-600">Could not load the calendar.</div>}
 
         {appointments && view === 'day' && <TimeGridView appointments={appointments} days={[anchor]} onSelect={setSelected} onRescheduled={refreshAfterChange} />}
         {appointments && view === 'week' && <TimeGridView appointments={appointments} days={Array.from({ length: 7 }, (_, i) => addDays(start, i))} onSelect={setSelected} onRescheduled={refreshAfterChange} />}
