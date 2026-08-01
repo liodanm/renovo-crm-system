@@ -149,7 +149,7 @@ export default function JobDetailPage() {
 
             {actionError && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>}
 
-            {showCompleteFlow && <CompletionFlow onSubmit={handleComplete} onCancel={() => setShowCompleteFlow(false)} isSubmitting={isActing || isCapturing} />}
+            {showCompleteFlow && <CompletionFlow jobId={job.id} onSubmit={handleComplete} onCancel={() => setShowCompleteFlow(false)} isSubmitting={isActing || isCapturing} />}
 
             {/* Line items */}
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -247,8 +247,11 @@ export default function JobDetailPage() {
 
             {/* Phase 2: Field operations — hidden until the job has
                 actually started; nothing to log on a job that hasn't
-                begun, and the empty sections were just extra scroll. */}
-            {job.status !== 'draft' && job.status !== 'scheduled' && (
+                begun, and the empty sections were just extra scroll.
+                Also hidden while the Complete panel is open — that panel
+                now embeds these same sections inline, so showing both at
+                once would just duplicate them on screen. */}
+            {job.status !== 'draft' && job.status !== 'scheduled' && !showCompleteFlow && (
               <div className="mt-6 space-y-4">
                 <div id="job-photos"><PhotoSection jobId={job.id} /></div>
                 <div id="job-chemicals"><ChemicalSection jobId={job.id} /></div>

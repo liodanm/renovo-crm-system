@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * this MUST be enforced regardless of what the frontend does.
  */
 
-const PUBLIC_PATHS = [
+export const PUBLIC_PATHS = [
   '/login',
   '/register',
   '/forgot-password',

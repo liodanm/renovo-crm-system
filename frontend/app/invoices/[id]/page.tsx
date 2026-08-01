@@ -64,11 +64,16 @@ export default function InvoiceDetailPage() {
 
             {actionError && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {!['paid', 'void'].includes(invoice.status) && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {!['paid', 'void', 'partial'].includes(invoice.status) && (
                 <button onClick={handleVoid} disabled={isActing} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 disabled:opacity-50">
                   Void
                 </button>
+              )}
+              {invoice.status === 'partial' && (
+                <p className="text-xs text-slate-500">
+                  This invoice has active payments and can't be voided yet — void or fully refund the payment(s) below first.
+                </p>
               )}
             </div>
 

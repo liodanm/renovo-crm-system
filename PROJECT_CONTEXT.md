@@ -2,12 +2,17 @@
 
 **CRM Version:** v0.26.0 *(note: `backend/package.json` reports
 `0.1.0-rc.1` — discovered during audit; drift not resolved, not in scope)*
-**Last Updated:** 2026-07-23
-**Current Phase:** Solo-Owner Productivity (Section 13)
+**Last Updated:** 2026-07-25
+**Current Phase:** Production Hardening (bug-fix/audit pass, not new features)
 **Status:** Production Ready
-**Last Completed Module:** Solo Owner Productivity Sprint 2 — Customer
-Intake & Estimate Workflow (see Section 13)
-**Next Module:** Undecided — audit-driven, not a fixed roadmap
+**Last Completed Module:** Production hardening pass — Estimate module
+audit/fixes, Invoice Void payment-consistency fix, Stripe failed-payment
+handling, scheduling conflict detection, Completion Flow mobile
+improvement, appointment cancellation + audit history, repository
+integrity CI checks (see Section 16)
+**Next Module:** Undecided — audit-driven, not a fixed roadmap. A3
+(auth/session redesign) explicitly deferred until multi-user SaaS
+preparation begins — see Section 7 and Section 16.
 
 > Purpose: let any future Claude session understand this codebase's current
 > architecture without rediscovering it from scratch. This is not a
@@ -129,14 +134,36 @@ supplies branding/reply-to data into that generation path.
 history (used by Invoice "Email History").
 
 **Payments:** `payments/` module — real payment recording against
-invoices; Stripe success-path webhook handling exists.
-`payment_intent.payment_failed` is not yet handled (known limitation,
-Section 7).
+invoices; Stripe webhook handles both `payment_intent.succeeded` and
+`payment_intent.payment_failed` (migration `029`; failed attempts are
+recorded as a real `payments` row with `status='failed'` — that value
+already existed in the table's own CHECK constraint, unused until now —
+plus a `payment_status_history` entry and a `payment_failed` automation
+event; never touches `invoices.amount_paid`/`status`). Webhook invoice
+lookups are explicitly scoped by `companyId` (carried in the
+PaymentIntent's own metadata, set server-side at creation) rather than
+querying across tenants. **Invoice Void** now blocks voiding an invoice
+that still has active (`succeeded`/`partially_refunded`) payments
+attached — see Section 5 and ADR-010; the browser's native `confirm()`
+is still used for the confirmation itself (Section 7, Low — unchanged).
 
 **Scheduling:** `scheduling/` module — calendar-backed appointment
 scheduling with technician assignment. Assignment concept assumes
-multi-tech; for the current solo-owner priority, this is a known
-friction point (Section 7), not yet resolved.
+multi-tech; for the current solo-owner priority, simplifying/removing
+the technician picker is still an open item (Section 7). Now has real
+technician double-booking prevention (`assertNoTechnicianConflict` in
+`scheduling.service.ts`, shared by `scheduleJob`/`reschedule`/
+`updateAssignment`) — same technician + overlapping time is blocked;
+`cancelled`/`completed`/`no_show` appointments never count as active.
+Appointments can now be cancelled with a reason (`cancel()`) without
+being deleted — status flips to `cancelled`, a
+`appointment_status_history` row is written (migration `030`, mirroring
+`job_status_history`/`payment_status_history`'s exact shape — appointments
+were the one entity missing this pattern, per ADR-009), and a job that
+was only `scheduled` because of that appointment reverts to `draft`,
+identical to `unschedule()`'s existing job-side-effect. A completed
+appointment or a job that's already `completed` can never be cancelled —
+explicit guard, not incidental.
 
 ---
 
@@ -146,11 +173,11 @@ friction point (Section 7), not yet resolved.
 |---|---|---|---|---|
 | Authentication | Complete | Yes | JWT access/refresh; optional OAuth degrades gracefully; company invites | `auth/` guards, `TenantContextInterceptor` |
 | Customers | Complete | Yes | Duplicate detection/merge, CSV import/export, presigned S3 uploads | `StorageService`, `customer-table.tsx`, `import-csv-modal.tsx` |
-| Estimates | Complete | Yes | Server-computed totals; service-specific validated detail fields; one-click convert-to-job | `computeDocumentTotals`, `EstimateForm.tsx`, `ActionBar.tsx`, `StatusTimeline.tsx` |
-| Jobs | Complete | Yes | One-click generate-invoice-from-job; completion flow with photos/signature | `CompletionFlow.tsx`, `PhotoSection.tsx`, `SignaturePad.tsx`, `ChemicalSection.tsx`, `EquipmentSection.tsx` |
-| Scheduling | Complete | Yes (multi-tech assumption not yet simplified for solo use) | Technician-assignment model built for crews | `AppointmentDetailPanel.tsx` |
-| Invoices | Complete | Yes | Server-computed totals; PDF + email send; email history tracking | `computeDocumentTotals`, `DocumentEmailSection.tsx`, `email-log.service.ts` |
-| Payments | Complete (success path only) | Partial — failed-payment webhook not handled | Manual payment recording + Stripe success webhook | `PaymentsSection.tsx` |
+| Estimates | Complete | Yes | Server-computed totals; service-specific validated detail fields; one-click convert-to-job; `validUntil` now settable (DTO/service/form/detail page) — closes the previously-dead Estimate Expiration Workflow automation (migration `027` rule types can now actually fire, since nothing wrote this column before); discount-value reconstruction and partial-update discount/tax preservation bugs fixed (Section 5) | `computeDocumentTotals`, `EstimateForm.tsx`, `ActionBar.tsx`, `StatusTimeline.tsx` |
+| Jobs | Complete | Yes | One-click generate-invoice-from-job; completion flow with photos/signature; Photos/Chemicals/Equipment now embedded inline in the Complete panel (accordion) instead of jump-links away from it | `CompletionFlow.tsx`, `PhotoSection.tsx`, `SignaturePad.tsx`, `ChemicalSection.tsx`, `EquipmentSection.tsx` |
+| Scheduling | Complete | Yes (multi-tech assumption not yet simplified for solo use) | Technician-assignment model built for crews; technician double-booking now blocked (`assertNoTechnicianConflict`); appointments can be cancelled with a reason, preserving history (`appointment_status_history`, migration `030`) instead of being deleted | `AppointmentDetailPanel.tsx`, `ConfirmDialog` |
+| Invoices | Complete | Yes | Server-computed totals; PDF + email send; email history tracking; Void now blocked when active payments exist (Section 5) | `computeDocumentTotals`, `DocumentEmailSection.tsx`, `email-log.service.ts` |
+| Payments | Complete | Yes | Manual payment recording + Stripe webhook for both success and failure (`payment_intent.payment_failed`, migration `029`); webhook invoice lookups explicitly scoped by companyId | `PaymentsSection.tsx` |
 | Reports | Complete | Yes | Dedicated services/DTOs, real backend | — |
 | Service Catalog | Complete | Yes | Backs Estimates' per-service pricing/validation | — |
 | Settings | Partial | Yes for built sections; several sections UI-only | Unified shell + dynamic section routing; Integrations page added (migration-free, all provider secrets remain Railway env vars) | `SettingsSectionShell.tsx`, `IntegrationsService`, `SystemHealthService` |
@@ -177,9 +204,17 @@ Extend by: adding new status values to the shared enum/mapping, not by
 building a one-off badge in a feature folder.
 
 **`ConfirmDialog`** (`frontend/components/action-center/ConfirmDialog.tsx`)
-Purpose: the app's real confirmation dialog. **Known gap:** Invoice Void
-still uses the browser's native `confirm()` instead of this — flagged in
-Section 7, not yet fixed.
+Purpose: the app's real confirmation dialog. **Known gap, still open:**
+Invoice Void still uses the browser's native `confirm()` instead of this
+— flagged in Section 7, not yet fixed. (A *separate*, already-fixed issue:
+voiding an invoice with active payments is now blocked server-side and
+the button is hidden for `partial`-status invoices — that's a payment-
+consistency fix, not the `confirm()`-vs-`ConfirmDialog` gap itself.) Newly
+adopted by Scheduling's Cancel Appointment action
+(`AppointmentDetailPanel.tsx`) — note when nesting it inside a component
+that has its own click-outside-to-close backdrop (like a slide-over
+panel): render `ConfirmDialog` as a sibling, not a child, or a click on
+its own backdrop bubbles up and closes the parent panel underneath it.
 
 **`DocumentEmailSection`** (`frontend/components/documents/DocumentEmailSection.tsx`)
 Purpose: shared "send this document by email + history" UI, used by
@@ -287,9 +322,38 @@ explicitly cast (`$1::uuid`, `$2::jsonb`) in the SQL string itself.
   (`assignedTo`/technician id) — a multi-tech assumption baked into the
   schema, not yet simplified for solo-owner use.
 - **audit history pattern**: status-change history is modeled per
-  document type (estimates/jobs/invoices) and rendered through the
-  shared `StatusTimeline` component rather than a single global audit
-  table.
+  document type (estimates/jobs/invoices/payments/**appointments**) and
+  rendered through the shared `StatusTimeline` component rather than a
+  single global audit table. `appointment_status_history` (migration
+  `030`) was the missing sibling — appointments were the one entity
+  without this pattern until now; same shape as
+  `payment_status_history`/`job_status_history`.
+- **appointments.cancellation_reason** (migration `030`, nullable text):
+  set by `SchedulingService.cancel()`. The appointment row is never
+  deleted on cancellation (unlike `unschedule()`, which still deletes) —
+  status flips to `cancelled` and the row (plus its history) is
+  preserved.
+- **payments.status = 'failed'**: this value already existed in the
+  table's own CHECK constraint before it was ever used — Stripe's
+  `payment_intent.payment_failed` webhook (migration `029`) now actually
+  writes it. Never affects `invoices.amount_paid`/`status` — a failed
+  attempt collected $0.
+- **estimates.validUntil**: pre-existing column, now actually settable
+  (`CreateEstimateDto`/`UpdateEstimateDto`, `EstimateForm.tsx`). Read by
+  `AutomationService`'s expiration-reminder/auto-expire rules (migration
+  `027`) and the PDF/email/portal templates, all of which existed and
+  expected this before anything ever wrote to it — the whole Estimate
+  Expiration Workflow was dead code until this fix.
+- **Invoice Void payment guard**: `InvoicesService.void()` now blocks
+  voiding an invoice with any `payments` row in `succeeded` or
+  `partially_refunded` status — prevents an invoice from silently
+  disagreeing with its own payment history. Existing payments are never
+  reversed/deleted by this check; staff must refund or void the payment
+  itself first (both already-existing actions), then void the invoice.
+- **Scheduling conflict detection**: no schema change — pure query-time
+  validation (`assertNoTechnicianConflict`) checking for another
+  `scheduled`/`confirmed` appointment on the same
+  `assigned_to_company_user_id` with an overlapping time range.
 
 ---
 
@@ -325,61 +389,93 @@ Recurring Reminder — automation engine can schedule maintenance follow-ups, if
 - None currently open.
 
 **Medium**
-- Stripe `payment_intent.payment_failed` webhook is not implemented —
-  only the success path is handled.
 - Scheduling/Jobs assume multi-technician assignment; no solo-owner
   auto-assign-to-self shortcut exists yet, adding an unnecessary click on
-  every job.
+  every job. (Double-booking prevention was added this pass — a
+  different, narrower fix; the picker itself is unchanged.)
+- **A3, explicitly deferred by product decision, not forgotten:** the
+  30-day `renovo_session` marker cookie vs. tab-scoped refresh-token
+  storage design mismatch (Section 2, Authentication). A prior session
+  fixed the acute symptom (a stale session landing on a permanently
+  broken page now correctly redirects to `/login`), but the underlying
+  question — what a "logged in for 30 days" experience should actually
+  mean given tab-scoped token storage — remains open. **Do not touch
+  auth/session behavior further until multi-user SaaS preparation
+  begins; this is a stated product decision, not an oversight.**
 - AI Receptionist backend is untested against a live call. Its
   *connectivity* (ANTHROPIC_API_KEY) now has a home on Settings >
   Integrations, but its *behavior* settings (greeting, FAQ, business
   hours — `UpdateReceptionistSettingsDto` already exists backend-side)
-  still has no frontend page. The old `ai-assistant` nav stub that used
-  to mark this gap was removed as part of the Integrations build (it
-  only ever pointed at connectivity, which Integrations now covers) —
-  the behavior-settings gap itself is unchanged, just no longer flagged
-  in the nav. Needs an explicit decision on where it lives next.
+  still has no frontend page.
 - No automated test coverage for the new Integrations verify/test
   methods (`SmsService.verifyConnection`, `MailService.verifyConnection`,
   `StripePaymentService.verifyConnection`, `StorageService.verifyConnection`
   / `testUploadRoundTrip`, `AiSuggestionsService.testConnection`) — these
   are thin wrappers around live provider HTTP calls, consistent with the
-  rest of this codebase's test coverage (no existing tests for
-  `sms.service.ts`/`mail.service.ts`/`stripe-payment.service.ts` either),
-  but worth flagging rather than implying they're covered.
+  rest of this codebase's test coverage.
+- From the solo-owner workflow audit (Section 16), not yet acted on:
+  automation (follow-ups/reminders) is invisible until a message is
+  already sent — nothing on a customer/job/invoice page shows a pending
+  automated action or lets staff cancel one before it fires; no
+  "duplicate this estimate" shortcut surfaced on the estimate page
+  itself (the capability exists, just isn't discoverable there).
 
 **Low**
 - Invoice Void uses the browser's native `confirm()` instead of the
-  shared `ConfirmDialog` component.
+  shared `ConfirmDialog` component. (Unchanged by this pass — a payment-
+  consistency guard was added around void logic, but this specific
+  UI-component gap is still open.)
 - Customer Portal frontend status is unconfirmed — backend is real and
   tested, but frontend completeness hasn't been directly verified in
   this context.
+- Calendar drag-and-drop reschedule is desktop-only by the component's
+  own design; the Reschedule modal already works as a mobile fallback.
 
 ---
 
 ## 8. Future Roadmap
 
-**Just shipped**
-- Settings > Integrations page (Stripe, Postmark, Twilio, Anthropic, S3
-  provider cards with real Verify/Test actions; System Health dashboard;
-  Business Links section closing the dead `google_review_url` column
-  gap found in audit — see ADR-011). Fully additive: no new migration,
-  no new credential storage.
+**Just shipped (this pass — see Section 16 for full detail)**
+- Estimate module fixes: `validUntil` write path (unblocks the Estimate
+  Expiration Workflow automation), discount-value reconstruction bug,
+  partial-update discount/tax preservation bug.
+- Invoice Void payment-consistency guard.
+- Stripe `payment_intent.payment_failed` handling + webhook tenant-
+  scoping fix (migration `029`).
+- Scheduling technician double-booking prevention.
+- Completion Flow: Photos/Chemicals/Equipment embedded inline instead of
+  jump-links.
+- Appointment cancellation with reason + `appointment_status_history`
+  (migration `030`).
+- Repository integrity: removed a stray duplicate source tree
+  (`quote-widget-complete/`), regenerated `init-scripts/` (was 21
+  migrations behind), added CI checks (`scripts/check-migration-sync.sh`,
+  `scripts/check-duplicate-source.sh`) so both classes of drift are now
+  caught automatically on every PR.
+
+**Explicitly deferred (product decision, not an oversight)**
+- A3 — auth/session-lifetime redesign. Do not pick this up until
+  multi-user SaaS preparation begins.
 
 **Next**
 - Solo-owner auto-assign (remove/simplify the technician picker for
-  single-operator accounts) — highest daily-friction fix identified in
-  the solo-owner workflow audit.
-- Stripe failed-payment webhook handling.
+  single-operator accounts) — still the highest daily-friction item from
+  the solo-owner workflow audit; not yet done (conflict detection this
+  pass was a different, narrower fix).
+- Surface a "duplicate this estimate" shortcut on the estimate detail
+  page itself (capability already exists via `duplicate()`).
+- Make pending automation actions visible somewhere near the customer/
+  job/invoice, not just discoverable after the fact in the automation
+  log.
 - Decide where AI Receptionist's *behavior* settings (greeting, FAQ,
-  business hours) get a frontend home, now that its connectivity half
-  lives on Settings > Integrations and the old `ai-assistant` nav stub
-  that used to mark this gap has been removed.
+  business hours) get a frontend home.
 
 **Later**
 - On-site/mobile payment collection flow surfaced directly from the
   Job/Invoice screen (payment link or prominent "mark paid").
 - Confirm and, if needed, build out the Customer Portal frontend.
+- Invoice Void: replace native `confirm()` with `ConfirmDialog` (Section
+  7, Low — still open).
 
 **Someday**
 - Leads module (only becomes valuable once call/inquiry volume exceeds
@@ -509,7 +605,12 @@ Draft → Sent → Viewed → Accepted → Job Created Automatically → Needs S
 **Known exception to fix, not a precedent to follow:** Invoice Void
 currently uses the browser's native `confirm()` instead of
 `ConfirmDialog` (see Section 7, Low). This is a gap to close, not a
-second pattern to treat as valid.
+second pattern to treat as valid. (A separate payment-consistency guard
+was added around void logic this pass — it does not touch this gap.)
+`ConfirmDialog` was correctly extended, not copied, for Scheduling's
+Cancel Appointment action — see Section 4 for the one thing to watch
+when nesting it inside a component with its own click-outside-to-close
+backdrop.
 
 ### ADR-011
 **Decision:** No integration provider secret (Stripe, Postmark, Twilio,
@@ -533,6 +634,33 @@ new decision to make explicitly (encryption utility, `integration_credentials`
 table, env-fallback resolution in `SmsService`/`MailService`/
 `StorageService`/`StripePaymentService`/the three Anthropic call sites) —
 not an incremental addition to the current Integrations page.
+
+### ADR-012
+**Decision:** Repository integrity is enforced by CI, not by convention
+alone.
+**Reason:** A stray, fully-unwired duplicate source tree
+(`quote-widget-complete/`, a leftover delivery bundle from an earlier
+session) sat committed in the repo undetected, and `init-scripts/` (the
+flat migration set Docker's Postgres init reads) silently drifted 21
+migrations behind `backend/prisma/migrations/` — built once, at 6
+migrations, never updated as the project grew to 28+. Both were only
+found by manual audit, not by any automated check.
+**What was added:** `scripts/check-duplicate-source.sh` (flags any
+top-level directory outside the known layout, and any file whose
+content is duplicated under a different top-level directory —
+`init-scripts/` is deliberately excluded, since mirroring migrations is
+its actual job) and `scripts/check-migration-sync.sh` (fails if
+`init-scripts/` doesn't exactly mirror `backend/prisma/migrations/` +
+`renovo_crm_schema.sql` + `backend/prisma/seed.sql`, including seed-file
+ordering). Both run as a `repo-integrity` CI job, before `backend`/
+`frontend`, on every PR.
+**Rule:** Any new top-level directory needs an explicit addition to
+`ALLOWED_TOP_LEVEL_DIRS` in the same PR that introduces it — an
+unexplained new directory is exactly the failure mode this exists to
+catch. Any new migration must be copied into `init-scripts/` in the same
+PR (verified, not assumed — proven twice this pass by intentionally
+reintroducing both failure modes and confirming CI caught them before
+fixing them).
 
 ---
 
@@ -559,20 +687,37 @@ Verified present and functioning as of this document's last update:
   existing backend test suite — see Section 12 for what wasn't
   live-tested against real provider accounts)
 ✔ Automation Engine (cron-driven, real SMS/email, now has a settings UI)
+✔ Repository integrity (no stray duplicate source trees; `init-scripts/`
+  verified in sync with `backend/prisma/migrations/`; both enforced by
+  the `repo-integrity` CI job — ADR-012)
+✔ Estimate Expiration Workflow (migration `027`'s automation rules can
+  now actually fire — `validUntil` has a real write path as of this pass)
+✔ Stripe failed-payment handling (migration `029`; webhook tenant
+  scoping fixed alongside it)
+✔ Invoice Void payment-consistency guard (does not touch the still-open
+  native-`confirm()` gap, Section 7)
+✔ Scheduling conflict detection (technician double-booking blocked;
+  cancelled/completed/no-show appointments correctly never block)
+✔ Appointment cancellation + audit history (`appointment_status_history`,
+  migration `030`)
 
 Assume these are correct unless a change directly touches them. Do not
 re-derive or re-verify these from scratch on a routine basis — that's
 exactly the token cost this document exists to avoid.
 
 **Not on this list on purpose** (genuinely unverified or incomplete —
-see Section 7): Stripe failed-payment handling, AI Receptionist live-call
-behavior, AI Receptionist *behavior* settings (greeting/FAQ/hours — no
-frontend page), Customer Portal frontend completeness, the duplicate
-convert-to-job path in ADR-007, and live-account verification of the new
-Integrations verify/test buttons (confirmed to compile and call the
-correct real endpoints; not confirmed against actual Stripe/Twilio/
-Postmark/AWS/Anthropic accounts, since none are configured in this
-environment).
+see Section 7): AI Receptionist live-call behavior, AI Receptionist
+*behavior* settings (greeting/FAQ/hours — no frontend page), Customer
+Portal frontend completeness, the duplicate convert-to-job path in
+ADR-007, live-account verification of the Integrations verify/test
+buttons (confirmed to compile and call the correct real endpoints; not
+confirmed against actual Stripe/Twilio/Postmark/AWS/Anthropic accounts),
+the A3 auth/session-lifetime redesign (explicitly deferred, not
+attempted), solo-owner auto-assign-to-self (not built — conflict
+detection this pass was a narrower, different fix), and the remaining
+solo-owner workflow audit findings not yet acted on (automation
+visibility, duplicate-estimate shortcut, desktop-only calendar drag —
+see Section 16).
 
 ---
 
@@ -718,7 +863,7 @@ full one).
 | Automation | 70 | 70 (untouched this sprint) |
 | **Overall UX** | **~52** | **~61** |
 
-## 14. Session Handoff (most recent)
+## 14. Session Handoff (2026-07-23)
 
 **What was just completed:** Solo Owner Productivity Sprint 1 — see
 Section 13 for the full list. Scope was deliberately limited to the 8
@@ -914,3 +1059,125 @@ scoped work.
   confirm the created rows directly. **This sandbox has no
   Postgres/Docker access to run it** — it must be run by a human against
   the real deployment. Documented honestly rather than claimed as done.
+
+## 16. Session Handoff (most recent — 2026-07-25)
+
+**What this session was:** a production-hardening pass, not feature
+work — repository integrity audit, a full Estimate module audit/fix
+pass, then four ranked findings (A1–A4) from a broader 7-module audit,
+approved and fixed one at a time, then a solo-owner workflow audit with
+two findings acted on. A3 (auth/session redesign) was explicitly
+deferred by product decision partway through — noted, not silently
+dropped.
+
+**Repository integrity (done first, before any bug fixes):**
+- Found and removed `quote-widget-complete/quote-widget-complete/` — a
+  fully unwired duplicate of ~16 files, proven byte-identical to their
+  real counterparts via SHA-256 before deletion, and proven safe to
+  delete by actually deleting it in an isolated copy and re-running the
+  full build/test suite (identical results).
+- Found `init-scripts/` (Docker's Postgres init source) was 21
+  migrations behind `backend/prisma/migrations/` — built once at 6
+  migrations, never updated since. Regenerated it from the real
+  migration set; verified by applying all 30+ files against a genuinely
+  fresh Postgres 16 instance (matching `docker-compose.yml`'s image
+  version) with zero errors, then confirming all previously-missing
+  tables (`service_catalog_items`, `invoices`, `payments`, etc.) exist.
+- Added `scripts/check-duplicate-source.sh` and
+  `scripts/check-migration-sync.sh`, wired into CI as a `repo-integrity`
+  job — see ADR-012. Both were proven to actually catch their target
+  failure mode by intentionally reintroducing it and confirming a
+  non-zero exit code, not just written and assumed correct.
+
+**Estimate module audit (full pass, not just the two findings below):**
+found and fixed three real bugs: (1) `validUntil` had zero write path
+anywhere despite automation/PDF/email/portal all already reading it —
+the entire Estimate Expiration Workflow (migration `027`) was silently
+dead code; (2) editing an existing percentage-discounted estimate showed
+the dollar `discountAmount` in the percentage field and would silently
+recompute a much larger discount on save (verified with concrete
+numbers: a $50/10% discount became $250/50% on re-save); (3) any partial
+`PATCH /estimates/:id` that omitted `discountValue`/`taxRatePercent`
+would silently zero out an existing discount/tax rate. All three fixed
+and verified with standalone before/after numeric proof.
+
+**A1 — Invoice Void payment consistency:** `void()` now blocks when the
+invoice has any `succeeded`/`partially_refunded` payment attached.
+Existing payments are never touched — staff must refund/void the
+payment first (both pre-existing actions). Verified against a real DB
+across five invoice states (unpaid, partial, paid, void, and
+"was-partial-now-refunded-back-to-sent").
+
+**A2/A6 — Stripe failed-payment handling + webhook tenant scoping:**
+`payment_intent.payment_failed` now records a real `payments` row
+(`status='failed'`, that value already existed unused in the CHECK
+constraint), a `payment_status_history` entry, and a `payment_failed`
+automation event (migration `029` extends `automation_log.rule_type`,
+following the exact 022/026/027 precedent). Webhook invoice lookups now
+explicitly scope by `companyId` (added to PaymentIntent metadata at
+creation) instead of querying across tenants. One necessary correctness
+fix bundled in: the succeeded-path idempotency check is now
+status-scoped too, so a failed attempt on a PaymentIntent can never
+block recording its later successful retry — verified against a real DB
+that this exact scenario works.
+
+**A4 — Scheduling conflict detection:** `assertNoTechnicianConflict`
+blocks same-technician overlapping appointments across
+`scheduleJob`/`reschedule`/`updateAssignment`; cancelled/completed
+appointments never block. Also fixed, because it would otherwise have
+made the new validation invisible: `ScheduleJobModal`/`RescheduleModal`
+were silently discarding real error messages in their catch blocks —
+now surface `ApiError.message` like every other form in this app
+already does. Verified against a real DB across all required scenarios
+(overlapping, adjacent, different technicians, self-exclusion on
+update, cancelled/completed never blocking).
+
+**Completion Flow mobile improvement:** Photos/Chemicals/Equipment now
+render inline inside the Complete Job panel as a one-at-a-time
+accordion, instead of jump-links that scrolled a tech away from the
+form and back. The standalone sections elsewhere on the job page are
+hidden while the panel is open (same SWR cache key either way, so
+nothing goes stale). Zero changes to the three field-ops components
+themselves, or to completion/signature validation.
+
+**Appointment cancellation (from the solo-owner workflow audit's #1
+finding):** `cancel()` — status to `cancelled` (row preserved, unlike
+`unschedule()` which still deletes), reason captured, audit history
+written, linked job reverted to `draft` if it was only `scheduled`.
+Blocked outright for an already-completed appointment or a completed
+job. UI: `AppointmentDetailPanel.tsx` gained a Cancel action reusing
+`ConfirmDialog` — see Section 4 for the sibling-not-child nesting note
+that came out of building this.
+
+**Solo-owner workflow audit:** full Lead→Estimate→...→Follow-up review
+performed; two findings (Completion Flow, appointment cancellation)
+acted on this pass. Remaining findings — automation invisibility, no
+duplicate-estimate shortcut, desktop-only calendar drag — are in
+Section 7/8, not yet built.
+
+**What was verified, every fix:** backend `tsc --noEmit` (same 5
+pre-existing, environment-caused Prisma-generation errors throughout,
+zero new ones introduced by any change this session), backend
+`npm test` (38/38 passing after every single fix), frontend `tsc
+--noEmit` clean, frontend `next build` succeeding. Every migration
+(`029`, `030`) verified by actually applying it to a genuinely fresh
+Postgres 16 instance, not just reviewed. Every backend logic fix
+verified against real rows in that same database, not simulated.
+`init-scripts/` kept in sync with every new migration, confirmed by the
+new CI check passing after each one. File-scope confirmed by mtime
+after every change — nothing outside the stated scope of each approved
+fix was ever touched.
+
+**What remains:** everything in Section 7 Medium/Low that isn't marked
+fixed above, plus the deferred A3 work (do not start without an explicit
+instruction that multi-user SaaS prep has begun).
+
+**Architectural warnings:** ADR-012 (repo-integrity CI) and ADR-009
+(appointments now correctly follow the shared audit-history pattern) are
+the two new load-bearing rules from this pass. Every other standing
+warning from Section 9 was followed throughout (additive migrations
+only — confirmed both `029` and `030` are pure `ALTER`/`CREATE IF NOT
+EXISTS`; raw SQL casts present in all new queries; RLS-only tenant
+access maintained, including the webhook path's explicit `companyId`
+scoping which is the correct pattern for `@Public()`-adjacent code per
+Section 15, not an RLS bypass).

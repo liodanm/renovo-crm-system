@@ -12,6 +12,21 @@ on:
     branches: [main]
 
 jobs:
+  repo-integrity:
+    name: Repository integrity — duplicate source, migration drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pure bash + coreutils (sha256sum, find, sort) -- no dependency install
+      # needed, so this job stays fast and runs independently of whether the
+      # backend/frontend jobs below even succeed.
+      - name: Check for duplicate/stray source trees
+        run: ./scripts/check-duplicate-source.sh
+
+      - name: Check init-scripts/ is in sync with backend/prisma/migrations/
+        run: ./scripts/check-migration-sync.sh
+
   backend:
     name: Backend — install, generate, type-check, build, test
     runs-on: ubuntu-latest

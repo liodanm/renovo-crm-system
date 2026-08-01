@@ -6,7 +6,7 @@ import { resolveArrivalWindowMinutes } from './arrival-window.util';
 const CALENDAR_SELECT = `
   a.id, a.appointment_type AS "appointmentType", a.starts_at AS "startsAt", a.ends_at AS "endsAt",
   a.all_day AS "allDay", a.status, a.arrival_window_minutes AS "arrivalWindowMinutes",
-  a.job_id AS "jobId", a.estimate_id AS "estimateId", a.title,
+  a.job_id AS "jobId", a.estimate_id AS "estimateId", a.title, a.cancellation_reason AS "cancellationReason",
   c.id AS "customerId", c.first_name AS "customerFirstName", c.last_name AS "customerLastName",
   c.business_name AS "customerBusinessName", c.phone AS "customerPhone",
   p.id AS "propertyId", p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity",
@@ -27,6 +27,45 @@ const CALENDAR_JOINS = `
 @Injectable()
 export class SchedulingService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * The one and only conflict rule: same technician, overlapping time.
+   * Unassigned appointments never conflict (no shared resource). Only
+   * 'scheduled'/'confirmed' appointments block — 'cancelled' freed the
+   * time, 'no_show' never occupied it, 'completed' already happened and
+   * carries no future double-booking risk. Strict overlap (< / >, not
+   * <= / >=) so back-to-back appointments are never flagged. Shared by
+   * every create/update path below rather than duplicated per call site.
+   */
+  private async assertNoTechnicianConflict(
+    tx: any,
+    companyId: string,
+    assignedCompanyUserId: string | null,
+    startsAt: Date,
+    endsAt: Date,
+    excludeAppointmentId: string | null,
+  ) {
+    if (!assignedCompanyUserId) return;
+
+    const conflicts: { id: string; title: string; startsAt: Date; endsAt: Date }[] = await tx.$queryRaw`
+      SELECT id, title, starts_at AS "startsAt", ends_at AS "endsAt"
+      FROM appointments
+      WHERE company_id = ${companyId}::uuid
+        AND assigned_to_company_user_id = ${assignedCompanyUserId}::uuid
+        AND status IN ('scheduled', 'confirmed')
+        AND (${excludeAppointmentId}::uuid IS NULL OR id != ${excludeAppointmentId}::uuid)
+        AND starts_at < ${endsAt}
+        AND ends_at > ${startsAt}
+      LIMIT 1
+    `;
+    if (conflicts.length > 0) {
+      const c = conflicts[0];
+      const fmt = (d: Date) => new Date(d).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+      throw new BadRequestException(
+        `This technician is already booked for "${c.title}" from ${fmt(c.startsAt)} to ${fmt(c.endsAt)} — reschedule one of them first.`,
+      );
+    }
+  }
 
   /**
    * The one and only path that puts a date on a job. Writes the
@@ -57,7 +96,17 @@ export class SchedulingService {
         : [];
       const assignedCompanyUserId = assignedCompanyUserRows[0]?.id ?? null;
 
-      const existing = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM appointments WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid`;
+      const existing = await tx.$queryRaw<{ id: string; assignedToCompanyUserId: string | null }[]>`
+        SELECT id, assigned_to_company_user_id AS "assignedToCompanyUserId" FROM appointments WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
+      `;
+
+      // The effective technician for this write: the newly-supplied one if
+      // given, otherwise whatever the appointment (if any) already had —
+      // matching the same COALESCE semantics the actual UPDATE below uses,
+      // so the conflict check is validating the assignment that will
+      // actually end up stored, not just what was passed in this call.
+      const effectiveAssignedCompanyUserId = assignedCompanyUserId ?? existing[0]?.assignedToCompanyUserId ?? null;
+      await this.assertNoTechnicianConflict(tx, companyId, effectiveAssignedCompanyUserId, startsAt, endsAt, existing[0]?.id ?? null);
 
       let appointmentId: string;
       if (existing.length > 0) {
@@ -134,12 +183,13 @@ export class SchedulingService {
     const endsAt = new Date(dto.endsAt);
     if (endsAt < startsAt) throw new BadRequestException('endsAt must not be before startsAt');
 
-    const existing: { id: string; jobId: string | null }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
-      SELECT id, job_id AS "jobId" FROM appointments WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
+    const existing: { id: string; jobId: string | null; assignedToCompanyUserId: string | null }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT id, job_id AS "jobId", assigned_to_company_user_id AS "assignedToCompanyUserId" FROM appointments WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
     `);
     if (existing.length === 0) throw new NotFoundException('Appointment not found');
 
     return this.prisma.withTenantContext(companyId, async (tx) => {
+      await this.assertNoTechnicianConflict(tx, companyId, existing[0].assignedToCompanyUserId, startsAt, endsAt, appointmentId);
       await tx.$executeRaw`UPDATE appointments SET starts_at = ${startsAt}, ends_at = ${endsAt}, updated_at = now() WHERE id = ${appointmentId}::uuid`;
       if (existing[0].jobId) {
         await tx.$executeRaw`UPDATE jobs SET scheduled_start = ${startsAt}, scheduled_end = ${endsAt}, updated_at = now() WHERE id = ${existing[0].jobId}::uuid`;
@@ -149,8 +199,8 @@ export class SchedulingService {
   }
 
   async updateAssignment(companyId: string, appointmentId: string, dto: UpdateAppointmentAssignmentDto) {
-    const existing: { id: string; jobId: string | null }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
-      SELECT id, job_id AS "jobId" FROM appointments WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
+    const existing: { id: string; jobId: string | null; startsAt: Date; endsAt: Date }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT id, job_id AS "jobId", starts_at AS "startsAt", ends_at AS "endsAt" FROM appointments WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
     `);
     if (existing.length === 0) throw new NotFoundException('Appointment not found');
 
@@ -164,6 +214,12 @@ export class SchedulingService {
     }
 
     return this.prisma.withTenantContext(companyId, async (tx) => {
+      // Only a real assignment change can introduce a new conflict — an
+      // arrival-window-only update touches neither the technician nor the
+      // time, so there's nothing new to check.
+      if (assignedCompanyUserId) {
+        await this.assertNoTechnicianConflict(tx, companyId, assignedCompanyUserId, existing[0].startsAt, existing[0].endsAt, appointmentId);
+      }
       await tx.$executeRaw`
         UPDATE appointments SET
           assigned_to_company_user_id = COALESCE(${assignedCompanyUserId}::uuid, assigned_to_company_user_id),
@@ -198,6 +254,58 @@ export class SchedulingService {
         `;
       }
       return { success: true };
+    });
+  }
+
+  /**
+   * Cancels an appointment (status -> 'cancelled', reason recorded) without
+   * deleting it — unlike unschedule() above, which removes the row
+   * entirely. A cancelled appointment stays queryable/visible on the
+   * calendar (already rendered distinctly — APPOINTMENT_STATUS_COLORS has
+   * had a 'cancelled' entry since before this method existed) and in
+   * appointment_status_history, preserving the record of what was
+   * scheduled and why it didn't happen, rather than erasing it.
+   *
+   * Never touches a completed appointment or a completed job's data —
+   * both explicitly guarded below, not just incidentally avoided. The
+   * job-side-effect on a 'scheduled' job is intentionally identical to
+   * unschedule()'s: revert to draft, clear the schedule — the same
+   * "needs a new appointment" outcome, just via a preserved-history path
+   * instead of a deleted one.
+   */
+  async cancel(companyId: string, appointmentId: string, userId: string, reason?: string) {
+    const existing: { id: string; jobId: string | null; status: string; jobStatus: string | null }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT a.id, a.job_id AS "jobId", a.status, j.status AS "jobStatus"
+      FROM appointments a
+      LEFT JOIN jobs j ON j.id = a.job_id
+      WHERE a.id = ${appointmentId}::uuid AND a.company_id = ${companyId}::uuid
+    `);
+    if (existing.length === 0) throw new NotFoundException('Appointment not found');
+    const appt = existing[0];
+
+    if (appt.status === 'cancelled') throw new BadRequestException('This appointment is already cancelled');
+    if (appt.status === 'completed') throw new BadRequestException('Cannot cancel a completed appointment');
+    if (appt.jobStatus === 'completed') throw new BadRequestException('Cannot cancel an appointment for a completed job');
+
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      await tx.$executeRaw`
+        UPDATE appointments SET status = 'cancelled', cancellation_reason = ${reason ?? null}, updated_at = now()
+        WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
+      `;
+      await tx.$executeRaw`
+        INSERT INTO appointment_status_history (company_id, appointment_id, from_status, to_status, changed_by_user_id, note)
+        VALUES (${companyId}::uuid, ${appointmentId}::uuid, ${appt.status}, 'cancelled', ${userId}::uuid, ${reason ?? null})
+      `;
+
+      if (appt.jobId) {
+        await tx.$executeRaw`
+          UPDATE jobs SET scheduled_start = NULL, scheduled_end = NULL,
+            status = CASE WHEN status = 'scheduled' THEN 'draft' ELSE status END, updated_at = now()
+          WHERE id = ${appt.jobId}::uuid
+        `;
+      }
+
+      return this.getAppointment(companyId, appointmentId, tx);
     });
   }
 

@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { SchedulingService } from './services/scheduling.service';
-import { ScheduleJobDto, RescheduleAppointmentDto, UpdateAppointmentAssignmentDto, QueryCalendarDto } from './dto/scheduling.dto';
+import { ScheduleJobDto, RescheduleAppointmentDto, UpdateAppointmentAssignmentDto, QueryCalendarDto, CancelAppointmentDto } from './dto/scheduling.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -36,6 +36,12 @@ export class SchedulingController {
   @RequirePermissions('jobs.write')
   updateAssignment(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: UpdateAppointmentAssignmentDto) {
     return this.scheduling.updateAssignment(user.companyId, id, dto);
+  }
+
+  @Post('appointments/:id/cancel')
+  @RequirePermissions('jobs.write')
+  cancel(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: CancelAppointmentDto) {
+    return this.scheduling.cancel(user.companyId, id, user.userId, dto.reason);
   }
 
   @Delete('appointments/:id')

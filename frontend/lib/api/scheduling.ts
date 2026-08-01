@@ -30,6 +30,7 @@ export interface CalendarAppointment {
   jobPrice: string | null;
   jobNumber: string | null;
   services: string[];
+  cancellationReason: string | null;
 }
 
 export interface ScheduleJobInput {
@@ -53,6 +54,8 @@ export const schedulingApi = {
   updateAssignment: (appointmentId: string, input: { assignedUserId?: string; arrivalWindowMinutes?: number }) =>
     apiFetch<CalendarAppointment>(`/scheduling/appointments/${appointmentId}/assignment`, { method: 'PATCH', body: JSON.stringify(input) }),
   unschedule: (appointmentId: string) => apiFetch<{ success: boolean }>(`/scheduling/appointments/${appointmentId}`, { method: 'DELETE' }),
+  cancel: (appointmentId: string, reason?: string) =>
+    apiFetch<CalendarAppointment>(`/scheduling/appointments/${appointmentId}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
 };
 
 export const APPOINTMENT_STATUS_COLORS: Record<string, string> = {

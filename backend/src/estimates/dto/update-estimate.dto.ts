@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { CreateEstimateLineItemDto } from './create-estimate.dto';
 
 export class UpdateEstimateDto {
@@ -44,4 +44,9 @@ export class UpdateEstimateDto {
   @IsString()
   @MaxLength(5000)
   terms?: string;
+
+  // See CreateEstimateDto — same field, same downstream consumers.
+  @IsOptional()
+  @IsDateString()
+  validUntil?: string;
 }

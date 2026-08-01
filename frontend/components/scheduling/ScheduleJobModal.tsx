@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { schedulingApi } from '../../lib/api/scheduling';
+import { ApiError } from '../../lib/api/api-client';
 
 function defaultStart(): string {
   const d = new Date();
@@ -30,8 +31,8 @@ export function ScheduleJobModal({ jobId, onClose, onScheduled }: { jobId: strin
         arrivalWindowMinutes: arrivalWindow ? Number(arrivalWindow) : undefined,
       });
       onScheduled();
-    } catch {
-      setError("Couldn't schedule this job — try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't schedule this job — try again.");
     } finally {
       setIsSaving(false);
     }

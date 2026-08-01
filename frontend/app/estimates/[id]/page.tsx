@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { Pencil, CheckCircle2, Briefcase, Mail, FileDown, Printer, XCircle, Clock, Trash2, RotateCcw } from 'lucide-react';
+import { Pencil, CheckCircle2, Briefcase, Mail, FileDown, Printer, XCircle, Clock, Trash2, RotateCcw, Copy } from 'lucide-react';
 import { estimatesApi, SERVICE_TYPES } from '../../../lib/api/estimates';
 import { PermissionGate } from '../../../components/auth/permission-gate';
 import { useAuth } from '../../../lib/auth/auth-context';
@@ -43,6 +43,7 @@ export default function EstimateDetailPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [isActing, setIsActing] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
   const [declineReason, setDeclineReason] = useState('');
@@ -68,6 +69,24 @@ export default function EstimateDetailPage() {
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Failed to convert estimate to a job.');
       setIsActing(false);
+    }
+  }
+
+  // No confirmation dialog — this never touches the source estimate at
+  // all (create()-only on the backend), so there's nothing to undo or
+  // confirm, same reasoning as the one-click "View Job" action above.
+  // Lands on the new draft's Edit screen rather than its detail view —
+  // the whole point of duplicating is to immediately adjust a few things
+  // for the repeat job, not just look at an identical copy.
+  async function handleDuplicate() {
+    setIsDuplicating(true);
+    setActionError(null);
+    try {
+      const duplicated = await estimatesApi.duplicate(params.id);
+      router.push(`/estimates/${duplicated.id}/edit`);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to duplicate this estimate.');
+      setIsDuplicating(false);
     }
   }
 
@@ -115,6 +134,9 @@ export default function EstimateDetailPage() {
     { key: 'email', label: 'Email', icon: <Mail className="h-4 w-4" />, onClick: handleJumpToEmail },
     { key: 'pdf', label: 'Generate PDF', icon: <FileDown className="h-4 w-4" />, onClick: async () => { const url = await fetchPdfObjectUrl(estimatesApi.pdfPath(estimate.id)); window.open(url, '_blank'); } },
     { key: 'print', label: 'Print', icon: <Printer className="h-4 w-4" />, onClick: handlePrint, loading: isPreviewing },
+    // Visible regardless of status — a repeat customer is just as likely
+    // to come from an accepted, declined, or expired estimate as a draft.
+    { key: 'duplicate', label: 'Duplicate', icon: <Copy className="h-4 w-4" />, onClick: handleDuplicate, loading: isDuplicating },
   ];
 
   const danger: ActionBarItem[] = [
@@ -134,6 +156,7 @@ export default function EstimateDetailPage() {
             <h1 className="text-xl font-semibold text-slate-900">{estimate.estimateNumber}</h1>
             <p className="mt-1 text-sm text-slate-500">
               {customerName(estimate.customer)} · {estimate.property.addressLine1}, {estimate.property.city}
+              {estimate.validUntil && ` · Valid until ${new Date(estimate.validUntil).toLocaleDateString('en-US', { dateStyle: 'medium' })}`}
             </p>
           </div>
           <StatusBadge status={displayStatus} colorMap={ESTIMATE_STATUS_COLORS} />

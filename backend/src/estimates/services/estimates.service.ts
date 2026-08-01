@@ -53,6 +53,7 @@ export class EstimatesService {
           notes: dto.notes,
           terms: dto.terms,
           internalNotes: dto.internalNotes,
+          validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         },
       });
 
@@ -112,10 +113,39 @@ export class EstimatesService {
         await this.insertLineItems(tx, companyId, id, dto.lineItems);
         await this.computeAndSaveLineItemProfitability(tx, companyId, id);
       }
-      if (dto.notes !== undefined || dto.terms !== undefined) {
-        await tx.estimate.update({ where: { id }, data: { notes: dto.notes, terms: dto.terms, internalNotes: dto.internalNotes } });
+      if (dto.notes !== undefined || dto.terms !== undefined || dto.internalNotes !== undefined || dto.validUntil !== undefined) {
+        await tx.estimate.update({
+          where: { id },
+          data: {
+            notes: dto.notes,
+            terms: dto.terms,
+            internalNotes: dto.internalNotes,
+            validUntil: dto.validUntil !== undefined ? new Date(dto.validUntil) : undefined,
+          },
+        });
       }
-      return this.recalculateAndSave(tx, companyId, id, dto.discountType ?? existing.discountType ?? undefined, dto.discountValue, dto.taxRatePercent);
+
+      // A PATCH that doesn't touch discount/tax (e.g. a line-items-only or
+      // notes-only edit) must never silently zero out an existing
+      // discount/tax rate just because this particular request didn't
+      // resend it — discountValue/taxRatePercent are the raw numbers a
+      // person typed, not persisted anywhere on their own (only the
+      // resulting discountAmount/taxRate fraction is stored), so when the
+      // caller omits them we reconstruct the equivalent raw value from
+      // what's already saved rather than treating "not sent" as "clear
+      // it." Verified necessary: computeDocumentTotals() (called below via
+      // recalculateAndSave) defaults a missing discountValue/taxRatePercent
+      // to 0, which previously meant ANY partial update could wipe a real,
+      // already-saved discount or tax rate.
+      const effectiveDiscountType = dto.discountType ?? existing.discountType ?? undefined;
+      const effectiveDiscountValue = dto.discountValue !== undefined
+        ? dto.discountValue
+        : this.reconstructDiscountValue(effectiveDiscountType, existing);
+      const effectiveTaxRatePercent = dto.taxRatePercent !== undefined
+        ? dto.taxRatePercent
+        : Number(existing.taxRate ?? 0) * 100;
+
+      return this.recalculateAndSave(tx, companyId, id, effectiveDiscountType, effectiveDiscountValue, effectiveTaxRatePercent);
     });
 
     return this.applyProfitabilityVisibility(result, canViewProfitability);
@@ -473,6 +503,24 @@ export class EstimatesService {
     if (!property) {
       throw new ForbiddenException('Property does not belong to the specified customer, or either was not found');
     }
+  }
+
+  /**
+   * Reverses computeDocumentTotals()'s forward math (discountValue ->
+   * discountAmount) so a partial update that omits discountValue can
+   * re-derive the equivalent raw number from what's already stored,
+   * instead of losing it. Only ever called when the caller's DTO didn't
+   * supply discountValue itself.
+   */
+  private reconstructDiscountValue(discountType: string | undefined, existing: { discountAmount: unknown; subtotal: unknown }): number | undefined {
+    if (!discountType) return undefined;
+    const discountAmount = Number(existing.discountAmount ?? 0);
+    if (discountAmount <= 0) return undefined;
+    if (discountType === 'percentage') {
+      const subtotal = Number(existing.subtotal ?? 0);
+      return subtotal > 0 ? Math.round((discountAmount / subtotal) * 10000) / 100 : undefined;
+    }
+    return discountAmount;
   }
 
   private async generateEstimateNumber(tx: any, companyId: string): Promise<string> {

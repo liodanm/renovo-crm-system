@@ -40,6 +40,13 @@ export class UpdateAppointmentAssignmentDto {
   arrivalWindowMinutes?: number;
 }
 
+export class CancelAppointmentDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
 export class QueryCalendarDto {
   @IsISO8601()
   start!: string;

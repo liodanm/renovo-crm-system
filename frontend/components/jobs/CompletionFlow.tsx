@@ -2,24 +2,33 @@
 
 import { useState } from 'react';
 import { SignaturePad } from './SignaturePad';
+import { PhotoSection } from './PhotoSection';
+import { ChemicalSection } from './ChemicalSection';
+import { EquipmentSection } from './EquipmentSection';
 import { SIGNATURE_UNAVAILABLE_LABELS, RECOMMENDABLE_SERVICE_LABELS, type CompleteJobInput } from '../../lib/api/jobs';
 import { cn } from '../../lib/utils';
 
 interface CompletionFlowProps {
+  jobId: string;
   onSubmit: (input: CompleteJobInput) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
 }
 
 type SignatureMode = 'sign' | 'unavailable';
+type FieldOpsSection = 'photos' | 'chemicals' | 'equipment' | null;
 
-export function CompletionFlow({ onSubmit, onCancel, isSubmitting }: CompletionFlowProps) {
+export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: CompletionFlowProps) {
   const [signatureMode, setSignatureMode] = useState<SignatureMode>('sign');
   const [signatureDataUrl, setSignatureDataUrl] = useState('');
   const [reason, setReason] = useState<keyof typeof SIGNATURE_UNAVAILABLE_LABELS>('customer_not_home');
   const [notes, setNotes] = useState('');
   const [recommended, setRecommended] = useState<string[]>([]);
   const [billableOverride, setBillableOverride] = useState('');
+  // One at a time, collapsed by default — keeps the panel scrollable in
+  // place on a small screen instead of showing all three full sections
+  // (each with its own upload UI / lists) simultaneously.
+  const [expandedSection, setExpandedSection] = useState<FieldOpsSection>(null);
 
   function toggleRecommended(service: string) {
     setRecommended((prev) => (prev.includes(service) ? prev.filter((s) => s !== service) : [...prev, service]));
@@ -39,19 +48,22 @@ export function CompletionFlow({ onSubmit, onCancel, isSubmitting }: CompletionF
     <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
       <h2 className="text-sm font-semibold text-slate-700">Complete This Job</h2>
 
-      {/* Quick links to field-ops sections further down this same page —
-          they're not part of this form (nothing moved), this just saves
-          the scroll-and-hunt to find them before/after completing. */}
-      <div className="flex flex-wrap gap-2">
-        <a href="#job-photos" className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
-          📷 Photos
-        </a>
-        <a href="#job-chemicals" className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
-          🧪 Chemicals Used
-        </a>
-        <a href="#job-equipment" className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200">
-          🛠️ Equipment Used
-        </a>
+      {/* Photos, Chemicals, and Equipment — the exact same sections that
+          live further down this job's page, rendered inline here instead
+          of linking away to them. Collapsed by default; expand one at a
+          time so a tech can log what's needed without ever leaving this
+          panel or scrolling to find it, then continue straight to
+          signature below. Nothing about upload/add/delete behavior is
+          different — same components, same functionality. */}
+      <div className="space-y-2">
+        <FieldOpsToggle label="📷 Photos" isOpen={expandedSection === 'photos'} onToggle={() => setExpandedSection((s) => (s === 'photos' ? null : 'photos'))} />
+        {expandedSection === 'photos' && <PhotoSection jobId={jobId} />}
+
+        <FieldOpsToggle label="🧪 Chemicals Used" isOpen={expandedSection === 'chemicals'} onToggle={() => setExpandedSection((s) => (s === 'chemicals' ? null : 'chemicals'))} />
+        {expandedSection === 'chemicals' && <ChemicalSection jobId={jobId} />}
+
+        <FieldOpsToggle label="🛠️ Equipment Used" isOpen={expandedSection === 'equipment'} onToggle={() => setExpandedSection((s) => (s === 'equipment' ? null : 'equipment'))} />
+        {expandedSection === 'equipment' && <EquipmentSection jobId={jobId} />}
       </div>
 
       {/* Signature — genuinely optional, per explicit decision */}
@@ -151,5 +163,21 @@ export function CompletionFlow({ onSubmit, onCancel, isSubmitting }: CompletionF
         </button>
       </div>
     </div>
+  );
+}
+
+function FieldOpsToggle({ label, isOpen, onToggle }: { label: string; isOpen: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        'flex w-full items-center justify-between rounded-lg px-3.5 py-3 text-sm font-medium transition-colors',
+        isOpen ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+      )}
+    >
+      <span>{label}</span>
+      <span className="text-xs">{isOpen ? '▲ Close' : '▼ Add / View'}</span>
+    </button>
   );
 }

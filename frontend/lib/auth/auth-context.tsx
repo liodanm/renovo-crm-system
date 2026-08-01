@@ -1,9 +1,10 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { authApi, CurrentUser, LoginResult } from '../api/auth';
 import { clearTokens, getRefreshToken, getSessionJti, setTokens } from './token-storage';
+import { PUBLIC_PATHS } from '../../middleware';
 
 interface AuthContextValue {
   user: CurrentUser | null;
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   const loadUser = useCallback(async () => {
     try {
@@ -59,11 +61,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [loadUser]);
 
+  // Session-gap fix: clearing the stale marker cookie (above) doesn't get
+  // anyone off an already-rendered protected page — middleware.ts only
+  // runs on navigation, not on this client-side state change. Previously,
+  // landing here on "not authenticated" (new tab / browser restart with
+  // the 30-day marker cookie still valid but the actual refresh token
+  // already gone from sessionStorage) left the person stranded: every
+  // real API call 401s forever, nothing explains why, and nothing offers
+  // a way back to /login. Redirect explicitly whenever this lands on "not
+  // authenticated" on a route that actually requires it — public pages
+  // (login itself, etc.) are expected to render unauthenticated and must
+  // never be redirected away from, so they're excluded exactly like
+  // middleware.ts excludes them.
   useEffect(() => {
-    if (!isLoading && !user) {
-      clearTokens();
+    if (isLoading || user) return;
+    clearTokens();
+    const isPublic = PUBLIC_PATHS.some((path) => pathname?.startsWith(path));
+    if (!isPublic) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname ?? '/')}`);
     }
-  }, [isLoading, user]);
+  }, [isLoading, user, pathname, router]);
 
   const login = useCallback(
     async (email: string, password: string) => {

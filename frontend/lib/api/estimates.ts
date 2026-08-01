@@ -52,6 +52,7 @@ export interface Estimate {
   notes: string | null;
   terms: string | null;
   internalNotes: string | null;
+  validUntil: string | null;
   sentAt: string | null;
   viewedAt: string | null;
   acceptedAt: string | null;
@@ -91,6 +92,7 @@ export interface CreateEstimateInput {
   notes?: string;
   terms?: string;
   internalNotes?: string;
+  validUntil?: string;
 }
 
 export const estimatesApi = {

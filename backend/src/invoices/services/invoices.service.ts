@@ -311,6 +311,29 @@ export class InvoicesService {
     if (['paid', 'void'].includes(existing.status)) {
       throw new BadRequestException(`Cannot void an invoice with status '${existing.status}'`);
     }
+
+    // A 'partial' invoice can have real, uncanceled payment money attached
+    // to it (status 'succeeded' or 'partially_refunded') — voiding it here
+    // without checking would leave the invoice saying "void / nothing
+    // owed" while a payment record on it still says money was collected.
+    // This never reverses or touches a payment itself; it only requires
+    // the existing, already-working payment-level Void/Refund actions
+    // (PaymentsService.voidPayment / refundPayment — both already surfaced
+    // in the UI right on this invoice's page) be used first. Once every
+    // payment is refunded or voided, amount_paid returns to 0 and
+    // computeInvoiceStatusAfterPayment already reverts the invoice's own
+    // status to 'sent' — at that point this check passes on its own, no
+    // special-casing needed.
+    const activePayments: { id: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT id FROM payments
+      WHERE invoice_id = ${id}::uuid AND company_id = ${companyId}::uuid AND status IN ('succeeded', 'partially_refunded')
+    `);
+    if (activePayments.length > 0) {
+      throw new BadRequestException(
+        'Cannot void an invoice with active payments — void or fully refund the existing payment(s) first.',
+      );
+    }
+
     await this.prisma.withTenantContext(companyId, (tx) => tx.$executeRaw`
       UPDATE invoices SET status = 'void', updated_at = now() WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid
     `);

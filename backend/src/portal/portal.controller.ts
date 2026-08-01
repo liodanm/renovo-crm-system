@@ -83,6 +83,12 @@ export class PortalController {
       if (invoiceId) {
         await this.reconcilePayment(invoiceId, paymentIntent);
       }
+    } else if (event.type === 'payment_intent.payment_failed') {
+      const paymentIntent = event.data.object;
+      const invoiceId = paymentIntent.metadata?.invoiceId;
+      if (invoiceId) {
+        await this.recordFailedPayment(invoiceId, paymentIntent);
+      }
     }
 
     // Stripe expects a fast 200 regardless of whether we found a matching
@@ -92,14 +98,30 @@ export class PortalController {
   }
 
   private async reconcilePayment(invoiceId: string, paymentIntent: any) {
-    const invoice = await this.prisma.invoice.findUnique({ where: { id: invoiceId } });
+    // Explicit companyId scoping (not RLS) is deliberate here, matching
+    // this codebase's own established pattern for @Public() routes with
+    // no authenticated request to derive a tenant from (see the Quote
+    // Widget module's documented rule). companyId comes from the
+    // PaymentIntent's own metadata, set server-side when the intent was
+    // created — not client-editable, so this is a real scope, not a
+    // client-asserted one. A PaymentIntent created before this metadata
+    // field existed would have no companyId; skip rather than query
+    // across every tenant.
+    const companyId = paymentIntent.metadata?.companyId;
+    if (!companyId) return;
+
+    const invoice = await this.prisma.invoice.findFirst({ where: { id: invoiceId, companyId } });
     if (!invoice) return;
 
     // Idempotency: Stripe can and does deliver the same webhook event more
     // than once (their own docs guarantee at-least-once, not exactly-once
     // delivery). Without this check, a duplicate delivery would double-count
     // the payment and could push amountPaid above the real invoice total.
-    const alreadyRecorded = await this.prisma.payment.findFirst({ where: { stripePaymentIntentId: paymentIntent.id } });
+    // Scoped by status as well as paymentIntentId: a single PaymentIntent
+    // can have a failed attempt followed by a later successful retry under
+    // the same ID, so this must not treat an already-recorded *failure* as
+    // if the *success* had already been recorded too.
+    const alreadyRecorded = await this.prisma.payment.findFirst({ where: { stripePaymentIntentId: paymentIntent.id, status: 'succeeded' } });
     if (alreadyRecorded) return;
 
     const amount = paymentIntent.amount_received / 100; // Stripe amounts are in cents
@@ -138,6 +160,64 @@ export class PortalController {
         messageBody: `Invoice ${invoice.invoiceNumber} paid in full via Stripe`,
       });
     }
+  }
+
+  /**
+   * The A2 fix: a failed card payment previously left no trace anywhere in
+   * the system — the CRM simply never found out. This records the failed
+   * attempt using the exact same `payments` table and `payment_status_history`
+   * pattern every other payment write in this app already uses (status
+   * 'failed' was already a valid value in payments' own CHECK constraint,
+   * confirmed before writing this — no schema change needed for the table
+   * itself). Deliberately never touches invoices.amount_paid or
+   * invoices.status: $0 was actually collected, so nothing about the
+   * invoice's paid state has changed. Invoice void logic is untouched by
+   * this method entirely.
+   */
+  private async recordFailedPayment(invoiceId: string, paymentIntent: any) {
+    const companyId = paymentIntent.metadata?.companyId;
+    if (!companyId) return;
+
+    const invoice = await this.prisma.invoice.findFirst({ where: { id: invoiceId, companyId } });
+    if (!invoice) return;
+
+    // Same at-least-once-delivery idempotency reasoning as reconcilePayment,
+    // scoped by status for the same reason: a failed record must not block
+    // a later success on the same PaymentIntent ID from ever being recorded.
+    const alreadyRecorded = await this.prisma.payment.findFirst({ where: { stripePaymentIntentId: paymentIntent.id, status: 'failed' } });
+    if (alreadyRecorded) return;
+
+    // amount (not amount_received) — a failed attempt received $0; this is
+    // the amount that was attempted, for staff visibility into what the
+    // customer was trying to pay.
+    const amount = paymentIntent.amount / 100;
+    const failureReason: string | undefined = paymentIntent.last_payment_error?.message;
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        companyId: invoice.companyId,
+        invoiceId: invoice.id,
+        customerId: invoice.customerId,
+        amount,
+        method: 'card',
+        status: 'failed',
+        stripePaymentIntentId: paymentIntent.id,
+        notes: failureReason ?? null,
+      },
+    });
+
+    await this.prisma.withTenantContext(invoice.companyId, (tx) => tx.$executeRaw`
+      INSERT INTO payment_status_history (company_id, payment_id, from_status, to_status, changed_by_user_id, note)
+      VALUES (${invoice.companyId}::uuid, ${payment.id}::uuid, NULL, 'failed', NULL, ${failureReason ?? 'Stripe payment attempt failed'})
+    `);
+
+    await logAutomationEvent(this.prisma, {
+      companyId: invoice.companyId,
+      customerId: invoice.customerId,
+      ruleType: 'payment_failed',
+      dedupeKey: `payment-failed-${paymentIntent.id}`,
+      messageBody: `Payment attempt of $${amount.toFixed(2)} failed for Invoice ${invoice.invoiceNumber}${failureReason ? ` (${failureReason})` : ''}`,
+    });
   }
 
   @UseGuards(PortalCustomerGuard)
@@ -279,6 +359,7 @@ export class PortalController {
       amountCents: Math.round(balance * 100),
       currency: 'usd',
       invoiceId: invoice.id,
+      companyId: customer.companyId,
       customerEmail: customer.email,
     });
     if (!result) return { available: false, message: 'Online payment is not available right now — please contact us.' };

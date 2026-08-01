@@ -14,7 +14,7 @@ export class StripePaymentService {
    * Stripe.js/Elements directly from the browser — card details never
    * transit this server, which is what keeps Renovo out of PCI SAQ D scope.
    */
-  async createPaymentIntent(input: { amountCents: number; currency: string; invoiceId: string; customerEmail: string }): Promise<{ clientSecret: string; paymentIntentId: string } | null> {
+  async createPaymentIntent(input: { amountCents: number; currency: string; invoiceId: string; companyId: string; customerEmail: string }): Promise<{ clientSecret: string; paymentIntentId: string } | null> {
     const secretKey = this.config.get<string>('STRIPE_SECRET_KEY');
     if (!secretKey) {
       this.logger.warn('STRIPE_SECRET_KEY not configured — cannot create PaymentIntent');
@@ -29,6 +29,11 @@ export class StripePaymentService {
         currency: input.currency,
         receipt_email: input.customerEmail,
         'metadata[invoiceId]': input.invoiceId,
+        // companyId isn't needed by Stripe itself — it's carried through so
+        // the webhook handler (which runs with no authenticated request
+        // context to derive a tenant from) can explicitly scope its invoice
+        // lookup by company, instead of querying across all tenants.
+        'metadata[companyId]': input.companyId,
         'automatic_payment_methods[enabled]': 'true',
       }).toString(),
     });

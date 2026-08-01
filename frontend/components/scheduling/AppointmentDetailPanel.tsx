@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, Phone, Navigation, Play, CalendarClock, ExternalLink } from 'lucide-react';
+import { X, Phone, Navigation, Play, CalendarClock, CalendarX, ExternalLink } from 'lucide-react';
 import { dashboardApi, type WeatherSnapshot } from '../../lib/api/dashboard';
 import { jobsApi, RECOMMENDABLE_SERVICE_LABELS } from '../../lib/api/jobs';
 import {
   appointmentCustomerName,
+  schedulingApi,
   APPOINTMENT_STATUS_LABELS,
   type CalendarAppointment,
 } from '../../lib/api/scheduling';
+import { ConfirmDialog } from '../action-center/ConfirmDialog';
 
 interface AppointmentDetailPanelProps {
   appointment: CalendarAppointment;
@@ -33,6 +35,8 @@ function formatWindow(startsAt: string, minutes: number): string {
 export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpenReschedule }: AppointmentDetailPanelProps) {
   const [weather, setWeather] = useState<WeatherSnapshot | null | undefined>(undefined);
   const [isActing, setIsActing] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     setWeather(undefined);
@@ -66,6 +70,7 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-30 flex justify-end bg-black/30" onClick={onClose}>
       <div className="h-full w-full max-w-md overflow-y-auto bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -106,6 +111,11 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
             <button onClick={onOpenReschedule} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 px-2 py-3 text-xs font-medium text-slate-700 hover:bg-slate-200">
               <CalendarClock className="h-4 w-4" /> Reschedule
             </button>
+            {!['cancelled', 'completed'].includes(appointment.status) && appointment.jobStatus !== 'completed' && (
+              <button onClick={() => setShowCancelDialog(true)} className="flex flex-col items-center gap-1 rounded-xl bg-red-50 px-2 py-3 text-xs font-medium text-red-700 hover:bg-red-100">
+                <CalendarX className="h-4 w-4" /> Cancel
+              </button>
+            )}
           </div>
 
           {/* Operational-center info */}
@@ -114,6 +124,9 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
             <Row label="Property" value={appointment.propertyAddressLine1 ? `${appointment.propertyAddressLine1}, ${appointment.propertyCity}` : '—'} />
             <Row label="Services" value={appointment.services.length > 0 ? appointment.services.map((s) => RECOMMENDABLE_SERVICE_LABELS[s] ?? s).join(', ') : '—'} />
             <Row label="Status" value={APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status} />
+            {appointment.status === 'cancelled' && appointment.cancellationReason && (
+              <Row label="Cancellation Reason" value={appointment.cancellationReason} />
+            )}
             <Row label="Technician" value={technicianName} />
             <Row label="Arrival Window" value={formatWindow(appointment.startsAt, appointment.resolvedArrivalWindowMinutes)} />
             <Row label="Estimated Revenue" value={formatMoney(appointment.jobPrice)} />
@@ -131,6 +144,31 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
         </div>
       </div>
     </div>
+
+      {showCancelDialog && (
+        <ConfirmDialog
+          title="Cancel this appointment?"
+          message="This keeps a record of the appointment and why it was cancelled — it isn't deleted. A job that was only scheduled because of this appointment reverts to needing a new one."
+          confirmLabel="Cancel Appointment"
+          danger
+          onClose={() => setShowCancelDialog(false)}
+          onConfirm={async () => {
+            await schedulingApi.cancel(appointment.id, cancelReason || undefined);
+            setShowCancelDialog(false);
+            onChanged();
+            onClose();
+          }}
+        >
+          <textarea
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="Reason (optional) — e.g. weather, customer rescheduled…"
+            rows={2}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </ConfirmDialog>
+      )}
+    </>
   );
 }
 

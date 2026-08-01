@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { schedulingApi, type CalendarAppointment } from '../../lib/api/scheduling';
+import { ApiError } from '../../lib/api/api-client';
 
 function toLocalInputValue(iso: string): string {
   const d = new Date(iso);
@@ -24,8 +25,8 @@ export function RescheduleModal({ appointment, onClose, onRescheduled }: { appoi
         endsAt: new Date(endsAt).toISOString(),
       });
       onRescheduled();
-    } catch {
-      setError("Couldn't reschedule — check the times and try again.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reschedule — check the times and try again.");
     } finally {
       setIsSaving(false);
     }

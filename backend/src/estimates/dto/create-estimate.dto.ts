@@ -14,6 +14,7 @@ import {
   Min,
   MaxLength,
   ValidateNested,
+  IsDateString,
 } from 'class-validator';
 
 const SERVICE_TYPES = [
@@ -157,4 +158,15 @@ export class CreateEstimateDto {
   @IsString()
   @MaxLength(5000)
   terms?: string;
+
+  // ISO date string (YYYY-MM-DD). Read by AutomationService's expiration
+  // reminder/auto-expire rules (see runEstimateExpirationReminders /
+  // runEstimateExpiration) and rendered on the PDF, the send-email
+  // template, and the customer portal — all of which already expected
+  // this to be settable. Optional: an estimate with no valid-until date
+  // simply never enters either automation rule, same as before this field
+  // was exposed here.
+  @IsOptional()
+  @IsDateString()
+  validUntil?: string;
 }

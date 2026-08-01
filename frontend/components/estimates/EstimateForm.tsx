@@ -120,6 +120,7 @@ interface PersistedDraft {
   taxRatePercent: string;
   notes: string;
   internalNotes: string;
+  validUntil: string;
 }
 
 function loadDraft(): PersistedDraft | null {
@@ -198,10 +199,29 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         : [emptyLineItem()],
   );
   const [discountType, setDiscountType] = useState(existingEstimate?.discountType ?? restoredDraft?.discountType ?? '');
-  const [discountValue, setDiscountValue] = useState(existingEstimate?.discountAmount ? String(existingEstimate.discountAmount) : restoredDraft?.discountValue ?? '');
+  // existingEstimate.discountAmount is always a resolved DOLLAR figure,
+  // regardless of discountType — for a 'percentage' discount, showing that
+  // dollar amount directly in this field (as previously happened) shows
+  // the wrong number and, if saved without being touched, silently
+  // recomputes a much larger discount against the current subtotal. Only
+  // 'fixed' discounts have a raw value equal to discountAmount; a
+  // 'percentage' discount's raw value has to be reconstructed from
+  // discountAmount / subtotal.
+  const [discountValue, setDiscountValue] = useState(() => {
+    if (existingEstimate?.discountAmount && Number(existingEstimate.discountAmount) > 0) {
+      const amount = Number(existingEstimate.discountAmount);
+      if (existingEstimate.discountType === 'percentage') {
+        const subtotal = Number(existingEstimate.subtotal);
+        return subtotal > 0 ? String(Math.round((amount / subtotal) * 10000) / 100) : '';
+      }
+      return String(amount);
+    }
+    return restoredDraft?.discountValue ?? '';
+  });
   const [taxRatePercent, setTaxRatePercent] = useState(existingEstimate ? String(Number(existingEstimate.taxRate) * 100) : restoredDraft?.taxRatePercent ?? '');
   const [notes, setNotes] = useState(existingEstimate?.notes ?? restoredDraft?.notes ?? '');
   const [internalNotes, setInternalNotes] = useState(existingEstimate?.internalNotes ?? restoredDraft?.internalNotes ?? '');
+  const [validUntil, setValidUntil] = useState(existingEstimate?.validUntil?.slice(0, 10) ?? restoredDraft?.validUntil ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -214,8 +234,8 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
   // this cheap).
   useEffect(() => {
     if (isEdit) return;
-    saveDraft({ customerId, customerDisplayName, propertyId, lineItems, discountType, discountValue, taxRatePercent, notes, internalNotes });
-  }, [isEdit, customerId, customerDisplayName, propertyId, lineItems, discountType, discountValue, taxRatePercent, notes, internalNotes]);
+    saveDraft({ customerId, customerDisplayName, propertyId, lineItems, discountType, discountValue, taxRatePercent, notes, internalNotes, validUntil });
+  }, [isEdit, customerId, customerDisplayName, propertyId, lineItems, discountType, discountValue, taxRatePercent, notes, internalNotes, validUntil]);
 
   // If we arrived pre-filled from a customer's profile (or resumed the
   // customer from a restored draft), the picker still needs a display
@@ -289,6 +309,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         taxRatePercent: taxRatePercent ? toNumber(taxRatePercent) : undefined,
         notes: notes || undefined,
         internalNotes: internalNotes || undefined,
+        validUntil: validUntil || undefined,
       };
 
       const estimate = isEdit ? await estimatesApi.update(existingEstimate!.id, payload) : await estimatesApi.create(payload);
@@ -435,7 +456,16 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
           ))}
         </div>
 
-        <div className="mt-8 grid grid-cols-3 gap-4">
+        <div className="mt-8 grid grid-cols-4 gap-4">
+          <div>
+            <label className="text-sm font-medium text-slate-700">Valid until</label>
+            <input
+              type="date"
+              value={validUntil}
+              onChange={(e) => setValidUntil(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
           <div>
             <label className="text-sm font-medium text-slate-700">Discount type</label>
             <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
