@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -18,11 +17,11 @@ import {
 } from '../../lib/api/scheduling';
 import { cn } from '../../lib/utils';
 
-// Leaflet touches `window` at import time â€” ssr:false is required the
+// Leaflet touches `window` at import time — ssr:false is required the
 // same way the dashboard's customer map already handles this.
 const ScheduleMapInner = dynamic(() => import('../../components/scheduling/ScheduleMapInner').then((m) => m.ScheduleMapInner), {
   ssr: false,
-  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading mapâ€¦</div>,
+  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading map…</div>,
 });
 
 type ViewMode = 'day' | 'week' | 'month' | 'map';
@@ -69,8 +68,8 @@ export default function SchedulingPage() {
   const [rescheduling, setRescheduling] = useState<CalendarAppointment | null>(null);
 
   // Mobile improvement: a 7-column week grid or 42-cell month grid is
-  // genuinely hard to use on a phone-width screen. Day view â€” one column,
-  // full width, real touch targets â€” is what the calendar actually opens
+  // genuinely hard to use on a phone-width screen. Day view — one column,
+  // full width, real touch targets — is what the calendar actually opens
   // to below the sm breakpoint, without removing the other views for
   // anyone who wants them.
   useEffect(() => {
@@ -94,7 +93,7 @@ export default function SchedulingPage() {
   const rangeLabel = useMemo(() => {
     if (view === 'day') return anchor.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     if (view === 'month') return anchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} â€“ ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   }, [anchor, view, start]);
 
   function refreshAfterChange() {
@@ -153,7 +152,7 @@ export default function SchedulingPage() {
           </div>
         </div>
 
-        {isLoading && <div className="mt-8 text-center text-sm text-slate-500">Loadingâ€¦</div>}
+        {isLoading && <div className="mt-8 text-center text-sm text-slate-500">Loading…</div>}
         {error && <div className="mt-8 text-center text-sm text-red-600">Couldn't load the calendar.</div>}
 
         {appointments && view === 'day' && <TimeGridView appointments={appointments} days={[anchor]} onSelect={setSelected} onRescheduled={refreshAfterChange} />}
