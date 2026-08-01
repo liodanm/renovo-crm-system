@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hard guarantee against horizontal scroll on any screen. Elements that
+   intentionally bleed to the full device width via negative margins
+   (the sticky-bar technique used by both FieldActionBar.tsx and the
+   Estimate Builder's save bar) are still valid, in-flow content and can
+   otherwise widen the document's own scrollable area if nothing
+   constrains it — there was no overflow-x protection anywhere in this
+   app before this. This doesn't hide any real content; every element
+   using that bleed technique is still meant to render flush with the
+   screen edge, not beyond it. */
+html {
+  overflow-x: hidden;
+}
+
 :root {
   --color-brand: #0e7490; /* teal-700 — water/pressure-washing association without leaning on cliché blue */
   --color-brand-dark: #155e75;
