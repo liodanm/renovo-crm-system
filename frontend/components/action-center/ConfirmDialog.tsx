@@ -51,13 +51,13 @@ export function ConfirmDialog({
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
 
         <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} disabled={isConfirming} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+          <button onClick={onClose} disabled={isConfirming} className="rounded-lg border border-slate-300 px-4 py-3 text-base font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 lg:py-2 lg:text-sm">
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={isConfirming}
-            className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-[var(--color-brand)] hover:opacity-90'}`}
+            className={`rounded-lg px-4 py-3 text-base font-medium text-white disabled:opacity-50 lg:py-2 lg:text-sm ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-[var(--color-brand)] hover:opacity-90'}`}
           >
             {isConfirming ? 'Working…' : confirmLabel}
           </button>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import useSWR from 'swr';
 import { AppShell } from '../../components/layout/AppShell';
+import { MobileListCard } from '../../components/ui/mobile-list-card';
 import { paymentsApi, invoiceCustomerNameFromReceipt, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_STYLES } from '../../lib/api/payments';
 import { cn } from '../../lib/utils';
 
@@ -31,40 +32,66 @@ export default function PaymentsPage() {
             </div>
           )}
           {payments && payments.length > 0 && (
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Invoice</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Method</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <Link href={`/invoices/${p.invoiceId}`} className="font-medium text-[var(--color-brand)]">{p.invoiceNumber}</Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{invoiceCustomerNameFromReceipt(p)}</td>
-                    <td className="px-4 py-3 text-slate-500">{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</td>
-                    <td className="px-4 py-3 text-slate-500">{p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : '—'}</td>
-                    <td className="px-4 py-3">
-                      <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium', PAYMENT_STATUS_STYLES[p.status] ?? 'bg-slate-100 text-slate-700')}>
-                        {PAYMENT_STATUS_LABELS[p.status] ?? p.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900">{formatMoney(p.amount)}</td>
-                    <td className="px-4 py-3 text-right">
-                      {p.status === 'succeeded' && <Link href={`/payments/receipt/${p.id}`} className="text-xs text-[var(--color-brand)]">Receipt</Link>}
-                    </td>
+            <>
+              <table className="hidden w-full text-sm lg:table">
+                <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Invoice</th>
+                    <th className="px-4 py-3">Customer</th>
+                    <th className="px-4 py-3">Method</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3" />
                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <Link href={`/invoices/${p.invoiceId}`} className="font-medium text-[var(--color-brand)]">{p.invoiceNumber}</Link>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{invoiceCustomerNameFromReceipt(p)}</td>
+                      <td className="px-4 py-3 text-slate-500">{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</td>
+                      <td className="px-4 py-3 text-slate-500">{p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : '—'}</td>
+                      <td className="px-4 py-3">
+                        <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium', PAYMENT_STATUS_STYLES[p.status] ?? 'bg-slate-100 text-slate-700')}>
+                          {PAYMENT_STATUS_LABELS[p.status] ?? p.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatMoney(p.amount)}</td>
+                      <td className="px-4 py-3 text-right">
+                        {p.status === 'succeeded' && <Link href={`/payments/receipt/${p.id}`} className="text-xs text-[var(--color-brand)]">Receipt</Link>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Card links to the invoice (same primary action as the
+                  table's emphasized link). The conditional Receipt link
+                  isn't included here — nesting a link inside the card's
+                  own tap target would be invalid HTML; it's still one tap
+                  away via the invoice page. */}
+              <div className="space-y-3 p-3 lg:hidden">
+                {payments.map((p) => (
+                  <MobileListCard
+                    key={p.id}
+                    href={`/invoices/${p.invoiceId}`}
+                    title={invoiceCustomerNameFromReceipt(p)}
+                    subtitle={p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : undefined}
+                    statusLabel={PAYMENT_STATUS_LABELS[p.status] ?? p.status}
+                    statusClassName={PAYMENT_STATUS_STYLES[p.status]}
+                    amount={formatMoney(p.amount)}
+                    amountLabel="Amount"
+                    meta={[
+                      { label: 'Invoice', value: p.invoiceNumber },
+                      { label: 'Method', value: PAYMENT_METHOD_LABELS[p.method] ?? p.method },
+                    ]}
+                  />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
       </main>

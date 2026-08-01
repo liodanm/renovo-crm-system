@@ -5,6 +5,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { Plus } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
+import { MobileListCard } from '../../components/ui/mobile-list-card';
 import { serviceCatalogApi, SERVICE_TYPE_LABELS } from '../../lib/api/service-catalog';
 
 function formatMoney(value: string | null): string {
@@ -49,42 +50,62 @@ export default function ServiceCatalogPage() {
             </div>
           )}
           {items && items.length > 0 && (
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3 text-right">Default Price</th>
-                  <th className="px-4 py-3 text-right">Labor Hours</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {items.map((item) => (
-                  <tr key={item.id} className={!item.isActive ? 'opacity-50' : ''}>
-                    <td className="px-4 py-3">
-                      <Link href={`/service-catalog/${item.id}`} className="font-medium text-[var(--color-brand)]">
-                        {item.name}
-                      </Link>
-                      <p className="text-xs text-slate-400">{SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType}</p>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{item.category ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">
-                      {formatMoney(item.defaultUnitPrice)}
-                      {item.defaultUnitOfMeasure && <span className="text-slate-400"> /{item.defaultUnitOfMeasure.replace('_', ' ')}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-700">{item.defaultLaborHours ?? '—'}</td>
-                    <td className="px-4 py-3 text-right">
-                      {item.isActive && (
-                        <button onClick={() => handleArchive(item.id, item.name)} className="text-xs text-slate-400 hover:text-red-600">
-                          Archive
-                        </button>
-                      )}
-                    </td>
+            <>
+              <table className="hidden w-full text-sm lg:table">
+                <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3 text-right">Default Price</th>
+                    <th className="px-4 py-3 text-right">Labor Hours</th>
+                    <th className="px-4 py-3" />
                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {items.map((item) => (
+                    <tr key={item.id} className={!item.isActive ? 'opacity-50' : ''}>
+                      <td className="px-4 py-3">
+                        <Link href={`/service-catalog/${item.id}`} className="font-medium text-[var(--color-brand)]">
+                          {item.name}
+                        </Link>
+                        <p className="text-xs text-slate-400">{SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType}</p>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{item.category ?? '—'}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">
+                        {formatMoney(item.defaultUnitPrice)}
+                        {item.defaultUnitOfMeasure && <span className="text-slate-400"> /{item.defaultUnitOfMeasure.replace('_', ' ')}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-700">{item.defaultLaborHours ?? '—'}</td>
+                      <td className="px-4 py-3 text-right">
+                        {item.isActive && (
+                          <button onClick={() => handleArchive(item.id, item.name)} className="text-xs text-slate-400 hover:text-red-600">
+                            Archive
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="space-y-3 p-3 lg:hidden">
+                {items.map((item) => (
+                  <MobileListCard
+                    key={item.id}
+                    href={`/service-catalog/${item.id}`}
+                    title={item.name}
+                    subtitle={SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType}
+                    amount={`${formatMoney(item.defaultUnitPrice)}${item.defaultUnitOfMeasure ? ` /${item.defaultUnitOfMeasure.replace('_', ' ')}` : ''}`}
+                    amountLabel="Default Price"
+                    meta={[
+                      { label: 'Category', value: item.category ?? '—' },
+                      { label: 'Labor Hours', value: item.defaultLaborHours ?? '—' },
+                      ...(item.isActive ? [] : [{ label: 'Status', value: 'Inactive' }]),
+                    ]}
+                  />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
       </main>

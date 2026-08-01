@@ -1,10 +1,11 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { jobsApi, JOB_STATUS_LABELS, type JobListItem } from '../../lib/api/jobs';
 import { AppShell } from '../../components/layout/AppShell';
+import { MobileListCard } from '../../components/ui/mobile-list-card';
 
 const STATUS_STYLES: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700',
@@ -36,6 +37,8 @@ function applyRangeFilter(jobs: JobListItem[], range: RangeFilter): JobListItem[
   if (range === 'today') {
     return jobs.filter((j) => j.scheduledStart && isSameDay(new Date(j.scheduledStart), now));
   }
+  // This Week — rest of the current week starting today, matching how a
+  // field owner actually thinks about "what's coming up," not a Sun–Sat grid.
   const weekEnd = new Date(now);
   weekEnd.setDate(weekEnd.getDate() + 7);
   return jobs.filter((j) => j.scheduledStart && new Date(j.scheduledStart) >= new Date(now.setHours(0, 0, 0, 0)) && new Date(j.scheduledStart) <= weekEnd);
@@ -48,6 +51,8 @@ export default function JobsPage() {
   const jobs = useMemo(() => {
     if (!allJobs) return undefined;
     const filtered = applyRangeFilter(allJobs, range);
+    // Sort by scheduled time — unscheduled jobs (drafts) sink to the
+    // bottom rather than interrupting the day's actual order.
     return [...filtered].sort((a, b) => {
       if (!a.scheduledStart && !b.scheduledStart) return 0;
       if (!a.scheduledStart) return 1;
@@ -63,7 +68,7 @@ export default function JobsPage() {
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Jobs</h1>
             <p className="mt-1 text-sm text-slate-500">
-              {jobs ? `${jobs.length} ${range === 'all' ? 'total' : 'shown'}` : 'Loading...'}
+              {jobs ? `${jobs.length} ${range === 'all' ? 'total' : 'shown'}` : 'Loading…'}
             </p>
           </div>
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
@@ -84,8 +89,8 @@ export default function JobsPage() {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading...</div>}
-          {error && <div className="p-8 text-center text-sm text-red-600">Could not load jobs. Try refreshing.</div>}
+          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
+          {error && <div className="p-8 text-center text-sm text-red-600">Couldn't load jobs. Try refreshing.</div>}
           {jobs && jobs.length === 0 && (
             <div className="p-8 text-center text-sm text-slate-500">
               {range === 'today' ? (
@@ -99,42 +104,71 @@ export default function JobsPage() {
             </div>
           )}
           {jobs && jobs.length > 0 && (
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Job #</th>
-                  <th className="px-4 py-3">Scheduled</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Property</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Price</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {jobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <Link href={`/jobs/${job.id}`} className="font-medium text-[var(--color-brand)]">
-                        {job.jobNumber}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {job.scheduledStart
-                        ? new Date(job.scheduledStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{customerName(job)}</td>
-                    <td className="px-4 py-3 text-slate-500">{job.propertyAddressLine1}, {job.propertyCity}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[job.status] ?? 'bg-slate-100 text-slate-700'}`}>
-                        {JOB_STATUS_LABELS[job.status] ?? job.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900">{formatMoney(job.price)}</td>
+            <>
+              {/* Desktop: existing table, byte-for-byte unchanged, just wrapped. */}
+              <table className="hidden w-full text-sm lg:table">
+                <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Job #</th>
+                    <th className="px-4 py-3">Scheduled</th>
+                    <th className="px-4 py-3">Customer</th>
+                    <th className="px-4 py-3">Property</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Price</th>
                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {jobs.map((job) => (
+                    <tr key={job.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <Link href={`/jobs/${job.id}`} className="font-medium text-[var(--color-brand)]">
+                          {job.jobNumber}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {job.scheduledStart
+                          ? new Date(job.scheduledStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{customerName(job)}</td>
+                      <td className="px-4 py-3 text-slate-500">{job.propertyAddressLine1}, {job.propertyCity}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[job.status] ?? 'bg-slate-100 text-slate-700'}`}>
+                          {JOB_STATUS_LABELS[job.status] ?? job.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatMoney(job.price)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Mobile: same data, card layout. No fields hidden — Job #
+                  and Property move into the meta row. */}
+              <div className="space-y-3 p-3 lg:hidden">
+                {jobs.map((job) => (
+                  <MobileListCard
+                    key={job.id}
+                    href={`/jobs/${job.id}`}
+                    title={customerName(job)}
+                    subtitle={`${job.propertyAddressLine1}, ${job.propertyCity}`}
+                    statusLabel={JOB_STATUS_LABELS[job.status] ?? job.status}
+                    statusClassName={STATUS_STYLES[job.status]}
+                    amount={formatMoney(job.price)}
+                    amountLabel="Price"
+                    meta={[
+                      { label: 'Job #', value: job.jobNumber },
+                      {
+                        label: 'Scheduled',
+                        value: job.scheduledStart
+                          ? new Date(job.scheduledStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                          : 'Unscheduled',
+                      },
+                    ]}
+                  />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
       </main>
