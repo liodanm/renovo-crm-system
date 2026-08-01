@@ -1,4 +1,3 @@
-@'
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -37,8 +36,8 @@ function applyRangeFilter(jobs: JobListItem[], range: RangeFilter): JobListItem[
   if (range === 'today') {
     return jobs.filter((j) => j.scheduledStart && isSameDay(new Date(j.scheduledStart), now));
   }
-  // This Week â€” rest of the current week starting today, matching how a
-  // field owner actually thinks about "what's coming up," not a Sunâ€“Sat grid.
+  // This Week — rest of the current week starting today, matching how a
+  // field owner actually thinks about "what's coming up," not a Sun–Sat grid.
   const weekEnd = new Date(now);
   weekEnd.setDate(weekEnd.getDate() + 7);
   return jobs.filter((j) => j.scheduledStart && new Date(j.scheduledStart) >= new Date(now.setHours(0, 0, 0, 0)) && new Date(j.scheduledStart) <= weekEnd);
@@ -51,7 +50,7 @@ export default function JobsPage() {
   const jobs = useMemo(() => {
     if (!allJobs) return undefined;
     const filtered = applyRangeFilter(allJobs, range);
-    // Sort by scheduled time â€” unscheduled jobs (drafts) sink to the
+    // Sort by scheduled time — unscheduled jobs (drafts) sink to the
     // bottom rather than interrupting the day's actual order.
     return [...filtered].sort((a, b) => {
       if (!a.scheduledStart && !b.scheduledStart) return 0;
@@ -68,7 +67,7 @@ export default function JobsPage() {
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Jobs</h1>
             <p className="mt-1 text-sm text-slate-500">
-              {jobs ? `${jobs.length} ${range === 'all' ? 'total' : 'shown'}` : 'Loadingâ€¦'}
+              {jobs ? `${jobs.length} ${range === 'all' ? 'total' : 'shown'}` : 'Loading…'}
             </p>
           </div>
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
@@ -89,7 +88,7 @@ export default function JobsPage() {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loadingâ€¦</div>}
+          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
           {error && <div className="p-8 text-center text-sm text-red-600">Couldn't load jobs. Try refreshing.</div>}
           {jobs && jobs.length === 0 && (
             <div className="p-8 text-center text-sm text-slate-500">
@@ -126,7 +125,7 @@ export default function JobsPage() {
                     <td className="px-4 py-3 text-slate-500">
                       {job.scheduledStart
                         ? new Date(job.scheduledStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                        : 'â€”'}
+                        : '—'}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{customerName(job)}</td>
                     <td className="px-4 py-3 text-slate-500">{job.propertyAddressLine1}, {job.propertyCity}</td>
@@ -146,4 +145,3 @@ export default function JobsPage() {
     </AppShell>
   );
 }
-'@ | Set-Content -Path app\jobs\page.tsx
