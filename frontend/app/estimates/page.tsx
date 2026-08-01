@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -34,7 +34,7 @@ function applyStatusFilter(estimates: Estimate[], filter: StatusFilter): Estimat
 
 export default function EstimatesPage() {
   const { data: allEstimates, error, isLoading } = useSWR('estimates', () => estimatesApi.list());
-  const [filter, setFilter] = useState<StatusFilter>('needsResponse');
+  const [filter, setFilter] = useState<StatusFilter>('all');
 
   const estimates = useMemo(() => (allEstimates ? applyStatusFilter(allEstimates, filter) : undefined), [allEstimates, filter]);
 
@@ -45,7 +45,7 @@ export default function EstimatesPage() {
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Estimates</h1>
             <p className="mt-1 text-sm text-slate-500">
-              {estimates ? `${estimates.length} ${filter === 'all' ? 'total' : 'shown'}` : 'Loading…'}
+              {estimates ? `${estimates.length} ${filter === 'all' ? 'total' : 'shown'}` : 'Loading...'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -74,8 +74,8 @@ export default function EstimatesPage() {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
-          {error && <div className="p-8 text-center text-sm text-red-600">Couldn't load estimates. Try refreshing.</div>}
+          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading...</div>}
+          {error && <div className="p-8 text-center text-sm text-red-600">Could not load estimates. Try refreshing.</div>}
           {estimates && estimates.length === 0 && (
             <div className="p-8 text-center text-sm text-slate-500">
               {filter === 'needsResponse' ? (
