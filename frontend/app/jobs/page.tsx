@@ -1,4 +1,4 @@
-'use client';
+ï»¿'use client';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -63,7 +63,7 @@ export default function JobsPage() {
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Jobs</h1>
             <p className="mt-1 text-sm text-slate-500">
-              {jobs ? `${jobs.length} ${range === 'all' ? 'total' : 'shown'}` : 'Loading…'}
+              {jobs ? `${jobs.length} ${range === 'all' ? 'total' : 'shown'}` : 'Loading...'}
             </p>
           </div>
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
@@ -84,8 +84,8 @@ export default function JobsPage() {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
-          {error && <div className="p-8 text-center text-sm text-red-600">Couldn't load jobs. Try refreshing.</div>}
+          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading...</div>}
+          {error && <div className="p-8 text-center text-sm text-red-600">Could not load jobs. Try refreshing.</div>}
           {jobs && jobs.length === 0 && (
             <div className="p-8 text-center text-sm text-slate-500">
               {range === 'today' ? (
@@ -121,7 +121,7 @@ export default function JobsPage() {
                     <td className="px-4 py-3 text-slate-500">
                       {job.scheduledStart
                         ? new Date(job.scheduledStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                        : '—'}
+                        : '-'}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{customerName(job)}</td>
                     <td className="px-4 py-3 text-slate-500">{job.propertyAddressLine1}, {job.propertyCity}</td>
