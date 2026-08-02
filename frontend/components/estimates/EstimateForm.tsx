@@ -13,6 +13,7 @@ import { serviceCatalogApi, type ServiceCatalogItem } from '../../lib/api/servic
 import { CustomerPicker } from './CustomerPicker';
 import { AddPropertyForm } from '../customers/tabs/properties-tab';
 import { recordRecentCustomer } from '../../lib/hooks/use-recent-customers';
+import { CardEmpty } from '../dashboard/dashboard-card';
 
 // Kept as strings for the whole time they're being edited — this is
 // deliberate, not an oversight. A controlled <input> whose value is
@@ -196,7 +197,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
       ? existingEstimate.lineItems.map(lineItemFromExisting)
       : restoredDraft?.lineItems?.length
         ? restoredDraft.lineItems
-        : [emptyLineItem()],
+        : [],
   );
   const [discountType, setDiscountType] = useState(existingEstimate?.discountType ?? restoredDraft?.discountType ?? '');
   // existingEstimate.discountAmount is always a resolved DOLLAR figure,
@@ -443,17 +444,34 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             </div>
           </div>
 
-          {lineItems.map((item, i) => (
-            <LineItemRow
-              key={item.key}
-              item={item}
-              index={i}
-              errors={fieldErrors}
-              onChange={(patch) => updateLineItem(item.key, patch)}
-              onRemove={() => removeLineItem(item.key)}
-              canRemove={lineItems.length > 1}
-            />
-          ))}
+          {lineItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 py-10 text-center">
+              <CardEmpty
+                message='No services added yet. Click below to add your first service.'
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setLineItems((items) => [...items, emptyLineItem()])}
+                    className="rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-semibold text-white hover:bg-[var(--color-brand-dark)] lg:py-2 lg:text-sm"
+                  >
+                    + Add First Line Item
+                  </button>
+                }
+              />
+            </div>
+          ) : (
+            lineItems.map((item, i) => (
+              <LineItemRow
+                key={item.key}
+                item={item}
+                index={i}
+                errors={fieldErrors}
+                onChange={(patch) => updateLineItem(item.key, patch)}
+                onRemove={() => removeLineItem(item.key)}
+                canRemove={lineItems.length > 1}
+              />
+            ))
+          )}
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-4">

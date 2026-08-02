@@ -483,6 +483,13 @@ Recurring Reminder — automation engine can schedule maintenance follow-ups, if
 - Confirm and, if needed, build out the Customer Portal frontend.
 - Invoice Void: replace native `confirm()` with `ConfirmDialog` (Section
   7, Low — still open).
+- Estimate line items: allow deleting the last remaining line item
+  (currently `canRemove={lineItems.length > 1}` blocks it — deliberately
+  left alone for now, revisit only if daily use actually makes it
+  annoying, not on a schedule).
+- Estimate empty state (`EstimateForm.tsx`'s zero-line-items view):
+  softer copy and a small icon (wrench/clipboard/toolbox) — cosmetic
+  only, not urgent.
 
 **Someday**
 - Leads module (only becomes valuable once call/inquiry volume exceeds

@@ -47,8 +47,13 @@ export function CardError({ message = "Couldn't load this data" }: { message?: s
   );
 }
 
-export function CardEmpty({ message }: { message: string }) {
-  return <p className="py-2 text-sm text-slate-400">{message}</p>;
+export function CardEmpty({ message, action }: { message: string; action?: React.ReactNode }) {
+  return (
+    <div>
+      <p className="py-2 text-sm text-slate-400">{message}</p>
+      {action && <div className="mt-1">{action}</div>}
+    </div>
+  );
 }
 
 export function CardLocked({ message = "You don't have access to this data" }: { message?: string }) {
