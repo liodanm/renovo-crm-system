@@ -83,7 +83,7 @@ export function CustomerPicker({ customers, value, selectedLabel, onSelect, onCr
         }}
         onFocus={() => setIsOpen(true)}
         placeholder="Search name, phone, email…"
-        className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm ${hasError ? 'border-red-400' : 'border-slate-300'}`}
+        className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm ${hasError ? 'border-red-400' : 'border-slate-300'}`}
       />
 
       {isOpen && (
