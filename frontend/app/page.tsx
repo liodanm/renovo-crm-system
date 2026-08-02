@@ -18,6 +18,17 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Some mobile browsers restore the previous scroll position on this
+    // exact URL when landing here right after login, even though this is
+    // a fresh client-side navigation that should start at the top —
+    // observed as the page opening already scrolled past the header and
+    // greeting. Next.js's own router already tries to reset scroll on
+    // push(), but that doesn't override the browser's own native
+    // scroll-restoration behavior, so it's forced explicitly here instead.
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     // middleware.ts is the primary guard and normally catches this
     // server-side before this component ever renders. This is the real
     // fallback for the case middleware can't cover — a session that goes
