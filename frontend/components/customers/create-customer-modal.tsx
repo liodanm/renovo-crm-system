@@ -175,7 +175,7 @@ function Field({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20"
+        className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm"
       />
     </label>
   );

@@ -29,14 +29,14 @@ export function CustomerFilters({
           placeholder="Search by name, email, or phone…"
           value={filters.search ?? ''}
           onChange={(e) => onChange({ ...filters, search: e.target.value, page: 1 })}
-          className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20"
+          className="w-full rounded-lg border border-slate-300 py-3 pl-9 pr-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:py-2 lg:text-sm"
         />
       </div>
 
       <select
         value={filters.leadStatus ?? ''}
         onChange={(e) => onChange({ ...filters, leadStatus: e.target.value || undefined, page: 1 })}
-        className="rounded-lg border border-slate-300 py-2 pl-3 pr-8 text-sm text-slate-700 focus:border-[var(--color-brand)] focus:outline-none"
+        className="rounded-lg border border-slate-300 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 focus:border-[var(--color-brand)] focus:outline-none"
       >
         <option value="">All statuses</option>
         <option value="lead">Lead</option>
@@ -48,7 +48,7 @@ export function CustomerFilters({
       <select
         value={filters.customerType ?? ''}
         onChange={(e) => onChange({ ...filters, customerType: e.target.value || undefined, page: 1 })}
-        className="rounded-lg border border-slate-300 py-2 pl-3 pr-8 text-sm text-slate-700 focus:border-[var(--color-brand)] focus:outline-none"
+        className="rounded-lg border border-slate-300 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 focus:border-[var(--color-brand)] focus:outline-none"
       >
         <option value="">Residential & Commercial</option>
         <option value="residential">Residential</option>
@@ -58,7 +58,7 @@ export function CustomerFilters({
       <select
         value={filters.sortBy ?? 'createdAt'}
         onChange={(e) => onChange({ ...filters, sortBy: e.target.value, page: 1 })}
-        className="rounded-lg border border-slate-300 py-2 pl-3 pr-8 text-sm text-slate-700 focus:border-[var(--color-brand)] focus:outline-none"
+        className="rounded-lg border border-slate-300 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 focus:border-[var(--color-brand)] focus:outline-none"
       >
         <option value="createdAt">Newest first</option>
         <option value="updatedAt">Recently updated</option>
