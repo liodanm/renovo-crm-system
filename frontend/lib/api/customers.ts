@@ -157,6 +157,11 @@ export const customersApi = {
     apiFetch<CustomerProfile>(`/customers/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
   delete: (id: string) => apiFetch<{ message: string }>(`/customers/${id}`, { method: 'DELETE' }),
+  bulkDelete: (ids: string[]) =>
+    apiFetch<{ succeeded: string[]; failed: { id: string; reason: string }[] }>('/customers/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
 
   checkDuplicate: (input: { email?: string; phone?: string; firstName?: string; lastName?: string; businessName?: string }) =>
     apiFetch<DuplicateCandidate[]>('/customers/check-duplicate', { method: 'POST', body: JSON.stringify(input) }),

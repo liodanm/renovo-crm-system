@@ -17,6 +17,14 @@ import { cn } from '../../lib/utils';
  * date, primary action — with room for a couple of secondary details.
  * Nothing is hidden, just deprioritized visually: `meta` rows still
  * render, just smaller and below the primary line.
+ *
+ * Selection mode (added for bulk selection): entirely optional, off by
+ * default — the five pages that don't use it (Jobs, Invoices, Estimates,
+ * Payments, Service Catalog) are unaffected. When `selectionMode` is on,
+ * the whole card becomes the tap target for toggling selection instead
+ * of navigating (matching common mobile bulk-select patterns — e.g.
+ * Photos apps), rather than trying to isolate a small checkbox hit-zone
+ * within a still-navigating card.
  */
 export interface MobileListCardMeta {
   label: string;
@@ -32,20 +40,44 @@ export interface MobileListCardProps {
   amount?: React.ReactNode;
   amountLabel?: string;
   meta?: MobileListCardMeta[];
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelected?: () => void;
 }
 
-export function MobileListCard({ href, title, subtitle, statusLabel, statusClassName, amount, amountLabel, meta }: MobileListCardProps) {
-  return (
-    <Link
-      href={href}
-      className="block rounded-xl border border-slate-200 bg-white p-4 active:bg-slate-50"
-    >
+export function MobileListCard({
+  href,
+  title,
+  subtitle,
+  statusLabel,
+  statusClassName,
+  amount,
+  amountLabel,
+  meta,
+  selectionMode = false,
+  selected = false,
+  onToggleSelected,
+}: MobileListCardProps) {
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-[15px] font-semibold text-slate-900">{title}</p>
-          {subtitle && <p className="mt-0.5 truncate text-sm text-slate-500">{subtitle}</p>}
+        <div className="flex min-w-0 items-start gap-3">
+          {selectionMode && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelected}
+              onClick={(e) => e.stopPropagation()}
+              className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
+              aria-label={`Select ${typeof title === 'string' ? title : 'item'}`}
+            />
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-semibold text-slate-900">{title}</p>
+            {subtitle && <p className="mt-0.5 truncate text-sm text-slate-500">{subtitle}</p>}
+          </div>
         </div>
-        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" aria-hidden="true" />
+        {!selectionMode && <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" aria-hidden="true" />}
       </div>
 
       {(statusLabel || amount) && (
@@ -73,6 +105,25 @@ export function MobileListCard({ href, title, subtitle, statusLabel, statusClass
           ))}
         </div>
       )}
+    </>
+  );
+
+  const className = cn(
+    'block rounded-xl border p-4',
+    selected ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/5' : 'border-slate-200 bg-white active:bg-slate-50',
+  );
+
+  if (selectionMode) {
+    return (
+      <div className={className} onClick={onToggleSelected} role="checkbox" aria-checked={selected} tabIndex={0}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {content}
     </Link>
   );
 }

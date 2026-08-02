@@ -457,6 +457,13 @@ Recurring Reminder — automation engine can schedule maintenance follow-ups, if
 - A3 — auth/session-lifetime redesign. Do not pick this up until
   multi-user SaaS preparation begins.
 
+**Approved specification, ready to build whenever picked up — not started**
+- Job Archive System (not "Job Delete" — see ADR-013 and Section 17 for
+  the full approved architecture, screen-by-screen business rules, and
+  UI/UX requirements). This is a real, deliberated specification, not a
+  placeholder — implement against Section 17 directly rather than
+  re-auditing or re-deciding any of it.
+
 **Next**
 - Solo-owner auto-assign (remove/simplify the technician picker for
   single-operator accounts) — still the highest daily-friction item from
@@ -661,6 +668,32 @@ catch. Any new migration must be copied into `init-scripts/` in the same
 PR (verified, not assumed — proven twice this pass by intentionally
 reintroducing both failure modes and confirming CI caught them before
 fixing them).
+
+### ADR-013
+**Decision:** Jobs get an Archive system, not a Delete/soft-delete
+system — and Archive is modeled as its own independent business state
+(`archivedAt`/`archivedBy`/`archiveReason`), not as a reuse of the
+existing `status` column and not as a blanket "exclude everywhere"
+filter copied from Customer's `deletedAt` pattern.
+**Reason:** A full audit (screen-by-screen, query-by-query, not assumed)
+found that `reports.service.ts` filters multiple queries on
+`status = 'completed'` for revenue, completion-trend, average duration,
+labor hours, and customer analytics. Reusing `status` for archiving
+(e.g. `status = 'archived'`) would silently remove a completed job's
+financial contribution from every one of those reports the moment it's
+archived — the exact opposite of the goal. Copying Customer's `deletedAt`
+pattern (excluded from literally every query, no exceptions) has the
+same failure mode under a different name. A job can be simultaneously
+`status = 'completed'` AND archived — those are two independent facts,
+and the schema needs to represent them independently for reports to
+stay correct.
+**Full policy, including the complete screen-by-screen classification
+table, is documented in Section 17 — treat that as a product
+requirement for implementation, not something to re-derive.**
+**Rule:** Never let "archived" and "status" collapse into the same
+concept again in this codebase. Any new screen that reads jobs must be
+classified against Section 17's table (Operational / Historical /
+Customer-facing) before being built, not assumed.
 
 ---
 
@@ -1181,3 +1214,81 @@ EXISTS`; raw SQL casts present in all new queries; RLS-only tenant
 access maintained, including the webhook path's explicit `companyId`
 scoping which is the correct pattern for `@Public()`-adjacent code per
 Section 15, not an RLS bypass).
+
+## 17. Job Archive Policy (approved specification — not yet implemented)
+
+**Status: approved architecture and business rules, zero code written.**
+Do not build a "Delete Job" feature under any name — this policy exists
+specifically because that was the wrong model. Treat everything below
+as a product requirement to implement against, not a starting point to
+re-derive or reinterpret. See ADR-013 for the core reasoning.
+
+### Why this exists
+Jobs are business records, not disposable rows. A completed job that's
+been invoiced and paid has already contributed to real financial
+history — deleting it (soft or hard) would make that history lie later.
+The fix is to stop conflating "should this still count in reports and
+history" with "should this show up in today's active work," which is
+what a single delete/soft-delete flag would otherwise force together.
+
+### Schema
+Two independent facts about a job, both real, both tracked separately:
+- `status` — draft/scheduled/in_progress/paused/completed/cancelled/on_hold. Unchanged by archiving. Always reflects what actually happened to the work itself.
+- `archivedAt` (nullable timestamp), `archivedBy` (user id), `archiveReason` — a new, independent business state. A job can be `status = 'completed'` AND archived at the same time; that's not a contradiction, that's the whole point.
+
+**`archiveReason`** — predefined list with an optional free-text note,
+not free text alone (so historical reasons stay queryable/reportable):
+Duplicate job · Created by mistake · Test record · Imported incorrectly
+· Customer requested removal · Other (with note).
+
+### Screen-by-screen business rules — the full specification
+
+**Operational views (hide archived jobs):**
+| Screen | File |
+|---|---|
+| Jobs List | `jobs.service.ts` → `findAll()` |
+| Scheduling / Calendar page | `scheduling.service.ts` |
+| Dashboard — Today's Jobs | `dashboard.service.ts` → `getTodaysJobs()` |
+| Dashboard — job stat counts | `dashboard.service.ts` → `getSummary()` |
+| Dashboard — Job Calendar widget | `dashboard.service.ts` → `getCalendar()` |
+| Dashboard — Customer Map "last job" indicator | `dashboard.service.ts` → `getMapData()` (nuance: skip to the next-most-recent *non-archived* job, don't just show nothing) |
+| Automations (review requests, thank-yous, recurring reminders) | `automation.service.ts` |
+| AI Receptionist | `receptionist-tools.service.ts` (should fail gracefully on an archived job's id, not silently operate on it — no human in the loop when this runs) |
+| Customer Portal (customer-facing service history) | `portal-data.service.ts` → `getServiceHistory()` — **this is a separate method from the staff-facing one below; do not confuse them.** Decided: customers should not see archived jobs. A customer doesn't know a job was archived because it was a test entry, duplicate, or mistake, and would reasonably ask why a "$0 Roof Cleaning" or "Test Job" is on their history. Staff know the context; customers don't. |
+
+**Historical/internal views (always show archived jobs):**
+| Screen | File |
+|---|---|
+| Reports (revenue, completion trend, avg duration, labor hours, customer analytics) | `reports.service.ts` |
+| Customer Detail — Service History tab (staff-facing) | `customers.service.ts` → `getServiceHistory()` — **not the portal one above** |
+| Customer Detail — lifetime value / job counts | `customers.service.ts` (groupBy) |
+| Invoices (existing invoice generated from a job) | `invoices.service.ts` |
+| Invoice detail's "View Job →" link | `jobs.service.ts` → `findOne()` |
+| Job Detail Page (viewing one job directly by id) | `jobs.service.ts` → `findOne()` |
+| Payments | transitively via invoices |
+
+Not applicable: "route planning" — confirmed no dedicated system exists;
+GPS is only audit-trail metadata on chemical/equipment log entries.
+
+### UI/UX requirements
+- Never label the action "Delete" anywhere. Always "Archive Job."
+- Deliberately not placed next to Complete Job or other frequent
+  in-field actions — lives under a Job overflow menu / admin-style
+  action area, since archiving is an administrative action a technician
+  shouldn't be able to tap by accident mid-job.
+- Confirmation dialog must state the actual behavior, not a generic
+  warning:
+  > Archive this job?
+  > • It will be removed from active job lists, scheduling, dashboards, and automations.
+  > • It will remain in invoices, reports, customer history, and financial records.
+  > This action can be reversed later.
+
+### What implementation still needs (not done yet)
+Migration for `archivedAt`/`archivedBy`/`archiveReason` on `jobs`
+(additive only, per Section 9's standing rule). Updates to exactly the
+8 operational-view queries listed above — and *only* those; the 7
+historical-view queries listed above get zero changes, verified by
+reading their actual current query text, not assumed safe. An
+un-archive path (the confirmation dialog promises "this can be reversed
+later" — that promise needs a real implementation, not just the wording).
+

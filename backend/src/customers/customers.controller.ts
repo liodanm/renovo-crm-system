@@ -30,6 +30,7 @@ import { CreateNoteDto, UpdateNoteDto } from './dto/note.dto';
 import { CreatePropertyDto, UpdatePropertyDto } from './dto/property.dto';
 import { PresignDocumentUploadDto, PresignPhotoUploadDto } from './dto/presign-upload.dto';
 import { SetCustomFieldValuesDto } from './dto/custom-field.dto';
+import { BulkDeleteCustomersDto } from './dto/bulk-delete-customers.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -105,6 +106,12 @@ export class CustomersController {
   @Patch(':id')
   update(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: UpdateCustomerDto) {
     return this.customersService.update(user.companyId, id, dto);
+  }
+
+  @RequirePermissions('customers.write')
+  @Post('bulk-delete')
+  bulkDelete(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: BulkDeleteCustomersDto) {
+    return this.customersService.bulkSoftDelete(user.companyId, dto.ids);
   }
 
   @RequirePermissions('customers.write')

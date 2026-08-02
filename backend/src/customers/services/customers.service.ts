@@ -133,17 +133,10 @@ export class CustomersService {
     // hasn't acknowledged an exact email match, which is the one signal
     // strong enough to warrant a hard stop by default (a typo'd re-entry
     // of literally the same customer is far more common than two real
-    // customers sharing an email).
-    if (dto.email && !dto.acknowledgedDuplicateWarning) {
-      const exactEmailMatch = await this.prisma.customer.findFirst({
-        where: { companyId, email: dto.email, deletedAt: null },
-      });
-      if (exactEmailMatch) {
-        throw new ConflictException({
-          message: 'A customer with this email already exists',
-          existingCustomerId: exactEmailMatch.id,
-        });
-      }
+    // customers sharing an email). Shared with update() below — same
+    // check, not a second one.
+    if (dto.email) {
+      await this.assertNoExactEmailConflict(companyId, dto.email, dto.acknowledgedDuplicateWarning);
     }
 
     const customer = await this.prisma.customer.create({
@@ -259,8 +252,33 @@ export class CustomersService {
     };
   }
 
+  /**
+   * Shared by create() and update() — one exact-email hard-stop, not two.
+   * update() previously had no duplicate-email check at all; this closes
+   * that gap using the exact same rule create() already enforces, rather
+   * than leaving edit unprotected or inventing a different rule for it.
+   * excludeCustomerId keeps an unrelated edit (or re-saving the same
+   * email unchanged) from matching itself.
+   */
+  private async assertNoExactEmailConflict(companyId: string, email: string, acknowledgedDuplicateWarning?: boolean, excludeCustomerId?: string) {
+    if (acknowledgedDuplicateWarning) return;
+    const exactEmailMatch = await this.prisma.customer.findFirst({
+      where: { companyId, email, deletedAt: null, ...(excludeCustomerId ? { id: { not: excludeCustomerId } } : {}) },
+    });
+    if (exactEmailMatch) {
+      throw new ConflictException({
+        message: 'A customer with this email already exists',
+        existingCustomerId: exactEmailMatch.id,
+      });
+    }
+  }
+
   async update(companyId: string, customerId: string, dto: UpdateCustomerDto) {
     await this.assertExists(companyId, customerId);
+
+    if (dto.email) {
+      await this.assertNoExactEmailConflict(companyId, dto.email, dto.acknowledgedDuplicateWarning, customerId);
+    }
 
     return this.prisma.customer.update({
       where: { id: customerId },
@@ -284,6 +302,26 @@ export class CustomersService {
     await this.assertExists(companyId, customerId);
     await this.prisma.customer.update({ where: { id: customerId }, data: { deletedAt: new Date() } });
     return { message: 'Customer deleted' };
+  }
+
+  /**
+   * Not a second delete path — this calls softDelete() once per id, the
+   * exact same method the single-delete route uses, so every record goes
+   * through identical RLS scoping, existence checking, and soft-delete
+   * semantics. Promise.allSettled rather than a single transaction: one
+   * stale/already-deleted id in the batch shouldn't silently block the
+   * rest from being deleted, and each softDelete() call is already
+   * independently safe on its own.
+   */
+  async bulkSoftDelete(companyId: string, customerIds: string[]) {
+    const results = await Promise.allSettled(customerIds.map((id) => this.softDelete(companyId, id)));
+    const succeeded: string[] = [];
+    const failed: { id: string; reason: string }[] = [];
+    results.forEach((result, i) => {
+      if (result.status === 'fulfilled') succeeded.push(customerIds[i]);
+      else failed.push({ id: customerIds[i], reason: result.reason instanceof Error ? result.reason.message : 'Failed to delete' });
+    });
+    return { succeeded, failed };
   }
 
   private async assertExists(companyId: string, customerId: string) {

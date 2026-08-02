@@ -71,12 +71,27 @@ export default function CustomerProfilePage() {
               </div>
 
               <PermissionGate permissions={['customers.write']}>
-                <button
-                  onClick={handleDelete}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                >
-                  Delete Customer
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/customers/${customerId}/edit`}
+                    className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-xs font-medium text-white hover:opacity-90"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    disabled
+                    title="Merge already works on the backend — this button is a placeholder until the merge picker UI is built"
+                    className="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-400"
+                  >
+                    Merge
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                  >
+                    Delete Customer
+                  </button>
+                </div>
               </PermissionGate>
             </div>
 

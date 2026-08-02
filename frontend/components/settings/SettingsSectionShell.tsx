@@ -13,6 +13,16 @@ interface SettingsSectionShellProps {
   onSave: () => void;
   onCancel: () => void;
   children: React.ReactNode;
+  /** Custom text for the success toast. Defaults to "Saved" — every
+      existing Settings page keeps that wording unless it opts in. */
+  successMessage?: string;
+  /** When true, the bar stays visible even with no unsaved changes,
+      with Save disabled instead of the whole bar disappearing —
+      makes the dirty-state more obvious on a page you land on with an
+      explicit intent to edit (like Customer Edit) than on a
+      background settings page you're just glancing at. Defaults to
+      false, preserving every existing caller's current behavior. */
+  alwaysShowBar?: boolean;
 }
 
 /**
@@ -21,8 +31,21 @@ interface SettingsSectionShellProps {
  * exact component rather than each building their own save bar, toast,
  * and unsaved-changes wiring. A future section (once it graduates from
  * Coming Soon) gets all of this for free by using the same shell.
+ * Also reused (not copied) by the Customer Edit page — see
+ * successMessage/alwaysShowBar above for what that needed.
  */
-export function SettingsSectionShell({ title, description, hasUnsavedChanges, isSaving, error, onSave, onCancel, children }: SettingsSectionShellProps) {
+export function SettingsSectionShell({
+  title,
+  description,
+  hasUnsavedChanges,
+  isSaving,
+  error,
+  onSave,
+  onCancel,
+  children,
+  successMessage = 'Saved',
+  alwaysShowBar = false,
+}: SettingsSectionShellProps) {
   const [showSuccess, setShowSuccess] = useState(false);
   useUnsavedChangesWarning(hasUnsavedChanges);
 
@@ -48,7 +71,7 @@ export function SettingsSectionShell({ title, description, hasUnsavedChanges, is
         </div>
         {showSuccess && (
           <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-            <Check className="h-3.5 w-3.5" /> Saved
+            <Check className="h-3.5 w-3.5" /> {successMessage}
           </div>
         )}
       </div>
@@ -58,15 +81,20 @@ export function SettingsSectionShell({ title, description, hasUnsavedChanges, is
       <div className="mt-6 space-y-4">{children}</div>
 
       {/* Sticky save bar — only appears once there's something to act
-          on, so an untouched page never nags. */}
-      {hasUnsavedChanges && (
+          on, so an untouched page never nags, unless alwaysShowBar
+          opts a caller out of that (Save disabled instead, not hidden). */}
+      {(hasUnsavedChanges || alwaysShowBar) && (
         <div className="sticky bottom-0 mt-6 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-          <p className="text-xs text-slate-500">You have unsaved changes.</p>
+          <p className="text-xs text-slate-500">{hasUnsavedChanges ? 'You have unsaved changes.' : 'No changes yet.'}</p>
           <div className="flex gap-2">
-            <button onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <button onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-3 text-base font-medium text-slate-700 hover:bg-slate-50 lg:py-2 lg:text-sm">
               Cancel
             </button>
-            <button onClick={onSave} disabled={isSaving} className="flex items-center gap-1.5 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+            <button
+              onClick={onSave}
+              disabled={isSaving || !hasUnsavedChanges}
+              className="flex items-center gap-1.5 rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 lg:py-2 lg:text-sm"
+            >
               {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {isSaving ? 'Saving…' : 'Save Changes'}
             </button>
