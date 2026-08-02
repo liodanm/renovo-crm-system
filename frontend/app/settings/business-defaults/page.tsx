@@ -6,7 +6,7 @@ import { settingsApi } from '../../../lib/api/settings';
 import { SettingsSectionShell } from '../../../components/settings/SettingsSectionShell';
 import { ApiError } from '../../../lib/api/api-client';
 
-const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm';
+const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm';
 
 export default function BusinessDefaultsPage() {
   const { data: defaults, mutate } = useSWR('settings-business-defaults', () => settingsApi.getBusinessDefaults());

@@ -8,7 +8,7 @@ import { ApiError } from '../../../lib/api/api-client';
 
 const TIMEZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Phoenix'];
 const DATE_FORMATS = ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'];
-const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm';
+const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm';
 
 export default function ProfileSettingsPage() {
   const { data: profile, mutate } = useSWR('settings-profile', () => settingsApi.getProfile());

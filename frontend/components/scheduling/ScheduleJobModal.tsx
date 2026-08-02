@@ -46,11 +46,11 @@ export function ScheduleJobModal({ jobId, onClose, onScheduled }: { jobId: strin
         <div className="mt-3 space-y-3">
           <div>
             <label className="text-xs font-medium text-slate-500">Date &amp; Time</label>
-            <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500">Estimated Duration (hours)</label>
-            <input type="text" inputMode="decimal" value={durationHours} onChange={(e) => setDurationHours(e.target.value.replace(/[^0-9.]/g, ''))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input type="text" inputMode="decimal" value={durationHours} onChange={(e) => setDurationHours(e.target.value.replace(/[^0-9.]/g, ''))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500">Arrival Window (minutes, optional)</label>
@@ -60,7 +60,7 @@ export function ScheduleJobModal({ jobId, onClose, onScheduled }: { jobId: strin
               value={arrivalWindow}
               onChange={(e) => setArrivalWindow(e.target.value.replace(/[^0-9]/g, ''))}
               placeholder="Leave blank to use your business default"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
             />
           </div>
         </div>

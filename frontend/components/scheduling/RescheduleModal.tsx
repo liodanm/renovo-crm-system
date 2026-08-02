@@ -40,11 +40,11 @@ export function RescheduleModal({ appointment, onClose, onRescheduled }: { appoi
         <div className="mt-3 space-y-3">
           <div>
             <label className="text-xs font-medium text-slate-500">Start</label>
-            <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500">End</label>
-            <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
         </div>
         <div className="mt-4 flex gap-2">

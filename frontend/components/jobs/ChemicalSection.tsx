@@ -61,7 +61,7 @@ export function ChemicalSection({ jobId }: { jobId: string }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Chemical name"
-          className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+          className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
         />
         <input
           type="text"
@@ -69,9 +69,9 @@ export function ChemicalSection({ jobId }: { jobId: string }) {
           value={quantity}
           onChange={(e) => setQuantity(e.target.value.replace(/[^0-9.]/g, ''))}
           placeholder="Qty"
-          className="w-20 rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+          className="w-20 rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
         />
-        <select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-2.5 text-sm">
+        <select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2.5 lg:text-sm">
           {UNITS.map((u) => (
             <option key={u} value={u}>{u}</option>
           ))}

@@ -95,15 +95,15 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
               placeholder={`Amount (max ${formatMoney(balanceDue)})`}
               inputMode="decimal"
-              className="col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm sm:col-span-1"
+              className="col-span-2 rounded-lg border border-slate-300 px-3 py-3 text-base sm:col-span-1 lg:py-2 lg:text-sm"
             />
-            <select value={method} onChange={(e) => setMethod(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-2 text-sm">
+            <select value={method} onChange={(e) => setMethod(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm">
               {availableMethods.map((m) => (
                 <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
               ))}
             </select>
-            <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <button
             onClick={handleRecord}

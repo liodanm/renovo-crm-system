@@ -110,14 +110,14 @@ export function AddPropertyForm({ customerId, onClose, onAdded }: { customerId: 
           placeholder="Label (e.g. Main House)"
           value={form.label}
           onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
         />
         <input
           required
           placeholder="Address"
           value={form.addressLine1}
           onChange={(e) => setForm((f) => ({ ...f, addressLine1: e.target.value }))}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
         />
         <div className="grid grid-cols-3 gap-2">
           <input
@@ -125,21 +125,21 @@ export function AddPropertyForm({ customerId, onClose, onAdded }: { customerId: 
             placeholder="City"
             value={form.city}
             onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
           />
           <input
             required
             placeholder="State"
             value={form.state}
             onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
           />
           <input
             required
             placeholder="ZIP"
             value={form.postalCode}
             onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
           />
         </div>
         <div className="flex justify-end gap-2 pt-1">

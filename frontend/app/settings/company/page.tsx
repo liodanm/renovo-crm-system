@@ -6,7 +6,7 @@ import { settingsApi, DAYS_OF_WEEK } from '../../../lib/api/settings';
 import { SettingsSectionShell } from '../../../components/settings/SettingsSectionShell';
 import { ApiError } from '../../../lib/api/api-client';
 
-const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm';
+const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm';
 type Hours = Record<string, { open?: string; close?: string; closed?: boolean }>;
 
 export default function CompanySettingsPage() {

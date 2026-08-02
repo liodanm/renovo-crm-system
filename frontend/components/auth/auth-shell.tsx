@@ -77,7 +77,7 @@ export function TextField({
       <span className="mb-1.5 block text-sm font-medium text-slate-700">{label}</span>
       <input
         {...props}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20"
+        className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:py-2 lg:text-sm"
       />
     </label>
   );

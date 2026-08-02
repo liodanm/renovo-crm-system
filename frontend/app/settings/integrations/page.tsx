@@ -195,19 +195,19 @@ export default function IntegrationsSettingsPage() {
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="text-xs font-medium text-slate-500">Google Review URL</label>
-            <input value={form.googleReviewUrl} onChange={(e) => updateField('googleReviewUrl', e.target.value)} placeholder="https://g.page/r/..." className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input value={form.googleReviewUrl} onChange={(e) => updateField('googleReviewUrl', e.target.value)} placeholder="https://g.page/r/..." className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500">Website</label>
-            <input value={form.website} onChange={(e) => updateField('website', e.target.value)} placeholder="https://yourcompany.com" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input value={form.website} onChange={(e) => updateField('website', e.target.value)} placeholder="https://yourcompany.com" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500">Facebook</label>
-            <input value={form.facebook} onChange={(e) => updateField('facebook', e.target.value)} placeholder="https://facebook.com/yourcompany" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input value={form.facebook} onChange={(e) => updateField('facebook', e.target.value)} placeholder="https://facebook.com/yourcompany" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500">Instagram</label>
-            <input value={form.instagram} onChange={(e) => updateField('instagram', e.target.value)} placeholder="https://instagram.com/yourcompany" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input value={form.instagram} onChange={(e) => updateField('instagram', e.target.value)} placeholder="https://instagram.com/yourcompany" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
         </div>
       </div>

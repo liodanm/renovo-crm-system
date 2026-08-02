@@ -113,7 +113,7 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="What was done, anything the customer should know…"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
         />
       </div>
 
@@ -146,7 +146,7 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
           value={billableOverride}
           onChange={(e) => setBillableOverride(e.target.value.replace(/[^0-9.]/g, ''))}
           placeholder="Leave blank to use calculated time"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
         />
       </div>
 

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -17,9 +17,11 @@ import {
 } from '../../lib/api/scheduling';
 import { cn } from '../../lib/utils';
 
+// Leaflet touches `window` at import time — ssr:false is required the
+// same way the dashboard's customer map already handles this.
 const ScheduleMapInner = dynamic(() => import('../../components/scheduling/ScheduleMapInner').then((m) => m.ScheduleMapInner), {
   ssr: false,
-  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading map...</div>,
+  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading map…</div>,
 });
 
 type ViewMode = 'day' | 'week' | 'month' | 'map';
@@ -51,6 +53,9 @@ function rangeForView(anchor: Date, view: ViewMode): { start: Date; end: Date } 
     const gridStart = startOfWeek(monthStart);
     return { start: gridStart, end: addDays(gridStart, 42) };
   }
+  // Map view: current week's worth of appointments, a reasonable default
+  // scope for "what's on the map right now" without pulling the entire
+  // history.
   return { start: startOfWeek(anchor), end: addDays(startOfWeek(anchor), 7) };
 }
 
@@ -62,6 +67,11 @@ export default function SchedulingPage() {
   const [selected, setSelected] = useState<CalendarAppointment | null>(null);
   const [rescheduling, setRescheduling] = useState<CalendarAppointment | null>(null);
 
+  // Mobile improvement: a 7-column week grid or 42-cell month grid is
+  // genuinely hard to use on a phone-width screen. Day view — one column,
+  // full width, real touch targets — is what the calendar actually opens
+  // to below the sm breakpoint, without removing the other views for
+  // anyone who wants them.
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
       setView('day');
@@ -83,7 +93,7 @@ export default function SchedulingPage() {
   const rangeLabel = useMemo(() => {
     if (view === 'day') return anchor.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     if (view === 'month') return anchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   }, [anchor, view, start]);
 
   function refreshAfterChange() {
@@ -130,10 +140,10 @@ export default function SchedulingPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search customer or address"
-                className="rounded-lg border border-slate-300 py-2 pl-8 pr-3 text-sm"
+                className="rounded-lg border border-slate-300 py-3 pl-8 pr-3 text-base lg:py-2 lg:text-sm"
               />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-2 text-sm">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm">
               <option value="">All statuses</option>
               {Object.entries(APPOINTMENT_STATUS_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
@@ -142,8 +152,8 @@ export default function SchedulingPage() {
           </div>
         </div>
 
-        {isLoading && <div className="mt-8 text-center text-sm text-slate-500">Loading...</div>}
-        {error && <div className="mt-8 text-center text-sm text-red-600">Could not load the calendar.</div>}
+        {isLoading && <div className="mt-8 text-center text-sm text-slate-500">Loading…</div>}
+        {error && <div className="mt-8 text-center text-sm text-red-600">Couldn't load the calendar.</div>}
 
         {appointments && view === 'day' && <TimeGridView appointments={appointments} days={[anchor]} onSelect={setSelected} onRescheduled={refreshAfterChange} />}
         {appointments && view === 'week' && <TimeGridView appointments={appointments} days={Array.from({ length: 7 }, (_, i) => addDays(start, i))} onSelect={setSelected} onRescheduled={refreshAfterChange} />}

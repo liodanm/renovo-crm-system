@@ -45,7 +45,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search settings"
-              className="w-full rounded-lg border border-slate-300 py-2 pl-8 pr-3 text-sm"
+              className="w-full rounded-lg border border-slate-300 py-3 pl-8 pr-3 text-base lg:py-2 lg:text-sm"
             />
           </div>
 
