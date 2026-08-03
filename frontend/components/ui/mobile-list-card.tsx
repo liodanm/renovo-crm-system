@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 /**
@@ -43,6 +43,15 @@ export interface MobileListCardProps {
   selectionMode?: boolean;
   selected?: boolean;
   onToggleSelected?: () => void;
+  /** Optional Up/Down reorder controls — off by default, no other page
+      passes these. Single-tap, large touch targets, no long-press or
+      drag gesture on mobile, per the Service Catalog reorder feature's
+      explicit requirement to avoid gestures that are easy to fumble
+      one-handed in the field. */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
 export function MobileListCard({
@@ -57,6 +66,10 @@ export function MobileListCard({
   selectionMode = false,
   selected = false,
   onToggleSelected,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = true,
+  canMoveDown = true,
 }: MobileListCardProps) {
   const content = (
     <>
@@ -117,6 +130,36 @@ export function MobileListCard({
     return (
       <div className={className} onClick={onToggleSelected} role="checkbox" aria-checked={selected} tabIndex={0}>
         {content}
+      </div>
+    );
+  }
+
+  if (onMoveUp || onMoveDown) {
+    return (
+      <div className="flex items-stretch gap-2">
+        <Link href={href} className={cn(className, 'flex-1')}>
+          {content}
+        </Link>
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            aria-label="Move up"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <ChevronUp className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            aria-label="Move down"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <ChevronDown className="h-5 w-5" />
+          </button>
+        </div>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateServiceCatalogItemDto, UpdateServiceCatalogItemDto } from '../dto/service-catalog.dto';
 
@@ -55,7 +55,29 @@ export class ServiceCatalogService {
     }
   }
 
+  /**
+   * service_catalog_items has a real @@unique([companyId, name]) constraint
+   * (confirmed in schema.prisma) that create()/update() previously left
+   * unhandled — a name collision would surface as a raw, unexpected
+   * database error rather than a clear message. Pre-check, not a caught
+   * constraint violation — matches the same pattern already used for
+   * Customer's exact-email conflict, rather than parsing Prisma's raw-SQL
+   * error wrapping (whose exact shape isn't worth depending on here).
+   */
+  private async assertNoNameConflict(companyId: string, name: string, excludeId?: string) {
+    const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) =>
+      tx.$queryRawUnsafe(
+        `SELECT id FROM service_catalog_items WHERE company_id = $1::uuid AND name = $2 ${excludeId ? 'AND id != $3::uuid' : ''}`,
+        ...(excludeId ? [companyId, name, excludeId] : [companyId, name]),
+      ),
+    );
+    if (rows.length > 0) {
+      throw new ConflictException(`A service named "${name}" already exists.`);
+    }
+  }
+
   async create(companyId: string, dto: CreateServiceCatalogItemDto) {
+    await this.assertNoNameConflict(companyId, dto.name);
     await this.validateSuggestionIds(companyId, dto.suggestedUpsellServiceIds);
     await this.validateSuggestionIds(companyId, dto.suggestedFutureServiceIds);
 
@@ -66,8 +88,9 @@ export class ServiceCatalogService {
          default_unit_of_measure, default_unit_price, minimum_price, default_labor_hours, estimated_duration_minutes,
          default_chemicals, default_equipment, required_equipment,
          warranty_days, warranty_terms, preparation_instructions, aftercare_instructions,
-         default_notes, default_terms, suggested_upsell_service_ids, suggested_future_service_ids
-       ) VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21::uuid[],$22::uuid[])
+         default_notes, default_terms, suggested_upsell_service_ids, suggested_future_service_ids, sort_order
+       ) VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21::uuid[],$22::uuid[],
+         (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM service_catalog_items WHERE company_id = $1::uuid))
        RETURNING ${SELECT_COLUMNS}`,
         companyId,
         dto.name,
@@ -98,6 +121,9 @@ export class ServiceCatalogService {
 
   async update(companyId: string, id: string, dto: UpdateServiceCatalogItemDto) {
     const existing = await this.findOne(companyId, id);
+    if (dto.name && dto.name !== existing.name) {
+      await this.assertNoNameConflict(companyId, dto.name, id);
+    }
     await this.validateSuggestionIds(companyId, dto.suggestedUpsellServiceIds, id);
     await this.validateSuggestionIds(companyId, dto.suggestedFutureServiceIds, id);
 
@@ -153,5 +179,29 @@ export class ServiceCatalogService {
       tx.$queryRawUnsafe(`UPDATE service_catalog_items SET is_active = false WHERE id = $1::uuid AND company_id = $2::uuid RETURNING ${SELECT_COLUMNS}`, id, companyId),
     );
     return rows[0];
+  }
+
+  /**
+   * The single reorder path — desktop drag and mobile Up/Down both end up
+   * here with a full ordered array of ids, not incremental deltas. Always
+   * rewrites every id sequentially (1, 2, 3...) rather than doing
+   * arithmetic on individual rows, which is what makes this self-healing:
+   * every existing service currently has sort_order = 0 (create() never
+   * set it — fixed below, but this also repairs every service created
+   * before that fix, the first time anyone reorders anything). One
+   * transaction, one UPDATE per row, no incremental math anywhere.
+   */
+  async reorder(companyId: string, ids: string[]) {
+    await this.prisma.withTenantContext(companyId, async (tx) => {
+      for (let i = 0; i < ids.length; i++) {
+        await tx.$executeRawUnsafe(
+          `UPDATE service_catalog_items SET sort_order = $1, updated_at = now() WHERE id = $2::uuid AND company_id = $3::uuid`,
+          i + 1,
+          ids[i],
+          companyId,
+        );
+      }
+    });
+    return this.findAll(companyId);
   }
 }

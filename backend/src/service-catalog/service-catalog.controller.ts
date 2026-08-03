@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ServiceCatalogService } from './services/service-catalog.service';
-import { CreateServiceCatalogItemDto, UpdateServiceCatalogItemDto } from './dto/service-catalog.dto';
+import { CreateServiceCatalogItemDto, UpdateServiceCatalogItemDto, ReorderServiceCatalogDto } from './dto/service-catalog.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -24,6 +24,12 @@ export class ServiceCatalogController {
   @RequirePermissions('estimates.write')
   create(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: CreateServiceCatalogItemDto) {
     return this.catalog.create(user.companyId, dto);
+  }
+
+  @Patch('reorder')
+  @RequirePermissions('estimates.write')
+  reorder(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: ReorderServiceCatalogDto) {
+    return this.catalog.reorder(user.companyId, dto.ids);
   }
 
   @Patch(':id')

@@ -53,6 +53,7 @@ export const serviceCatalogApi = {
   create: (input: Partial<ServiceCatalogItemInput>) => apiFetch<ServiceCatalogItem>('/service-catalog', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: Partial<ServiceCatalogItemInput>) => apiFetch<ServiceCatalogItem>(`/service-catalog/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   archive: (id: string) => apiFetch<ServiceCatalogItem>(`/service-catalog/${id}`, { method: 'DELETE' }),
+  reorder: (ids: string[]) => apiFetch<ServiceCatalogItem[]>('/service-catalog/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) }),
 };
 
 export const SERVICE_TYPE_LABELS: Record<string, string> = {

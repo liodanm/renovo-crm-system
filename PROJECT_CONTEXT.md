@@ -1350,5 +1350,73 @@ person's own local environment already successfully generated the
 Prisma client multiple times this session. Will not occur on Railway's
 real build.
 
+## 19. Service Catalog Ordering (shipped)
+
+**Endpoint:** `PATCH /service-catalog/reorder`, body `{ ids: string[] }`
+— an ordered array of every currently-visible service's id. Same
+`estimates.write` permission and `withTenantContext` pattern as every
+other write on this controller. Declared *before* the existing
+`@Patch(':id')` route, deliberately — NestJS matches routes in
+declaration order, and `:id` would otherwise greedily match the literal
+string `"reorder"` as an id.
+
+**Architectural decision:** `sort_order` remains the single ordering
+field — no new column, no migration. The endpoint always rewrites every
+submitted id sequentially (1, 2, 3...) in one transaction, never
+incremental math on individual rows. This is deliberately self-healing:
+every service created before this feature has `sort_order = 0` (the
+original `create()` never set it — fixed as part of this change, new
+services now compute `MAX(sort_order) + 1`), and the first time anyone
+ever reorders anything, that mass-tie of zeros gets normalized as a
+side effect, with no separate backfill script needed.
+
+**Desktop vs. mobile interaction:** native HTML5 drag-and-drop on
+desktop (no new dependency added), Up/Down buttons on mobile — a
+deliberate choice, not a shortcut. Sustained drag-and-hold gestures are
+easy to fumble one-handed in the field; every other mobile pattern this
+project has built favors single, unambiguous taps over gestures. Both
+paths end at the exact same `commitOrder()` function and the same API
+call — only how the ordered array gets produced differs.
+
+**Maintenance notes:** gaps left by archiving a service are harmless
+and self-correct the next time anyone reorders — `ORDER BY` doesn't
+care about gaps, only relative order, so there was no reason to add an
+extra normalization write to the archive path itself. Invoices, jobs,
+and estimates reference catalog items by id, never by position or
+`sort_order` — reordering the catalog can never affect historical
+records, confirmed directly in `reports.service.ts`'s revenue-by-service
+query, which joins by id only.
+
+**Post-review hardening (same feature, same session):** a real bug was
+found and fixed during final review — the frontend's `commitOrder()` had
+no error handling at all, so a failed reorder API call silently left
+the UI showing a stale, incorrect order with no message. Now reverts to
+the previous order and shows a visible error on failure. Also added a
+name-conflict pre-check to `create()`/`update()` (a real
+`@@unique([companyId, name])` constraint existed with no graceful
+handling — a collision would have surfaced as a raw, unexpected
+database error). Two known, disclosed, non-blocking gaps remain: the
+reorder endpoint doesn't reject a malformed/partial id array (only
+reachable via a direct API call, not the UI — self-healing on the next
+real reorder), and no concurrency protection exists for two simultaneous
+reorders (last-write-wins; a real concern only once this becomes
+multi-user).
+
+## Production Readiness — Current State
+
+As of this session: Sprint 1 (Estimate Builder UX, Customer + Property
+combined creation, Lifetime Value in full, Customer Merge fix) plus
+Service Catalog Ordering have both been through audit → implementation
+→ dedicated regression review → adjacent-systems check, each verified
+against a real database, not simulated. No known blocking issues in
+either. The one standing sandbox-specific limitation (this development
+environment cannot run `npx prisma generate` due to a network
+restriction unique to it) does not reflect the real deploy environment
+— confirmed directly, since the person's own local machine has already
+run it successfully multiple times this session.
+
+
+
+
 
 

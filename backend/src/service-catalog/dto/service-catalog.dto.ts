@@ -2,6 +2,7 @@ import { PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -185,5 +186,12 @@ export class CreateServiceCatalogItemDto {
 // overrides — TS's structural typing rejects widening a required field
 // to optional via inheritance, even with `declare`.
 export class UpdateServiceCatalogItemDto extends PartialType(CreateServiceCatalogItemDto) {}
+
+export class ReorderServiceCatalogDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID(undefined, { each: true })
+  ids: string[];
+}
 
 export { SERVICE_TYPES, UNITS_OF_MEASURE };
