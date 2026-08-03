@@ -1299,3 +1299,56 @@ reading their actual current query text, not assumed safe. An
 un-archive path (the confirmation dialog promises "this can be reversed
 later" — that promise needs a real implementation, not just the wording).
 
+## 18. Sprint 1 / Release Candidate RC1
+
+**Status: Sprint 1 complete, packaged as RC1 for real-world testing.**
+
+**Shipped this Sprint:**
+- Estimate Builder: Cancel button (reuses `clearDraft()`), required-field
+  indicators (`RequiredLabel`, scoped to `components/estimates/`), empty
+  state for zero line items (extends `CardEmpty`, not a new component),
+  visible validation message when saving with zero line items.
+- Customer + Property combined creation (`includeProperty` prop on
+  `CreateCustomerModal`), with a Retry Property / Skip for Now flow if
+  property creation fails after the customer is already saved — the
+  customer is never rolled back, since a customer without a property is
+  already a normal, supported state in this app.
+- Duplicate-click protection and loading spinners audited and confirmed
+  on the Customer/Property save paths (a real, verified-by-timing
+  guarantee, not just a disabled-attribute assumption).
+- **Lifetime Value**, in two phases: live updates on every
+  payment-success/refund/void path (`recordPayment`, the Stripe webhook,
+  `reverseAmountFromInvoice`), and a historical backfill script
+  (`backend/scripts/backfill-lifetime-value.js`, dry-run by default).
+  Verified against a real database across the full
+  Customer→Property→Estimate→Job→Invoice→Payment→Refund lifecycle,
+  including duplicate-webhook-delivery and idempotency proofs.
+- Lifetime Spend (a second, less-accurate, independently-computed
+  metric) removed from `getServiceHistory()` — the Service History tab
+  now reads the same `Customer.lifetimeValue` the Customers list already
+  used, eliminating the second formula entirely.
+- **Customer Merge now correctly recalculates `lifetimeValue`** —
+  found and fixed during a dedicated regression audit: `merge()` was
+  reassigning payments but never touching `lifetimeValue`, silently
+  understating the canonical customer's total after every merge.
+  Recalculates from payments (not arithmetic addition) inside the same
+  transaction, self-correcting rather than trusting either customer's
+  pre-merge value — verified against a real database with a
+  deliberately corrupted stored value to prove this was the right
+  architectural call, not just the safer-sounding one.
+
+**Explicitly confirmed NOT to exist (not a regression — never built):**
+"Restore Customer" (only exists as reassuring dialog copy, no actual
+self-service capability) and "Edit Property" (Add and Delete exist;
+editing an existing property does not).
+
+**Known sandbox-only limitation:** this development sandbox cannot run
+`npx prisma generate` (network egress to `binaries.prisma.sh` is
+blocked here specifically) — causes spurious backend `tsc` errors in
+this environment only. Confirmed not to reflect a real code issue: the
+person's own local environment already successfully generated the
+Prisma client multiple times this session. Will not occur on Railway's
+real build.
+
+
+

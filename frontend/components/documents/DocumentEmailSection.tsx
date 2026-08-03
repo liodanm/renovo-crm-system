@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { Mail, Eye, Download, Loader2 } from 'lucide-react';
+import { Mail, Eye, Loader2 } from 'lucide-react';
 import { fetchPdfObjectUrl, ApiError } from '../../lib/api/api-client';
 import type { EmailLogEntry } from '../../lib/api/estimates';
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useSWRConfig } from 'swr';
 import { appointmentCustomerName, APPOINTMENT_STATUS_COLORS, schedulingApi, type CalendarAppointment } from '../../lib/api/scheduling';
 import { WeatherDayBadge } from './WeatherDayBadge';
 import { cn } from '../../lib/utils';
@@ -13,11 +12,6 @@ const HOUR_HEIGHT_PX = 56;
 function startOfDay(d: Date): Date {
   const r = new Date(d);
   r.setHours(0, 0, 0, 0);
-  return r;
-}
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
   return r;
 }
 
@@ -38,7 +32,6 @@ interface TimeGridViewProps {
  * degraded drag experience.
  */
 export function TimeGridView({ appointments, days, onSelect, onRescheduled }: TimeGridViewProps) {
-  const { mutate } = useSWRConfig();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ day: string; hour: number } | null>(null);
   const hours = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR }, (_, i) => GRID_START_HOUR + i);

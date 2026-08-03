@@ -348,15 +348,17 @@ export class CustomersService {
       this.prisma.payment.findMany({ where: { companyId, customerId }, orderBy: { processedAt: 'desc' } }),
     ]);
 
-    const lifetimeSpend = payments
-      .filter((p) => p.status === 'succeeded')
-      .reduce((sum, p) => sum + p.amount.toNumber(), 0);
-
+    // Lifetime spend used to be recalculated here from payments directly
+    // — removed. Customer.lifetimeValue is now maintained centrally
+    // through the payment lifecycle (recordPayment, the Stripe webhook,
+    // and refund/void — see ADR on Lifetime Value in PROJECT_CONTEXT.md)
+    // and already comes back on the customer detail response the
+    // frontend already fetches, so there's no reason for this endpoint
+    // to compute its own second version of the same number.
     return {
       summary: {
         totalJobs: jobs.length,
         completedJobs: jobs.filter((j) => j.status === 'completed').length,
-        lifetimeSpend,
         outstandingBalance: invoices.reduce(
           (sum, inv) => sum + (inv.totalAmount.toNumber() - inv.amountPaid.toNumber()),
           0,
@@ -482,24 +484,43 @@ export class CustomersService {
       this.assertExists(companyId, duplicateId),
     ]);
 
-    await this.prisma.$transaction([
-      this.prisma.property.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } }),
-      this.prisma.job.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } }),
-      this.prisma.estimate.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } }),
-      this.prisma.invoice.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } }),
-      this.prisma.payment.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } }),
-      this.prisma.customerNote.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } }),
-      this.prisma.photo.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } }),
-      this.prisma.document.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } }),
-      this.prisma.customer.update({
+    // Callback form (not the array form this used before) — needed so
+    // lifetimeValue can be recalculated from payments.customerId *after*
+    // it's reassigned below, in the same atomic transaction. Recalculates
+    // rather than adding canonical.lifetimeValue + duplicate.lifetimeValue
+    // — the same SUM(amount - refunded_amount) formula already proven in
+    // the Phase 2 backfill script (backfill-lifetime-value.js), not a
+    // fourth way of computing this number. Self-correcting: doesn't
+    // depend on either customer's pre-merge value already being right.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.property.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
+      await tx.job.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
+      await tx.estimate.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
+      await tx.invoice.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
+      await tx.payment.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
+      await tx.customerNote.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
+      await tx.photo.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
+      await tx.document.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
+
+      const [{ total }] = await tx.$queryRaw<{ total: string }[]>`
+        SELECT COALESCE(SUM(amount - refunded_amount), 0) AS total
+        FROM payments
+        WHERE customer_id = ${canonicalId}::uuid
+          AND status IN ('succeeded', 'partially_refunded', 'refunded')
+      `;
+
+      await tx.customer.update({
         where: { id: canonicalId },
-        data: { tags: { set: Array.from(new Set([...canonical.tags, ...duplicate.tags])) } },
-      }),
-      this.prisma.customer.update({
+        data: {
+          tags: { set: Array.from(new Set([...canonical.tags, ...duplicate.tags])) },
+          lifetimeValue: Number(total),
+        },
+      });
+      await tx.customer.update({
         where: { id: duplicateId },
-        data: { deletedAt: new Date(), notesText: `[Merged into ${canonicalId}]` },
-      }),
-    ]);
+        data: { deletedAt: new Date(), notesText: `[Merged into ${canonicalId}]`, lifetimeValue: 0 },
+      });
+    });
 
     return this.getProfile(companyId, canonicalId);
   }

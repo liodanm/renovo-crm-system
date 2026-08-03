@@ -6,7 +6,7 @@ import { CardSkeleton, CardError, CardEmpty } from '../../dashboard/dashboard-ca
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
-export function ServiceHistoryTab({ customerId }: { customerId: string }) {
+export function ServiceHistoryTab({ customerId, lifetimeValue }: { customerId: string; lifetimeValue: number }) {
   const { data, error, isLoading } = useSWR([`service-history`, customerId], () => customersApi.getServiceHistory(customerId));
 
   if (isLoading) return <CardSkeleton lines={6} />;
@@ -17,7 +17,7 @@ export function ServiceHistoryTab({ customerId }: { customerId: string }) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Total Jobs" value={String(data.summary.totalJobs)} />
         <Stat label="Completed" value={String(data.summary.completedJobs)} />
-        <Stat label="Lifetime Spend" value={currency.format(data.summary.lifetimeSpend)} accent="success" />
+        <Stat label="Lifetime Value" value={currency.format(lifetimeValue)} accent="success" />
         <Stat
           label="Outstanding"
           value={currency.format(data.summary.outstandingBalance)}

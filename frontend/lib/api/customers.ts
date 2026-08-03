@@ -91,7 +91,7 @@ export interface DuplicateCluster {
 }
 
 export interface ServiceHistory {
-  summary: { totalJobs: number; completedJobs: number; lifetimeSpend: number; outstandingBalance: number };
+  summary: { totalJobs: number; completedJobs: number; outstandingBalance: number };
   jobs: Array<{ id: string; title: string; status: string; scheduledStart: string | null; price: number; address: string }>;
   estimates: Array<{ id: string; status: string; totalAmount: number; sentAt: string | null; createdAt: string }>;
   invoices: Array<{ id: string; invoiceNumber: string; status: string; totalAmount: number; amountPaid: number; dueDate: string | null }>;

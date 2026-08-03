@@ -1,4 +1,4 @@
-import { Mail, Eye, CheckCircle2, XCircle, Send, Briefcase, Clock } from 'lucide-react';
+import { Mail, Eye, CheckCircle2, XCircle, Briefcase, Clock } from 'lucide-react';
 import type { TimelineEntry } from './StatusTimeline';
 import type { EmailLogEntry } from '../../lib/api/estimates';
 

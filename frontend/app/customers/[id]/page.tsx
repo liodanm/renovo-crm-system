@@ -114,7 +114,7 @@ export default function CustomerProfilePage() {
             <div className="mt-4">
               {activeTab === 'Overview' && <OverviewTab customer={customer} onUpdated={() => mutate()} />}
               {activeTab === 'Properties' && <PropertiesTab customerId={customerId} />}
-              {activeTab === 'Service History' && <ServiceHistoryTab customerId={customerId} />}
+              {activeTab === 'Service History' && <ServiceHistoryTab customerId={customerId} lifetimeValue={customer.lifetimeValue} />}
               {activeTab === 'Notes' && <NotesTab customerId={customerId} />}
               {activeTab === 'Photos' && <PhotosTab customerId={customerId} />}
               {activeTab === 'Documents' && <DocumentsTab customerId={customerId} />}

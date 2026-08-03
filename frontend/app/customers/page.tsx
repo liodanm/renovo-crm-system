@@ -225,6 +225,7 @@ export default function CustomersPage() {
 
       {showCreate && (
         <CreateCustomerModal
+          includeProperty
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setShowCreate(false);

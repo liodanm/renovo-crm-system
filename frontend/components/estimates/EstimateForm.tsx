@@ -14,6 +14,7 @@ import { CustomerPicker } from './CustomerPicker';
 import { AddPropertyForm } from '../customers/tabs/properties-tab';
 import { recordRecentCustomer } from '../../lib/hooks/use-recent-customers';
 import { CardEmpty } from '../dashboard/dashboard-card';
+import { RequiredLabel } from './RequiredLabel';
 
 // Kept as strings for the whole time they're being edited — this is
 // deliberate, not an oversight. A controlled <input> whose value is
@@ -340,7 +341,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div>
-            <label className="text-sm font-medium text-slate-700">Customer</label>
+            <RequiredLabel>Customer</RequiredLabel>
             {customersError ? (
               <div className="mt-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 Couldn't load customers. <button onClick={() => window.location.reload()} className="underline">Retry</button>
@@ -375,7 +376,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             {fieldErrors.customer && <p className="mt-1 text-xs text-red-600">{fieldErrors.customer}</p>}
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Property</label>
+            <RequiredLabel>Property</RequiredLabel>
             {!customerId ? (
               <select disabled className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-400">
                 <option>Select a customer first…</option>
@@ -458,6 +459,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                   </button>
                 }
               />
+              {fieldErrors.lineItems && <p className="mt-2 text-xs text-red-600">{fieldErrors.lineItems}</p>}
             </div>
           ) : (
             lineItems.map((item, i) => (
@@ -550,6 +552,22 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             save action). Desktop reverts to the original static inline
             layout at lg+, unchanged. */}
         <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:flex-nowrap lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0 lg:backdrop-blur-none">
+          <button
+            type="button"
+            onClick={() => {
+              // Discards, never saves — the same clearDraft() the
+              // successful-save path already uses, just triggered
+              // explicitly instead of only after a save. Edit mode has
+              // no draft to clear (the restore mechanism is deliberately
+              // new-estimate-only, see clearDraft's own definition), so
+              // this is a no-op there and just navigates back.
+              if (!isEdit) clearDraft();
+              router.push(isEdit ? `/estimates/${existingEstimate!.id}` : '/estimates');
+            }}
+            className="rounded-lg border border-slate-300 px-4 py-3 text-base font-medium text-slate-700 hover:bg-slate-50 lg:py-2 lg:text-sm"
+          >
+            Cancel
+          </button>
           {isEdit ? (
             <button onClick={() => handleSave(false)} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
               {isSaving ? 'Saving…' : 'Save Changes'}
@@ -643,7 +661,7 @@ function LineItemRow({
           </select>
         </div>
         <div className="lg:col-span-5">
-          <label className="text-xs font-medium text-slate-500">Description</label>
+          <RequiredLabel size="sm">Description</RequiredLabel>
           <input
             ref={descriptionRef}
             value={item.description}
@@ -659,7 +677,7 @@ function LineItemRow({
           </select>
         </div>
         <div className="lg:col-span-1">
-          <label className="text-xs font-medium text-slate-500">Qty</label>
+          <RequiredLabel size="sm">Qty</RequiredLabel>
           <input
             ref={quantityRef}
             type="text"
@@ -672,7 +690,7 @@ function LineItemRow({
           />
         </div>
         <div className="lg:col-span-1">
-          <label className="text-xs font-medium text-slate-500">Unit Price</label>
+          <RequiredLabel size="sm">Unit Price</RequiredLabel>
           <input
             ref={unitPriceRef}
             type="text"

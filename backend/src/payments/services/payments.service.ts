@@ -66,6 +66,12 @@ export class PaymentsService {
           paid_at = ${newStatus === 'paid' ? new Date() : null}, updated_at = now()
         WHERE id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid
       `;
+      // Same transaction, same amount already applied to the invoice
+      // above — propagated to the customer record, not recalculated.
+      await tx.$executeRaw`
+        UPDATE customers SET lifetime_value = lifetime_value + ${dto.amount}
+        WHERE id = ${invoice.customerId}::uuid AND company_id = ${companyId}::uuid
+      `;
 
       if (newStatus === 'paid') {
         // Fires regardless of how the invoice reached "paid" — cash,
@@ -174,10 +180,10 @@ export class PaymentsService {
     });
   }
 
-  /** Shared by void and refund — both remove money from the invoice's amount_paid and let the same status-recompute logic decide what happens next. */
+  /** Shared by void and refund — both remove money from the invoice's amount_paid and let the same status-recompute logic decide what happens next. Also reverses the same amount from the customer's lifetimeValue, since a voided or refunded payment shouldn't keep counting as money collected — one shared reversal path for both callers, not two. */
   private async reverseAmountFromInvoice(tx: any, companyId: string, invoiceId: string, amount: number) {
-    const invoiceRows = await tx.$queryRaw<{ status: string; totalAmount: string; amountPaid: string }[]>`
-      SELECT status, total_amount AS "totalAmount", amount_paid AS "amountPaid" FROM invoices WHERE id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid
+    const invoiceRows = await tx.$queryRaw<{ customerId: string; status: string; totalAmount: string; amountPaid: string }[]>`
+      SELECT customer_id AS "customerId", status, total_amount AS "totalAmount", amount_paid AS "amountPaid" FROM invoices WHERE id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid
     `;
     const invoice = invoiceRows[0];
     const newAmountPaid = Math.max(0, Number(invoice.amountPaid) - amount);
@@ -186,6 +192,13 @@ export class PaymentsService {
       UPDATE invoices SET amount_paid = ${newAmountPaid}, status = ${newStatus},
         paid_at = ${newStatus === 'paid' ? new Date() : null}, updated_at = now()
       WHERE id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid
+    `;
+    // GREATEST(0, ...) as a safety floor — a customer-facing number
+    // should never go negative even in an edge-case sequencing, the
+    // same defensive instinct as Math.max(0, ...) on amountPaid above.
+    await tx.$executeRaw`
+      UPDATE customers SET lifetime_value = GREATEST(0, lifetime_value - ${amount})
+      WHERE id = ${invoice.customerId}::uuid AND company_id = ${companyId}::uuid
     `;
   }
 

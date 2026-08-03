@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { customersApi, DuplicateCluster } from '../../../lib/api/customers';
+import { customersApi } from '../../../lib/api/customers';
 import { CardSkeleton, CardError, CardEmpty } from '../../../components/dashboard/dashboard-card';
 import { AppShell } from '../../../components/layout/AppShell';
 
@@ -18,7 +18,7 @@ export default function DuplicatesPage() {
   const [mergingKey, setMergingKey] = useState<string | null>(null);
   const [mergeError, setMergeError] = useState<string | null>(null);
 
-  async function handleMerge(cluster: DuplicateCluster, canonicalId: string, duplicateId: string) {
+  async function handleMerge(canonicalId: string, duplicateId: string) {
     const key = `${canonicalId}-${duplicateId}`;
     setMergingKey(key);
     setMergeError(null);
@@ -78,7 +78,7 @@ export default function DuplicatesPage() {
                             <button
                               key={other.id}
                               disabled={mergingKey === `${c.id}-${other.id}`}
-                              onClick={() => handleMerge(cluster, c.id, other.id)}
+                              onClick={() => handleMerge(c.id, other.id)}
                               className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
                               title={`Keep "${c.displayName}" and merge "${other.displayName}" into it`}
                             >

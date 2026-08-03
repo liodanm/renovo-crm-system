@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { customersApi, DuplicateCandidate } from '../../lib/api/customers';
 import { ApiError } from '../../lib/api/api-client';
 
@@ -56,6 +57,7 @@ export function CustomerForm({
   onDirtyChange,
   hideActions = false,
   formRef,
+  children,
 }: {
   mode: 'create' | 'edit';
   initialValues: CustomerFormValues;
@@ -78,6 +80,11 @@ export function CustomerForm({
       (formRef.current.requestSubmit()) instead of a second submit
       implementation. */
   formRef?: React.RefObject<HTMLFormElement>;
+  /** Optional extra content rendered inside the same <form>, after the
+      core fields, before the duplicate-warning/error/buttons — used by
+      the combined Customer+Property flow to inline property fields
+      without a second <form> tag. No existing caller passes this. */
+  children?: React.ReactNode;
 }) {
   const [form, setForm] = useState<CustomerFormValues>(initialValues);
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
@@ -185,6 +192,8 @@ export function CustomerForm({
         </div>
       )}
 
+      {children}
+
       {duplicates.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
           <div className="text-xs font-semibold text-amber-800">Possible duplicate{duplicates.length > 1 ? 's' : ''} found</div>
@@ -213,8 +222,9 @@ export function CustomerForm({
           <button
             type="submit"
             disabled={isSubmitting || (duplicates.some((d) => d.matchReason === 'exact_email') && !acknowledged)}
-            className="rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-semibold text-white hover:bg-[var(--color-brand-dark)] disabled:cursor-not-allowed disabled:opacity-50 lg:py-2 lg:text-sm"
+            className="flex items-center gap-1.5 rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-semibold text-white hover:bg-[var(--color-brand-dark)] disabled:cursor-not-allowed disabled:opacity-50 lg:py-2 lg:text-sm"
           >
+            {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {isSubmitting ? submittingLabel : submitLabel}
           </button>
         </div>

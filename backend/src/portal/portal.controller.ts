@@ -149,6 +149,15 @@ export class PortalController {
           paidAt: isPaidInFull ? new Date() : undefined,
         },
       }),
+      // Same transaction, same amount already being applied to the
+      // invoice above — not a second calculation, just propagated to
+      // the customer record too. Protected by the alreadyRecorded
+      // idempotency check above this whole block runs, same as the
+      // payment/invoice writes it sits alongside.
+      this.prisma.customer.update({
+        where: { id: invoice.customerId },
+        data: { lifetimeValue: { increment: amount } },
+      }),
     ]);
 
     if (isPaidInFull) {
