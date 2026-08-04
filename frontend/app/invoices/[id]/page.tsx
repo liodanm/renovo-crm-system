@@ -107,7 +107,8 @@ export default function InvoiceDetailPage() {
             </div>
 
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Description</th>
@@ -126,7 +127,8 @@ export default function InvoiceDetailPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
               <div className="space-y-1 border-t border-slate-200 px-4 py-3 text-sm">
                 <div className="flex justify-between text-slate-500"><span>Subtotal</span><span>{formatMoney(invoice.subtotal)}</span></div>
                 {Number(invoice.discountAmount) > 0 && <div className="flex justify-between text-slate-500"><span>Discount</span><span>-{formatMoney(invoice.discountAmount)}</span></div>}

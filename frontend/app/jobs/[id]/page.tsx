@@ -188,7 +188,8 @@ export default function JobDetailPage() {
 
             {/* Line items */}
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Description</th>
@@ -207,7 +208,8 @@ export default function JobDetailPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
               <div className="flex justify-end border-t border-slate-200 px-4 py-3 text-base font-semibold text-slate-900">
                 Total: {formatMoney(job.price)}
               </div>

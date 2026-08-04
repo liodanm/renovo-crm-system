@@ -171,7 +171,8 @@ export default function EstimateDetailPage() {
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Service</th>
@@ -204,7 +205,8 @@ export default function EstimateDetailPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
 
               <div className="border-t border-slate-200 px-4 py-4">
                 <div className="ml-auto max-w-xs space-y-1 text-sm">
