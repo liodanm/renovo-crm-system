@@ -792,16 +792,28 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
   if (item.serviceType === 'roof_soft_wash') {
     return (
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 lg:grid-cols-4">
-        <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
-        <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
-          <option value="">Roof type…</option>
-          <option value="tile">Tile</option><option value="shingle">Shingle</option><option value="metal">Metal</option>
-        </select>
-        <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
-        <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
-          <option value="">Pitch…</option>
-          <option value="low">Low</option><option value="medium">Medium</option><option value="steep">Steep</option>
-        </select>
+        <label className="block">
+          <RequiredLabel size="sm">Roof sq ft</RequiredLabel>
+          <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
+        </label>
+        <label className="block">
+          <RequiredLabel size="sm">Roof type</RequiredLabel>
+          <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+            <option value="">Roof type…</option>
+            <option value="tile">Tile</option><option value="shingle">Shingle</option><option value="metal">Metal</option>
+          </select>
+        </label>
+        <label className="block">
+          <RequiredLabel size="sm">Stories</RequiredLabel>
+          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-slate-500">Pitch</span>
+          <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+            <option value="">Pitch…</option>
+            <option value="low">Low</option><option value="medium">Medium</option><option value="steep">Steep</option>
+          </select>
+        </label>
       </div>
     );
   }
@@ -809,11 +821,17 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
   if (item.serviceType === 'driveway_cleaning') {
     return (
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 lg:grid-cols-4">
-        <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
-        <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
-          <option value="">Surface…</option>
-          <option value="concrete">Concrete</option><option value="pavers">Pavers</option>
-        </select>
+        <label className="block">
+          <RequiredLabel size="sm">Sq ft</RequiredLabel>
+          <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
+        </label>
+        <label className="block">
+          <RequiredLabel size="sm">Surface</RequiredLabel>
+          <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+            <option value="">Surface…</option>
+            <option value="concrete">Concrete</option><option value="pavers">Pavers</option>
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={!!details.hasOilStains} onChange={(e) => setDetail('hasOilStains', e.target.checked)} /> Oil stains
         </label>
@@ -827,12 +845,18 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
   if (item.serviceType === 'house_wash') {
     return (
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 lg:grid-cols-3">
-        <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
-        <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
-          <option value="">Exterior material…</option>
-          <option value="vinyl">Vinyl</option><option value="brick">Brick</option><option value="stucco">Stucco</option>
-          <option value="wood">Wood</option><option value="fiber_cement">Fiber cement</option><option value="other">Other</option>
-        </select>
+        <label className="block">
+          <RequiredLabel size="sm">Stories</RequiredLabel>
+          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
+        </label>
+        <label className="block">
+          <RequiredLabel size="sm">Exterior material</RequiredLabel>
+          <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+            <option value="">Exterior material…</option>
+            <option value="vinyl">Vinyl</option><option value="brick">Brick</option><option value="stucco">Stucco</option>
+            <option value="wood">Wood</option><option value="fiber_cement">Fiber cement</option><option value="other">Other</option>
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={!!details.oxidationPresent} onChange={(e) => setDetail('oxidationPresent', e.target.checked)} /> Oxidation present
         </label>
