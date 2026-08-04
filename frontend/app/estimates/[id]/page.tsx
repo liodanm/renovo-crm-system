@@ -171,8 +171,32 @@ export default function EstimateDetailPage() {
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
+              {/* Mobile: one card per service, no sideways scrolling needed */}
+              <div className="divide-y divide-slate-100 lg:hidden">
+                {estimate.lineItems.map((item) => (
+                  <div key={item.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-medium text-slate-900">{serviceLabel(item.serviceType)}</span>
+                      <span className="shrink-0 font-medium text-slate-900">{formatMoney(item.total)}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">{item.description}</p>
+                    <div className="mt-2 flex items-center justify-between text-sm text-slate-500">
+                      <span>{item.quantity} {item.unitOfMeasure.replace('_', ' ')} × {formatMoney(item.unitPrice)}</span>
+                    </div>
+                    <PermissionGate permissions={['estimates.profitability']}>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
+                        <span className={Number(item.estimatedProfit) < 0 ? 'text-red-600' : 'text-emerald-600'}>
+                          Profit: {item.estimatedProfit !== undefined ? formatMoney(item.estimatedProfit) : '—'}
+                        </span>
+                        <span>Margin: {item.profitMarginPercent !== undefined ? `${Number(item.profitMarginPercent).toFixed(1)}%` : '—'}</span>
+                      </div>
+                    </PermissionGate>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: full table */}
+              <table className="hidden w-full text-sm lg:table">
                 <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Service</th>
@@ -205,8 +229,7 @@ export default function EstimateDetailPage() {
                     </tr>
                   ))}
                 </tbody>
-                </table>
-              </div>
+              </table>
 
               <div className="border-t border-slate-200 px-4 py-4">
                 <div className="ml-auto max-w-xs space-y-1 text-sm">

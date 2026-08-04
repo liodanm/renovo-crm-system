@@ -107,8 +107,19 @@ export default function InvoiceDetailPage() {
             </div>
 
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] text-sm">
+              <div className="divide-y divide-slate-100 lg:hidden">
+                {invoice.lineItems.map((item) => (
+                  <div key={item.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-medium text-slate-900">{item.description}</span>
+                      <span className="shrink-0 font-medium text-slate-900">{formatMoney(item.total)}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')} × {formatMoney(item.unitPrice)}</p>
+                  </div>
+                ))}
+              </div>
+
+              <table className="hidden w-full text-sm lg:table">
                 <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Description</th>
@@ -127,8 +138,7 @@ export default function InvoiceDetailPage() {
                     </tr>
                   ))}
                 </tbody>
-                </table>
-              </div>
+              </table>
               <div className="space-y-1 border-t border-slate-200 px-4 py-3 text-sm">
                 <div className="flex justify-between text-slate-500"><span>Subtotal</span><span>{formatMoney(invoice.subtotal)}</span></div>
                 {Number(invoice.discountAmount) > 0 && <div className="flex justify-between text-slate-500"><span>Discount</span><span>-{formatMoney(invoice.discountAmount)}</span></div>}
