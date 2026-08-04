@@ -95,6 +95,14 @@ export interface CreateEstimateInput {
   validUntil?: string;
 }
 
+// customerId/propertyId deliberately excluded — UpdateEstimateDto on the
+// backend genuinely doesn't accept them (an estimate's customer/property
+// isn't reassignable after creation). Using Partial<CreateEstimateInput>
+// here previously let the frontend silently send fields the backend's
+// whitelist validation would reject at save time — this type now matches
+// the real contract instead of a looser structural guess at it.
+export type UpdateEstimateInput = Partial<Omit<CreateEstimateInput, 'customerId' | 'propertyId'>>;
+
 export const estimatesApi = {
   list: (params?: { status?: string; customerId?: string }) => {
     const query = params ? buildQueryString(params) : '';
@@ -106,7 +114,7 @@ export const estimatesApi = {
   create: (input: CreateEstimateInput) =>
     apiFetch<Estimate>('/estimates', { method: 'POST', body: JSON.stringify(input) }),
 
-  update: (id: string, input: Partial<CreateEstimateInput>) =>
+  update: (id: string, input: UpdateEstimateInput) =>
     apiFetch<Estimate>(`/estimates/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
   send: (id: string) => apiFetch<Estimate>(`/estimates/${id}/send`, { method: 'POST' }),

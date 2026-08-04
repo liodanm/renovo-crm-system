@@ -354,7 +354,9 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         validUntil: validUntil || undefined,
       };
 
-      const estimate = isEdit ? await estimatesApi.update(existingEstimate!.id, payload) : await estimatesApi.create(payload);
+      const estimate = isEdit
+        ? await estimatesApi.update(existingEstimate!.id, (({ customerId, propertyId, ...updatePayload }) => updatePayload)(payload))
+        : await estimatesApi.create(payload);
       if (andSend && !isEdit) {
         await estimatesApi.send(estimate.id);
       }
