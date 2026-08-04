@@ -13,6 +13,7 @@ import { CompanyContextService } from '../../documents/services/company-context.
 import { MailService } from '../../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
+import { CustomersService } from '../../customers/services/customers.service';
 
 // Fields only estimates.profitability holders should ever see — stripped
 // from every response otherwise, not just hidden client-side (which
@@ -33,6 +34,7 @@ export class EstimatesService {
     private readonly companyContext: CompanyContextService,
     private readonly mailService: MailService,
     private readonly config: ConfigService,
+    private readonly customersService: CustomersService,
   ) {}
 
   async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean) {
@@ -238,6 +240,12 @@ export class EstimatesService {
     // duplicate guard makes this safe even if something retries.
     const job = await this.jobsService.createFromEstimate(companyId, id);
     await this.writeStatusHistory(companyId, id, 'accepted', 'accepted', userId, source, `Job ${job.jobNumber} created automatically`);
+
+    // The one approved auto-transition for Customer Status Workflow —
+    // shared with the portal's own approveEstimate(), not duplicated,
+    // since both are genuinely "an estimate was accepted," just from two
+    // different entry points.
+    await this.customersService.convertLeadToActiveIfNeeded(companyId, estimate.customerId);
 
     return updated;
   }

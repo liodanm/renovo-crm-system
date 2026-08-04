@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CustomerSummary } from '../../lib/api/customers';
+import { CustomerSummary, JOURNEY_STAGE_LABELS } from '../../lib/api/customers';
 import { MobileListCard } from '../ui/mobile-list-card';
 
 const LEAD_STATUS_STYLES: Record<string, string> = {
   lead: 'bg-amber-100 text-amber-700',
   active: 'bg-emerald-100 text-emerald-700',
   inactive: 'bg-slate-100 text-slate-600',
+  archived: 'bg-violet-100 text-violet-700',
   churned: 'bg-red-100 text-red-700',
 };
 
@@ -113,6 +114,7 @@ export function CustomerTable({ customers, selectedIds, onToggleOne, onToggleAll
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[c.leadStatus] ?? 'bg-slate-100 text-slate-600'}`}>
                     {c.leadStatus}
                   </span>
+                  <div className="mt-1 text-xs text-slate-400">{JOURNEY_STAGE_LABELS[c.journeyStage]}</div>
                 </td>
                 <td className="px-3 py-3 text-slate-500">{c.primaryLocation ?? '—'}</td>
                 <td className="px-3 py-3">
@@ -156,6 +158,7 @@ export function CustomerTable({ customers, selectedIds, onToggleOne, onToggleAll
             selected={selectedIds?.has(c.id)}
             onToggleSelected={() => onToggleOne?.(c.id)}
             meta={[
+              { label: 'Journey', value: JOURNEY_STAGE_LABELS[c.journeyStage] },
               { label: 'Lifetime Value', value: currency.format(c.lifetimeValue) },
               { label: 'Location', value: c.primaryLocation ?? '—' },
               {

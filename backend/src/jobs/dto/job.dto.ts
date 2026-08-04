@@ -33,6 +33,10 @@ export class UpdateJobDto {
   @IsOptional()
   @IsUUID()
   assignedUserId?: string;
+
+  @IsOptional()
+  @IsIn(['normal', 'follow_up', 'high', 'emergency'])
+  priority?: string;
 }
 
 export class PauseJobDto {
@@ -50,4 +54,8 @@ export class QueryJobsDto {
   @IsOptional()
   @IsUUID()
   customerId?: string;
+
+  @IsOptional()
+  @IsIn(['normal', 'follow_up', 'high', 'emergency'])
+  priority?: string;
 }

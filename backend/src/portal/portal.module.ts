@@ -12,6 +12,7 @@ import { PasswordService } from '../auth/services/password.service';
 import { MailModule } from '../mail/mail.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { JobsModule } from '../jobs/jobs.module';
+import { CustomersModule } from '../customers/customers.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { JobsModule } from '../jobs/jobs.module';
     MailModule,
     DocumentsModule,
     JobsModule, // automatic Job creation on estimate acceptance — see PortalDataService.approveEstimate
+    CustomersModule, // the shared lead->active auto-transition, same method EstimatesService.acceptManually calls
   ],
   controllers: [PortalController],
   providers: [

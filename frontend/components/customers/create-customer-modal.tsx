@@ -70,6 +70,7 @@ export function CreateCustomerModal({
       businessName: values.businessName || undefined,
       email: values.email || undefined,
       phone: values.phone || undefined,
+      source: values.source || undefined,
       acknowledgedDuplicateWarning,
     });
 

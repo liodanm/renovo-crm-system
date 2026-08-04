@@ -92,7 +92,7 @@ export class JobsService {
     // against unbounded growth, not a contract change — real
     // page/pageSize pagination here is genuine follow-up work.
     return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
-      SELECT j.id, j.job_number AS "jobNumber", j.title, j.status, j.price, j.customer_id AS "customerId", j.property_id AS "propertyId",
+      SELECT j.id, j.job_number AS "jobNumber", j.title, j.status, j.price, j.priority, j.customer_id AS "customerId", j.property_id AS "propertyId",
              c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName",
              p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity", p.state AS "propertyState"
       FROM jobs j
@@ -101,6 +101,7 @@ export class JobsService {
       WHERE j.company_id = ${companyId}::uuid
         AND (${query.status ?? null}::text IS NULL OR j.status = ${query.status ?? null})
         AND (${query.customerId ?? null}::uuid IS NULL OR j.customer_id = ${query.customerId ?? null}::uuid)
+        AND (${query.priority ?? null}::text IS NULL OR j.priority = ${query.priority ?? null})
       ORDER BY j.created_at DESC
       LIMIT 200
     `);
@@ -171,6 +172,7 @@ export class JobsService {
         notes = ${dto.notes ?? existing.notes},
         internal_notes = ${dto.internalNotes ?? existing.internalNotes},
         assigned_user_id = ${dto.assignedUserId ?? existing.assignedUserId ?? null}::uuid,
+        priority = ${dto.priority ?? existing.priority},
         updated_at = now()
       WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid
     `);

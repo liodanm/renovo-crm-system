@@ -328,3 +328,54 @@ export class SendTestSmsDto {
   @MaxLength(20)
   toPhone!: string;
 }
+
+export class LeadSourceOptionDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(50)
+  key!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(50)
+  label!: string;
+
+  @IsBoolean()
+  enabled!: boolean;
+}
+
+export class UpdateLeadSourcesDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LeadSourceOptionDto)
+  options!: LeadSourceOptionDto[];
+}
+
+export class PackageDiscountTierDto {
+  @IsNumber()
+  @Min(2)
+  minServices!: number;
+
+  @IsNumber()
+  @Min(0)
+  percent!: number;
+}
+
+export class UpdatePackageDiscountsDto {
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsIn(['tiered', 'fixed'])
+  mode!: 'tiered' | 'fixed';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fixedPercent?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PackageDiscountTierDto)
+  tiers?: PackageDiscountTierDto[];
+}

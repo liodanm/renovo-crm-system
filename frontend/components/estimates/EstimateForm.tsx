@@ -228,6 +228,46 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Package Discounts — off unless Settings has it enabled.
+  const { data: packageDiscountSettings } = useSWR('settings-package-discounts', () => settingsApi.getPackageDiscounts());
+
+  // Any discount value already present — whether from an existing
+  // estimate being edited, or a restored local draft — is treated as a
+  // deliberate choice someone already made, not something this new
+  // auto-apply feature should second-guess. A brand-new estimate starts
+  // eligible for auto-apply immediately.
+  const [isManualDiscount, setIsManualDiscount] = useState(() => Boolean((existingEstimate?.discountType && Number(existingEstimate?.discountAmount) > 0) || restoredDraft?.discountType));
+
+  function packageDiscountForCount(serviceCount: number): { type: 'percentage'; value: number; label: string } | null {
+    const s = packageDiscountSettings;
+    if (!s?.enabled || serviceCount < 2) return null;
+    if (s.mode === 'fixed') return { type: 'percentage', value: s.fixedPercent, label: `${serviceCount}-Service Package` };
+    const tier = s.tiers.find((t) => serviceCount >= t.minServices); // tiers are stored highest-minServices-first, so the first match is the best-fitting tier
+    return tier ? { type: 'percentage', value: tier.percent, label: `${serviceCount}-Service Package` } : null;
+  }
+
+  // The one place the auto-apply actually happens — sets the exact same
+  // discountType/discountValue fields a human would type into, then the
+  // existing computeTotals() below does the math exactly as it always
+  // has. No second calculation path.
+  useEffect(() => {
+    if (isManualDiscount) return;
+    const applied = packageDiscountForCount(lineItems.length);
+    if (applied) {
+      setDiscountType('percentage');
+      setDiscountValue(String(applied.value));
+    } else if (discountType || discountValue) {
+      // Dropped below 2 services (or discounts got disabled in Settings)
+      // while still in auto mode — clear it, don't leave a stale
+      // auto-applied value sitting there once it no longer qualifies.
+      setDiscountType('');
+      setDiscountValue('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineItems.length, isManualDiscount, packageDiscountSettings]);
+
+  const activePackageDiscount = !isManualDiscount ? packageDiscountForCount(lineItems.length) : null;
+
   const totals = computeTotals(lineItems, discountType, discountValue, taxRatePercent);
 
   // Persist the in-progress draft — new-estimate mode only. Debounced via
@@ -487,8 +527,28 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Discount type</label>
-            <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-slate-700">Discount type</label>
+              {activePackageDiscount && (
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  {activePackageDiscount.label} • {activePackageDiscount.value}%
+                </span>
+              )}
+              {isManualDiscount && discountType && (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Manual Discount</span>
+              )}
+            </div>
+            <select
+              value={discountType}
+              onChange={(e) => {
+                setDiscountType(e.target.value);
+                // Explicitly choosing "None" is the clearest possible
+                // reset signal — same auto-restore rule as clearing the
+                // value to zero.
+                setIsManualDiscount(e.target.value !== '');
+              }}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm"
+            >
               <option value="">None</option>
               <option value="fixed">Fixed ($)</option>
               <option value="percentage">Percentage (%)</option>
@@ -500,7 +560,15 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               type="text"
               inputMode="decimal"
               value={discountValue}
-              onChange={(e) => setDiscountValue(sanitizeNumericInput(e.target.value))}
+              onChange={(e) => {
+                const next = sanitizeNumericInput(e.target.value);
+                setDiscountValue(next);
+                // Reset to empty/zero -> resume auto-apply, no button, no
+                // dialog, exactly the "Auto Restore" requirement. Any
+                // other non-zero value -> this estimate is now manually
+                // controlled, permanently, until reset the same way.
+                setIsManualDiscount(toNumber(next) > 0);
+              }}
               disabled={!discountType}
               placeholder="0.00"
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base disabled:bg-slate-100 lg:px-3 lg:py-2 lg:text-sm"

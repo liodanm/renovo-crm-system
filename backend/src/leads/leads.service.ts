@@ -1,7 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { CustomersService } from '../customers/services/customers.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
+
+const CREATED_BY_LABEL = 'Lead Capture';
 
 @Injectable()
 export class LeadsService {
@@ -10,6 +13,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly customers: CustomersService,
   ) {}
 
   async captureLead(companySlug: string, dto: CreateLeadDto): Promise<{ received: boolean }> {
@@ -24,32 +28,25 @@ export class LeadsService {
     const company = await this.prisma.company.findUnique({ where: { slug: companySlug } });
     if (!company) throw new NotFoundException('Company not found');
 
-    const customer = await this.prisma.customer.create({
-      data: {
-        companyId: company.id,
-        customerType: 'residential',
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        email: dto.email,
-        phone: dto.phone,
-        source: dto.source ?? 'website',
-        leadStatus: 'lead',
-        notesText: dto.serviceInterest ? `Interested in: ${dto.serviceInterest}` : undefined,
-      },
-    });
-
-    if (dto.addressLine1 && dto.city && dto.state) {
-      await this.prisma.property.create({
-        data: {
-          companyId: company.id,
-          customerId: customer.id,
-          addressLine1: dto.addressLine1,
-          city: dto.city,
-          state: dto.state,
-          postalCode: dto.postalCode ?? '',
-        },
-      });
-    }
+    // Routed through the same authoritative customer-creation path every
+    // other entry point uses (customersService.findOrCreateByEmail — the
+    // exact method the Quote Widget already calls) — this used to bypass
+    // it via a direct prisma.customer.create(), skipping duplicate
+    // detection and the exact-email-conflict check entirely. Closed
+    // during the Feature 3 audit, not a new decision made here.
+    const { customer } = await this.customers.findOrCreateByEmail(company.id, CREATED_BY_LABEL, {
+      customerType: 'residential',
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: dto.email,
+      phone: dto.phone,
+      source: dto.source ?? 'website',
+      notesText: dto.serviceInterest ? `Interested in: ${dto.serviceInterest}` : undefined,
+      properties:
+        dto.addressLine1 && dto.city && dto.state
+          ? [{ addressLine1: dto.addressLine1, city: dto.city, state: dto.state, postalCode: dto.postalCode ?? '' }]
+          : undefined,
+    } as any);
 
     await this.notifyOwner(company.id, customer, dto.serviceInterest);
 

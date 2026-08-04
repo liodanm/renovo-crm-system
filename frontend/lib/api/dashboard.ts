@@ -39,6 +39,7 @@ export interface CalendarJob {
 
 export interface MapProperty {
   id: string;
+  customerId: string;
   latitude: number;
   longitude: number;
   address: string;
@@ -46,6 +47,7 @@ export interface MapProperty {
   leadStatus: string;
   lastJobStatus: string | null;
   lastJobDate: string | null;
+  lastJobPriority: 'normal' | 'follow_up' | 'high' | 'emergency' | null;
 }
 
 export interface WeatherSnapshot {

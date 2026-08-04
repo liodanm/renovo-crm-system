@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import Papa from 'papaparse';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { LEAD_STATUS_VALUES } from '../dto/create-customer.dto';
 
 const EXPORT_COLUMNS = [
   'id',
@@ -155,7 +156,7 @@ export class CustomerImportExportService {
         errors.push({ row: rowNum, reason: `Invalid customerType "${customerType}" (must be residential or commercial)` });
         return;
       }
-      if (leadStatus && !['lead', 'active', 'inactive', 'churned'].includes(leadStatus)) {
+      if (leadStatus && !(LEAD_STATUS_VALUES as readonly string[]).includes(leadStatus)) {
         errors.push({ row: rowNum, reason: `Invalid leadStatus "${leadStatus}"` });
         return;
       }

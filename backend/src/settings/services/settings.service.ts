@@ -14,6 +14,8 @@ import {
   UpdateEmailSettingsDto,
   SendTestEmailDto,
   SendTestSmsDto,
+  UpdateLeadSourcesDto,
+  UpdatePackageDiscountsDto,
 } from '../dto/settings.dto';
 
 const PROFILE_SELECT = `
@@ -196,6 +198,97 @@ export class SettingsService {
       JSON.stringify(merged),
     );
     return merged;
+  }
+
+  // ---- Lead Sources (companies.settings JSONB, same jsonb_set-merge pattern as Branding) ----
+
+  /**
+   * Default set when a company has never customized this list. Covers
+   * the originally-requested 8 plus a few found to matter for real
+   * reasons, not just popularity — 'website' specifically because
+   * quote-widget.mappers.ts already writes this exact value today
+   * (`customer.source = dto.leadSource ?? 'website'`), so it needs to be
+   * a real, selectable option rather than a hidden special case.
+   * "Community Event" was evaluated and folded into "Networking Event"
+   * rather than added as a near-duplicate.
+   */
+  private readonly DEFAULT_LEAD_SOURCES: { key: string; label: string; enabled: boolean }[] = [
+    { key: 'google', label: 'Google', enabled: true },
+    { key: 'client_referral', label: 'Client Referral', enabled: true },
+    { key: 'yard_sign', label: 'Yard Sign', enabled: true },
+    { key: 'facebook', label: 'Facebook', enabled: true },
+    { key: 'instagram', label: 'Instagram', enabled: true },
+    { key: 'youtube', label: 'YouTube', enabled: true },
+    { key: 'nextdoor', label: 'Nextdoor', enabled: true },
+    { key: 'yelp', label: 'Yelp', enabled: true },
+    { key: 'vehicle_sign', label: 'Vehicle Sign', enabled: true },
+    { key: 'door_hanger', label: 'Door Hanger', enabled: true },
+    { key: 'website', label: 'Website', enabled: true },
+    { key: 'personal', label: 'Personal', enabled: true },
+    { key: 'networking_event', label: 'Networking Event', enabled: true },
+    { key: 'repeat_customer', label: 'Repeat Customer', enabled: true },
+    { key: 'angi', label: 'Angi', enabled: true },
+    { key: 'home_advisor', label: 'HomeAdvisor', enabled: false },
+    { key: 'thumbtack', label: 'Thumbtack', enabled: false },
+    { key: 'realtor', label: 'Realtor', enabled: false },
+    { key: 'property_manager', label: 'Property Manager', enabled: false },
+    { key: 'hoa', label: 'HOA', enabled: false },
+    { key: 'direct_mail', label: 'Direct Mail', enabled: false },
+    { key: 'chamber_of_commerce', label: 'Chamber of Commerce', enabled: false },
+    { key: 'builder', label: 'Builder', enabled: false },
+  ];
+
+  async getLeadSources(companyId: string) {
+    const rows: { settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT settings FROM companies WHERE id = $1::uuid`, companyId);
+    if (rows.length === 0) throw new NotFoundException('Company not found');
+    const settings = rows[0].settings ?? {};
+    return { options: settings.leadSources?.options ?? this.DEFAULT_LEAD_SOURCES };
+  }
+
+  async updateLeadSources(companyId: string, dto: UpdateLeadSourcesDto) {
+    // Array order = display order — no separate order field needed, the
+    // frontend just submits the full list in whatever order it should
+    // display. Add/edit/disable/remove/reorder are all just "submit a
+    // new array" — one endpoint, not five granular ones, since this is
+    // fundamentally one small config blob, not a system needing
+    // per-item CRUD routes.
+    const merged = { options: dto.options };
+    await this.prisma.tenant.$executeRawUnsafe(
+      `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{leadSources}', $2::jsonb, true), updated_at = now() WHERE id = $1::uuid`,
+      companyId,
+      JSON.stringify(merged),
+    );
+    return merged;
+  }
+
+  // ---- Package Discounts (same jsonb_set-merge pattern as Branding/Lead Sources) ----
+
+  private readonly DEFAULT_PACKAGE_DISCOUNTS = {
+    enabled: false,
+    mode: 'tiered' as const,
+    fixedPercent: 5,
+    tiers: [
+      { minServices: 2, percent: 3 },
+      { minServices: 3, percent: 5 },
+      { minServices: 4, percent: 7 },
+      { minServices: 5, percent: 10 },
+    ],
+  };
+
+  async getPackageDiscounts(companyId: string) {
+    const rows: { settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT settings FROM companies WHERE id = $1::uuid`, companyId);
+    if (rows.length === 0) throw new NotFoundException('Company not found');
+    const settings = rows[0].settings ?? {};
+    return settings.packageDiscounts ?? this.DEFAULT_PACKAGE_DISCOUNTS;
+  }
+
+  async updatePackageDiscounts(companyId: string, dto: UpdatePackageDiscountsDto) {
+    await this.prisma.tenant.$executeRawUnsafe(
+      `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{packageDiscounts}', $2::jsonb, true), updated_at = now() WHERE id = $1::uuid`,
+      companyId,
+      JSON.stringify(dto),
+    );
+    return dto;
   }
 
   // ---- Payment Settings ----

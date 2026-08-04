@@ -28,6 +28,8 @@ export const settingsNavGroups: SettingsNavGroup[] = [
       { key: 'company', label: 'Company', description: 'Business identity, contact info, and hours' },
       { key: 'business-defaults', label: 'Business Defaults', description: 'Defaults used across Estimates, Jobs, and Scheduling' },
       { key: 'branding', label: 'Branding', description: 'Colors and messaging on estimates and invoices' },
+      { key: 'lead-sources', label: 'Lead Sources', description: 'How customers find you — shown as a dropdown on every customer' },
+      { key: 'package-discounts', label: 'Package Discounts', description: 'Automatic discounts for estimates with multiple services' },
     ],
   },
   {

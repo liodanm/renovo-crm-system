@@ -3,10 +3,26 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import { Download } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts';
 import { AppShell } from '../../components/layout/AppShell';
 import { reportsApi, resolvePreset, exportToCsv, DATE_PRESETS, type DatePreset } from '../../lib/api/reports';
 import { cn } from '../../lib/utils';
+
+const SOURCE_COLORS = ['#0e7490', '#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#3b82f6', '#ec4899', '#84cc16'];
+
+/** Reshapes [{month, source, leadCount}] rows into one row per month with
+    a key per source — the shape recharts' stacked BarChart needs, not
+    a second query (the trend endpoint already returns the raw grouped
+    rows; this is pure client-side pivoting of data that already exists). */
+function pivotTrendByMonth(rows: { month: string; source: string; leadCount: string }[]) {
+  const byMonth = new Map<string, any>();
+  for (const row of rows) {
+    const label = new Date(row.month).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    if (!byMonth.has(label)) byMonth.set(label, { month: label });
+    byMonth.get(label)[row.source] = Number(row.leadCount);
+  }
+  return Array.from(byMonth.values());
+}
 
 function money(value: string | number | undefined): string {
   return `$${Number(value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -34,6 +50,8 @@ export default function ReportsPage() {
   const { data: equipmentUsage } = useSWR(['reports-equipment', startIso, endIso], () => reportsApi.getEquipmentUsage(startIso, endIso));
   const { data: aging } = useSWR('reports-aging', () => reportsApi.getReceivablesAging());
   const { data: monthlyProfit } = useSWR(['reports-monthly-profit', startIso, endIso], () => reportsApi.getMonthlyProfitTrend(startIso, endIso));
+  const { data: leadSourceAnalytics } = useSWR(['reports-lead-source', startIso, endIso], () => reportsApi.getLeadSourceAnalytics(startIso, endIso));
+  const { data: leadSourceTrend } = useSWR(['reports-lead-source-trend', startIso, endIso], () => reportsApi.getLeadSourceTrend(startIso, endIso));
 
   const agingData = aging?.[0];
 
@@ -195,6 +213,81 @@ export default function ReportsPage() {
             </div>
           ) : <EmptyChart />}
         </ChartCard>
+
+        <h2 className="mt-6 text-base font-semibold text-slate-800">Marketing Analytics</h2>
+        <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Pie — proportional share is the actual question ("what % of my leads come from where"), which a pie communicates more directly than a bar for a modest number of categories. */}
+          <ChartCard title="Leads by Source" onExport={leadSourceAnalytics ? () => exportToCsv('leads-by-source', leadSourceAnalytics) : undefined}>
+            {leadSourceAnalytics && leadSourceAnalytics.length > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie data={leadSourceAnalytics.map((s) => ({ name: s.source, value: Number(s.leadCount) }))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(d) => `${d.name}: ${d.value}`}>
+                    {leadSourceAnalytics.map((_, i) => (
+                      <Cell key={i} fill={SOURCE_COLORS[i % SOURCE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : <EmptyChart />}
+          </ChartCard>
+
+          {/* Bar, not pie — comparing dollar magnitudes across sources is
+              clearer as bar length than as pie-slice angle, especially
+              once sources have noticeably different revenue scales. */}
+          <ChartCard title="Revenue by Source" onExport={leadSourceAnalytics ? () => exportToCsv('revenue-by-source', leadSourceAnalytics) : undefined}>
+            {leadSourceAnalytics && leadSourceAnalytics.length > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={leadSourceAnalytics.map((s) => ({ name: s.source, revenue: Number(s.totalRevenue) }))} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} />
+                  <Tooltip formatter={(v) => money(v as number)} />
+                  <Bar dataKey="revenue" fill="#0e7490" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyChart />}
+          </ChartCard>
+        </div>
+
+        {/* Stacked bar — the one visualization that shows both total
+            monthly lead volume AND source composition at once, without
+            the visual noise of one line per source. */}
+        <ChartCard title="Monthly Lead Trends" className="mt-4" onExport={leadSourceTrend ? () => exportToCsv('monthly-lead-trends', leadSourceTrend) : undefined}>
+          {leadSourceTrend && leadSourceTrend.length > 0 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={pivotTrendByMonth(leadSourceTrend)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {Array.from(new Set(leadSourceTrend.map((p) => p.source))).map((source, i) => (
+                  <Bar key={source} dataKey={source} stackId="leads" fill={SOURCE_COLORS[i % SOURCE_COLORS.length]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <EmptyChart />}
+        </ChartCard>
+
+        <div className="mt-4">
+          <TableCard
+            title="Source Performance"
+            subtitle="Conversion = at least one succeeded payment. Lifetime Value reuses the same maintained figure shown everywhere else in the CRM, not a separate calculation."
+            rows={leadSourceAnalytics}
+            onExport={leadSourceAnalytics ? () => exportToCsv('source-performance', leadSourceAnalytics) : undefined}
+            columns={[
+              { key: 'source', label: 'Source' },
+              { key: 'leadCount', label: 'Leads' },
+              { key: 'convertedCount', label: 'Converted', render: (r) => `${r.convertedCount} (${r.leadCount > 0 ? Math.round((Number(r.convertedCount) / Number(r.leadCount)) * 100) : 0}%)` },
+              { key: 'totalRevenue', label: 'Revenue', format: money },
+              { key: 'averageTicket', label: 'Avg Ticket', format: money },
+              { key: 'averageLifetimeValue', label: 'Avg LTV', format: money },
+              { key: 'repeatCustomerCount', label: 'Repeat Customers' },
+            ]}
+          />
+        </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <TableCard title="Top Customers" rows={revenueByCustomer} onExport={revenueByCustomer ? () => exportToCsv('top-customers', revenueByCustomer) : undefined}

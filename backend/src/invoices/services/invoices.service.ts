@@ -59,11 +59,43 @@ export class InvoicesService {
         FROM companies WHERE id = ${companyId}::uuid
       `;
       const company = companyRows[0];
-      const taxRatePercent = company?.defaultTaxRatePercent ? Number(company.defaultTaxRatePercent) : undefined;
       const dueDays = company?.defaultInvoiceDueDays ?? 30; // a real fallback, same reasoning as arrival window's — never left silently unset
 
-      const subtotal = lineItems.reduce((sum, li) => sum + Number(li.quantity) * Number(li.unitPrice), 0);
-      const totals = computeDocumentTotals(subtotal, undefined, undefined, taxRatePercent);
+      // Snapshot the source estimate's already-finalized values directly
+      // — never recalculate them — the same "snapshot, don't regenerate"
+      // pattern already proven correct by EstimateService.duplicate().
+      // Every genuinely financial field on Estimate is copied verbatim;
+      // amountPaid/balanceDue are deliberately not touched here at all,
+      // since neither is a snapshot question — a brand-new invoice has
+      // simply never been paid yet, regardless of estimate history.
+      //
+      // Falls back to today's exact recompute-from-line-items behavior
+      // when there's no source estimate at all (e.g. a job the AI
+      // Receptionist created directly) — that path is unchanged, not
+      // just preserved by accident.
+      let totals: { subtotal: number; discountAmount: number; discountType: string | null; taxAmount: number; totalAmount: number; taxRateFraction: number };
+      if (job.estimateId) {
+        const estimateRows = await tx.$queryRaw<
+          { subtotal: string; discountAmount: string; discountType: string | null; taxRate: string; taxAmount: string; totalAmount: string }[]
+        >`
+          SELECT subtotal, discount_amount AS "discountAmount", discount_type AS "discountType", tax_rate AS "taxRate", tax_amount AS "taxAmount", total_amount AS "totalAmount"
+          FROM estimates WHERE id = ${job.estimateId}::uuid AND company_id = ${companyId}::uuid
+        `;
+        const estimate = estimateRows[0];
+        totals = {
+          subtotal: Number(estimate.subtotal),
+          discountAmount: Number(estimate.discountAmount),
+          discountType: estimate.discountType,
+          taxAmount: Number(estimate.taxAmount),
+          totalAmount: Number(estimate.totalAmount),
+          taxRateFraction: Number(estimate.taxRate),
+        };
+      } else {
+        const taxRatePercent = company?.defaultTaxRatePercent ? Number(company.defaultTaxRatePercent) : undefined;
+        const subtotal = lineItems.reduce((sum, li) => sum + Number(li.quantity) * Number(li.unitPrice), 0);
+        const computed = computeDocumentTotals(subtotal, undefined, undefined, taxRatePercent);
+        totals = { ...computed, discountType: null };
+      }
 
       const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
       const dueDate = new Date();
@@ -72,10 +104,10 @@ export class InvoicesService {
       const invoiceRows = await tx.$queryRaw<{ id: string }[]>`
         INSERT INTO invoices (
           company_id, customer_id, property_id, job_id, estimate_id, invoice_number, status,
-          subtotal, tax_rate, tax_amount, discount_amount, total_amount, due_date, notes, created_by
+          subtotal, tax_rate, tax_amount, discount_amount, discount_type, total_amount, due_date, notes, created_by
         ) VALUES (
           ${companyId}::uuid, ${job.customerId}::uuid, ${job.propertyId}::uuid, ${jobId}::uuid, ${job.estimateId}::uuid, ${invoiceNumber}, 'draft',
-          ${totals.subtotal}, ${totals.taxRateFraction}, ${totals.taxAmount}, ${totals.discountAmount}, ${totals.totalAmount}, ${dueDate}, ${job.notes}, ${userId}::uuid
+          ${totals.subtotal}, ${totals.taxRateFraction}, ${totals.taxAmount}, ${totals.discountAmount}, ${totals.discountType}, ${totals.totalAmount}, ${dueDate}, ${job.notes}, ${userId}::uuid
         )
         RETURNING id
       `;

@@ -86,4 +86,14 @@ export class ReportsController {
     if (!user.permissions.includes('estimates.profitability')) return [];
     return this.reports.getMonthlyProfitTrend(user.companyId, new Date(query.start), new Date(query.end));
   }
+
+  @Get('lead-source-analytics')
+  getLeadSourceAnalytics(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getLeadSourceAnalytics(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('lead-source-trend')
+  getLeadSourceTrend(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getLeadSourceTrend(user.companyId, new Date(query.start), new Date(query.end));
+  }
 }

@@ -77,7 +77,7 @@ export class CustomersService {
     // for the list view. Optional columns; adds one query pair per
     // page load, not per row.
     const customerIds = customers.map((c) => c.id);
-    const [balances, lastServices] = customerIds.length
+    const [balances, lastServices, journeyStages] = customerIds.length
       ? await Promise.all([
           this.prisma.invoice.groupBy({
             by: ['customerId'],
@@ -89,16 +89,18 @@ export class CustomersService {
             where: { companyId, customerId: { in: customerIds }, actualEnd: { not: null } },
             _max: { actualEnd: true },
           }),
+          this.getJourneyStages(companyId, customerIds),
         ])
-      : [[], []];
-    const balanceByCustomer = new Map(balances.map((b) => [b.customerId, (b._sum.balanceDue ?? 0).toString()]));
-    const lastServiceByCustomer = new Map(lastServices.map((j) => [j.customerId, j._max.actualEnd]));
+      : [[], [], new Map()];
+    const balanceByCustomer = new Map(balances.map((b): [string, string] => [b.customerId, (b._sum.balanceDue ?? 0).toString()]));
+    const lastServiceByCustomer = new Map(lastServices.map((j): [string, Date | null] => [j.customerId, j._max.actualEnd]));
 
     return {
       data: customers.map((c) => ({
         ...this.toSummary(c),
         balanceDue: balanceByCustomer.get(c.id) ?? '0',
         lastServiceDate: lastServiceByCustomer.get(c.id) ?? null,
+        journeyStage: (journeyStages as Map<string, string>).get(c.id) ?? 'new_lead',
       })),
       pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     };
@@ -205,6 +207,79 @@ export class CustomersService {
   // Read / update / delete
   // ===========================================================================
 
+  /**
+   * Journey stage — New Lead / Estimate Sent / Scheduled / Completed —
+   * computed live from Estimate and Job's own already-authoritative
+   * status fields. Never stored, never written into leadStatus.
+   *
+   * Bulk by design, not a per-customer method called in a loop — the
+   * Customer List needs this for every visible row, and calling a
+   * single-customer version once per row would be exactly the N+1
+   * pattern this feature was explicitly told to avoid. Three queries
+   * total regardless of how many customer ids are passed in, whether
+   * that's the whole list page or just one customer on the detail page
+   * — same method, same logic, not two implementations of the same rule.
+   *
+   * Priority order: active job outranks everything (even still 'draft'
+   * right after estimate-acceptance, before a calendar date is picked —
+   * see ADR-001). A pending estimate outranks an old completed job — a
+   * customer with a completed job from months ago who's just submitted
+   * a brand new estimate should read as newly re-engaged, not stuck
+   * showing "Completed." (Caught and fixed during the Feature 3 CTO
+   * review: the first version checked completedJob before anyEstimate,
+   * which silently contradicted this exact stated intent.)
+   */
+  async getJourneyStages(companyId: string, customerIds: string[]): Promise<Map<string, 'new_lead' | 'estimate_sent' | 'scheduled' | 'completed'>> {
+    if (customerIds.length === 0) return new Map();
+
+    const [activeJobs, completedJobs, anyEstimates] = await Promise.all([
+      this.prisma.job.findMany({
+        where: { companyId, customerId: { in: customerIds }, status: { in: ['draft', 'scheduled', 'in_progress', 'paused'] } },
+        select: { customerId: true },
+        distinct: ['customerId'],
+      }),
+      this.prisma.job.findMany({
+        where: { companyId, customerId: { in: customerIds }, status: 'completed' },
+        select: { customerId: true },
+        distinct: ['customerId'],
+      }),
+      this.prisma.estimate.findMany({
+        where: { companyId, customerId: { in: customerIds } },
+        select: { customerId: true },
+        distinct: ['customerId'],
+      }),
+    ]);
+
+    const withActiveJob = new Set(activeJobs.map((j) => j.customerId));
+    const withCompletedJob = new Set(completedJobs.map((j) => j.customerId));
+    const withAnyEstimate = new Set(anyEstimates.map((e) => e.customerId));
+
+    const result = new Map<string, 'new_lead' | 'estimate_sent' | 'scheduled' | 'completed'>();
+    for (const id of customerIds) {
+      if (withActiveJob.has(id)) result.set(id, 'scheduled');
+      else if (withAnyEstimate.has(id)) result.set(id, 'estimate_sent');
+      else if (withCompletedJob.has(id)) result.set(id, 'completed');
+      else result.set(id, 'new_lead');
+    }
+    return result;
+  }
+
+  /**
+   * The one approved auto-transition for Customer Status Workflow —
+   * called from both estimate-acceptance entry points (staff/manual via
+   * EstimatesService.acceptManually, and customer self-service via the
+   * portal's approveEstimate), not duplicated in each. Conditional
+   * UPDATE (only WHERE lead_status = 'lead') rather than a read-then-
+   * write, so inactive/archived/churned can never be overwritten by
+   * construction, not just by careful code review at each call site.
+   */
+  async convertLeadToActiveIfNeeded(companyId: string, customerId: string) {
+    await this.prisma.customer.updateMany({
+      where: { id: customerId, companyId, leadStatus: 'lead' },
+      data: { leadStatus: 'active' },
+    });
+  }
+
   async getProfile(companyId: string, customerId: string) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, companyId, deletedAt: null },
@@ -215,7 +290,7 @@ export class CustomersService {
 
     if (!customer) throw new NotFoundException('Customer not found');
 
-    const [customFieldValues, balanceAgg, openEstimatesCount, openInvoicesCount] = await Promise.all([
+    const [customFieldValues, balanceAgg, openEstimatesCount, openInvoicesCount, journeyStages] = await Promise.all([
       this.prisma.customFieldValue.findMany({
         where: { companyId, entityId: customerId },
         include: { fieldDefinition: true },
@@ -236,6 +311,7 @@ export class CustomersService {
       this.prisma.invoice.count({
         where: { companyId, customerId, status: { notIn: ['draft', 'void'] }, balanceDue: { gt: 0 } },
       }),
+      this.getJourneyStages(companyId, [customerId]),
     ]);
 
     return {
@@ -249,6 +325,7 @@ export class CustomersService {
       balanceDue: (balanceAgg._sum.balanceDue ?? 0).toString(),
       openEstimatesCount,
       openInvoicesCount,
+      journeyStage: journeyStages.get(customerId) ?? 'new_lead',
     };
   }
 

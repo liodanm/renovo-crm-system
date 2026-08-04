@@ -1415,8 +1415,167 @@ restriction unique to it) does not reflect the real deploy environment
 — confirmed directly, since the person's own local machine has already
 run it successfully multiple times this session.
 
+## 20. Customer Status Workflow (shipped)
+
+**Architecture:** `Customer.leadStatus` remains the single stored field
+— `lead`/`active`/`inactive`/`archived`/`churned` — representing only
+the long-term relationship, never workflow stages. A separate, always-
+live-computed "journey stage" (`new_lead`/`estimate_sent`/`scheduled`/
+`completed`) is derived directly from Estimate/Job status via
+`CustomersService.getJourneyStages()` — never stored, never written
+into `leadStatus`. Two different questions, two different mechanisms,
+by design.
+
+**Automatic transition:** `lead → active`, triggered only when an
+estimate is accepted — via one shared method,
+`CustomersService.convertLeadToActiveIfNeeded()`, called from **both**
+`EstimatesService.acceptManually()` (staff) and
+`PortalDataService.approveEstimate()` (customer self-service) — these
+are genuinely two separate acceptance entry points, found only by
+tracing the real code, not assumed to be one. A conditional
+`UPDATE ... WHERE lead_status = 'lead'` makes overwriting
+`inactive`/`archived`/`churned` structurally impossible, not just
+avoided by convention.
+
+**A real, corrected audit finding:** the original architecture audit
+(repeated across several passes) concluded `Customer.leadStatus` had no
+database-level constraint — wrong, caught only by testing against a
+real database during implementation. A real `customers_lead_status_check`
+constraint has existed since the original base schema
+(`init-scripts/00-schema.sql`, written inline on the column, not a
+separate named migration — which is why the earlier `prisma/migrations/
+*.sql`-only search missed it), and it didn't include `'archived'` at
+all. Migration `032` extends it. This is the kind of gap that only
+surfaces by actually running the approved design against real data, not
+from reading code alone — logged here as a reminder that a design being
+approved on paper doesn't guarantee every layer already supports it.
+
+**Corrected during the Feature 3 CTO review, not left as shipped:** the
+first version of `getJourneyStages()` checked `completedJob` before
+`anyEstimate`, silently contradicting its own code comment's stated
+intent — a customer with an old completed job and a brand-new pending
+estimate showed "Completed" instead of "Estimate Sent." Fixed and
+re-verified against a real database with exactly that scenario. The
+now-redundant fourth query (`activeEstimates`, a strict subset of
+`anyEstimates`, so the `||` check never changed the outcome) was removed
+in the same pass — three queries now, not four.
+
+**A performance finding that turned out to be wrong, corrected before
+shipping anything:** the same review initially concluded
+`jobs.customer_id`/`estimates.customer_id` had no index, based on a grep
+that (like the `archived` constraint gap) only searched
+`prisma/migrations/*.sql` and missed the base schema file. Both indexes
+already exist (`init-scripts/00-schema.sql`), confirmed directly against
+a live database — the draft migration was deleted, not shipped. Logged
+here specifically as a reminder: this is the second time in this one
+feature that a `prisma/migrations/`-only search missed something
+already correct in the base schema — worth searching both, every time,
+going forward.
+
+**getJourneyStages() is bulk by design** — the Customer List needs this
+for every visible row, and a naive per-customer version called in a
+loop would have been exactly the N+1 pattern this feature was
+explicitly built to avoid. Four queries total regardless of whether
+it's called for one customer (the detail page) or many (the list page)
+— same method, same result shape, reused by both rather than
+maintained as two implementations of the same rule.
+
+**Found and closed, not left as discovered debt:** `leads.service.ts`
+(a standalone public lead-capture form, separate from the full Quote
+Widget) was bypassing `CustomersService` entirely via a direct
+`prisma.customer.create()` call — no duplicate-detection, no exact-
+email-conflict check. Now routes through the same
+`findOrCreateByEmail()` the Quote Widget already uses. CSV import's
+independently-hardcoded lead-status value list was also found
+duplicating the DTO's own validation — both now read from one shared
+`LEAD_STATUS_VALUES` constant.
+
+**Dashboard:** reviewed every card referencing `leadStatus`; concluded
+no code change was needed — the existing "Open Leads"/"going cold"
+stats' *meaning* improves for free now that auto-conversion exists
+(a verbally-agreed customer no longer sits miscounted as an open lead
+indefinitely), without needing the query itself to change.
+
+**Known, disclosed, minor duplication not consolidated in this pass:**
+`LEAD_STATUS_STYLES` (the status-badge color map) exists as two
+separate, identical copies — `customer-table.tsx` and
+`app/customers/[id]/page.tsx` — pre-existing before this feature, not
+introduced by it. Both were updated with the new `archived` color since
+they were already being touched; consolidating them into one shared
+constant is a small, safe future cleanup, not done here to avoid
+scope creep beyond what this feature needed.
+
+## 21. Package Discounts (shipped)
+
+**Architecture:** `computeDocumentTotals()` remains the only pricing
+engine — unchanged by this feature. Package Discounts only ever
+determine *what value* gets passed into the existing `discountType`/
+`discountValue` fields on an Estimate, exactly like a human typing into
+those same fields would. Settings live in `companies.settings.
+packageDiscounts`, the same JSONB-merge pattern as Branding/Lead
+Sources — no new table, no second configuration system.
+
+**Manual-override / auto-restore, the actual mechanism:** one boolean,
+`isManualDiscount`, tracked client-side in `EstimateForm.tsx`. Auto-
+apply runs only while it's `false`; any manual edit to either discount
+field flips it `true`, structurally preventing the CRM from ever
+overwriting an owner's deliberate choice. Resetting the value to
+0/empty flips it back to `false`, resuming auto-apply immediately — no
+button, no dialog, exactly as specified. Verified with a full state-
+machine simulation covering add/remove services, manual override, and
+reset-to-resume, not just the individual pieces in isolation.
+
+**A real, important, pre-existing finding — not introduced by this
+feature, disclosed rather than glossed over:** `InvoicesService.
+generateFromJob()` never reads or carries forward *any* estimate-level
+discount, manual or package-applied. Confirmed directly in the code —
+it computes the invoice's subtotal fresh from the job's line items and
+calls `computeDocumentTotals(subtotal, undefined, undefined,
+taxRatePercent)`, discount always `undefined`. This means a discounted
+estimate's invoice is generated at the *full, undiscounted* amount
+today — true for manual discounts before this feature existed, and
+equally true for package discounts now. Verified against a real
+database: a $1,000 estimate correctly discounted to $950 generates an
+invoice at the full $1,000. This is out of Package Discounts' own
+scope to fix — flagged clearly as a real gap worth its own dedicated
+pass, not silently left undiscovered.
 
 
 
 
 
+
+
+
+## 22. Invoice Generation Financial Integrity Fix (shipped)
+
+**The bug:** `InvoicesService.generateFromJob()` never read discount
+(or the estimate's own tax rate) from anywhere — it recomputed
+everything fresh from `job_line_items` with `discountType`/
+`discountValue` hardcoded `undefined`. Every completed job with a
+discounted estimate (manual or package) generated an invoice at the
+full, undiscounted amount. `discount_type` was additionally missing
+from the INSERT statement entirely — a second, related gap found during
+the same audit.
+
+**The fix, matching the pattern `EstimateService.duplicate()` already
+proved correct:** when `job.estimateId` is present, snapshot
+`subtotal`/`discountType`/`discountAmount`/`taxRate`/`taxAmount`/
+`totalAmount` directly from the source estimate — never recalculated.
+When it isn't (a job created without an estimate, e.g. the AI
+Receptionist), the exact prior recompute-from-line-items behavior is
+unchanged. One method, one conditional branch, no new pricing utility,
+no Job schema change.
+
+**Verified against a real database**, not simulated: no-discount,
+manual percentage, manual fixed, and package-discount estimates all
+produce byte-identical invoice values. The tax-rate scenario specifically
+proved the fix'''s real value — an estimate quoted at 8% correctly stayed
+at 8% on its invoice even after the company'''s default tax rate was
+changed to 15% before invoicing. The no-estimate fallback path
+correctly still picks up the *current* company default (15%),
+confirming it'''s genuinely untouched, not accidentally also snapshotting
+something it shouldn'''t. A payment recorded against a package-discounted
+invoice correctly settled the balance at the discounted total
+($1,026), not the erroneous full amount ($1,076) a customer would have
+been overcharged before this fix.

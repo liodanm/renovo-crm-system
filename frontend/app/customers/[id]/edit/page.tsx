@@ -56,6 +56,7 @@ export default function EditCustomerPage() {
     phone: customer.phone ?? '',
     secondaryPhone: customer.secondaryPhone ?? '',
     leadStatus: customer.leadStatus,
+    source: customer.source ?? '',
   };
 
   async function handleSubmit(values: CustomerFormValues, acknowledgedDuplicateWarning: boolean) {
@@ -71,6 +72,7 @@ export default function EditCustomerPage() {
         phone: values.phone || undefined,
         secondaryPhone: values.secondaryPhone || undefined,
         leadStatus: values.leadStatus,
+        source: values.source || undefined,
         acknowledgedDuplicateWarning,
       });
       // Let isSaving flip to false (via the finally block below) and the

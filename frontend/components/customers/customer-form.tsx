@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import useSWR from 'swr';
 import { Loader2 } from 'lucide-react';
 import { customersApi, DuplicateCandidate } from '../../lib/api/customers';
+import { settingsApi } from '../../lib/api/settings';
 import { ApiError } from '../../lib/api/api-client';
 
 const MATCH_LABELS: Record<string, string> = {
@@ -20,6 +22,7 @@ export interface CustomerFormValues {
   phone: string;
   secondaryPhone: string;
   leadStatus: string;
+  source: string;
 }
 
 export const EMPTY_CUSTOMER_FORM_VALUES: CustomerFormValues = {
@@ -31,6 +34,7 @@ export const EMPTY_CUSTOMER_FORM_VALUES: CustomerFormValues = {
   phone: '',
   secondaryPhone: '',
   leadStatus: 'lead',
+  source: '',
 };
 
 /**
@@ -89,6 +93,8 @@ export function CustomerForm({
   const [form, setForm] = useState<CustomerFormValues>(initialValues);
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
   const [acknowledged, setAcknowledged] = useState(false);
+  const { data: leadSources } = useSWR('settings-lead-sources', () => settingsApi.getLeadSources());
+  const enabledSources = (leadSources?.options ?? []).filter((o) => o.enabled);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -173,6 +179,31 @@ export function CustomerForm({
         <Field label="Phone" value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
       </div>
 
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-slate-600">How did they find you?</span>
+        <select
+          value={form.source}
+          onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
+          className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm"
+        >
+          <option value="">Not specified</option>
+          {enabledSources.map((o) => (
+            <option key={o.key} value={o.label}>
+              {o.label}
+            </option>
+          ))}
+          {/* The customer's current value, even if it's since been
+              disabled or removed from Settings (or is a historical
+              value like "csv_import"/"website" that was never a
+              curated option to begin with) — editing this customer's
+              other fields should never silently drop or change what
+              their source already was. */}
+          {form.source && !enabledSources.some((o) => o.label === form.source) && (
+            <option value={form.source}>{form.source}</option>
+          )}
+        </select>
+      </label>
+
       {showLeadStatusAndSecondaryPhone && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Secondary phone" value={form.secondaryPhone} onChange={(v) => setForm((f) => ({ ...f, secondaryPhone: v }))} />
@@ -186,6 +217,7 @@ export function CustomerForm({
               <option value="lead">Lead</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
+              <option value="archived">Archived</option>
               <option value="churned">Churned</option>
             </select>
           </div>

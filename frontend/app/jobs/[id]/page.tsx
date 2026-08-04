@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { jobsApi, JOB_STATUS_LABELS, SIGNATURE_UNAVAILABLE_LABELS, RECOMMENDABLE_SERVICE_LABELS, type CompleteJobInput } from '../../../lib/api/jobs';
+import { jobsApi, JOB_STATUS_LABELS, JOB_PRIORITY_LABELS, JOB_PRIORITY_COLORS, SIGNATURE_UNAVAILABLE_LABELS, RECOMMENDABLE_SERVICE_LABELS, type CompleteJobInput, type JobPriority } from '../../../lib/api/jobs';
 import { AppShell } from '../../../components/layout/AppShell';
 import { PhotoSection } from '../../../components/jobs/PhotoSection';
 import { ChemicalSection } from '../../../components/jobs/ChemicalSection';
@@ -49,6 +49,19 @@ export default function JobDetailPage() {
     try {
       const gps = await capture();
       await jobsApi.start(params.id, gps);
+      await mutate();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Something went wrong.');
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handlePriorityChange(priority: JobPriority) {
+    setIsActing(true);
+    setActionError(null);
+    try {
+      await jobsApi.update(params.id, { priority });
       await mutate();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Something went wrong.');
@@ -122,9 +135,31 @@ export default function JobDetailPage() {
                   </Link>
                 )}
               </div>
-              <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-                {JOB_STATUS_LABELS[job.status] ?? job.status}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                  {JOB_STATUS_LABELS[job.status] ?? job.status}
+                </span>
+                {job.status === 'draft' || job.status === 'scheduled' ? (
+                  <select
+                    value={job.priority}
+                    onChange={(e) => handlePriorityChange(e.target.value as JobPriority)}
+                    disabled={isActing}
+                    className={`rounded-full border-0 px-3 py-1 text-sm font-medium ${JOB_PRIORITY_COLORS[job.priority].badge}`}
+                  >
+                    {(Object.keys(JOB_PRIORITY_LABELS) as JobPriority[]).map((p) => (
+                      <option key={p} value={p}>
+                        {JOB_PRIORITY_LABELS[p]}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  job.priority !== 'normal' && (
+                    <span className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${JOB_PRIORITY_COLORS[job.priority].badge}`}>
+                      {JOB_PRIORITY_LABELS[job.priority]}
+                    </span>
+                  )
+                )}
+              </div>
             </div>
 
             {job.status === 'draft' && (

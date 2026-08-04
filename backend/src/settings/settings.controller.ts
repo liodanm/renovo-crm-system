@@ -12,6 +12,8 @@ import {
   UpdateBusinessLinksDto,
   SendTestEmailDto,
   SendTestSmsDto,
+  UpdateLeadSourcesDto,
+  UpdatePackageDiscountsDto,
 } from './dto/settings.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -79,6 +81,30 @@ export class SettingsController {
   @RequirePermissions('settings.manage')
   updateBranding(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateBrandingDto) {
     return this.settings.updateBranding(user.companyId, dto);
+  }
+
+  // Lead Sources
+  @Get('lead-sources')
+  getLeadSources(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.settings.getLeadSources(user.companyId);
+  }
+
+  @Patch('lead-sources')
+  @RequirePermissions('settings.manage')
+  updateLeadSources(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateLeadSourcesDto) {
+    return this.settings.updateLeadSources(user.companyId, dto);
+  }
+
+  // Package Discounts
+  @Get('package-discounts')
+  getPackageDiscounts(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.settings.getPackageDiscounts(user.companyId);
+  }
+
+  @Patch('package-discounts')
+  @RequirePermissions('settings.manage')
+  updatePackageDiscounts(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdatePackageDiscountsDto) {
+    return this.settings.updatePackageDiscounts(user.companyId, dto);
   }
 
   // Payment Settings

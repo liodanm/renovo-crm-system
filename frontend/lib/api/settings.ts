@@ -53,6 +53,24 @@ export interface BrandingSettings {
   footerMessage: string | null;
 }
 
+export interface LeadSourceOption {
+  key: string;
+  label: string;
+  enabled: boolean;
+}
+
+export interface PackageDiscountTier {
+  minServices: number;
+  percent: number;
+}
+
+export interface PackageDiscountSettings {
+  enabled: boolean;
+  mode: 'tiered' | 'fixed';
+  fixedPercent: number;
+  tiers: PackageDiscountTier[];
+}
+
 export interface IntegrationStatus {
   key: 'stripe' | 'postmark' | 'twilio' | 's3' | 'anthropic';
   name: string;
@@ -135,6 +153,12 @@ export const settingsApi = {
 
   getBranding: () => apiFetch<BrandingSettings>('/settings/branding'),
   updateBranding: (input: Partial<BrandingSettings>) => apiFetch<BrandingSettings>('/settings/branding', { method: 'PATCH', body: JSON.stringify(input) }),
+  getLeadSources: () => apiFetch<{ options: LeadSourceOption[] }>('/settings/lead-sources'),
+  updateLeadSources: (options: LeadSourceOption[]) =>
+    apiFetch<{ options: LeadSourceOption[] }>('/settings/lead-sources', { method: 'PATCH', body: JSON.stringify({ options }) }),
+  getPackageDiscounts: () => apiFetch<PackageDiscountSettings>('/settings/package-discounts'),
+  updatePackageDiscounts: (input: PackageDiscountSettings) =>
+    apiFetch<PackageDiscountSettings>('/settings/package-discounts', { method: 'PATCH', body: JSON.stringify(input) }),
 
   getPaymentSettings: () => apiFetch<PaymentSettings>('/settings/payments'),
   updatePaymentSettings: (input: { enabledPaymentMethods: string[] }) => apiFetch<PaymentSettings>('/settings/payments', { method: 'PATCH', body: JSON.stringify(input) }),

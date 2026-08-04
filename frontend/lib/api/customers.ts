@@ -1,5 +1,14 @@
 import { apiFetch } from './api-client';
 
+export type JourneyStage = 'new_lead' | 'estimate_sent' | 'scheduled' | 'completed';
+
+export const JOURNEY_STAGE_LABELS: Record<JourneyStage, string> = {
+  new_lead: 'New Lead',
+  estimate_sent: 'Estimate Sent',
+  scheduled: 'Scheduled',
+  completed: 'Completed',
+};
+
 export interface CustomerSummary {
   id: string;
   displayName: string;
@@ -7,6 +16,7 @@ export interface CustomerSummary {
   email: string | null;
   phone: string | null;
   leadStatus: string;
+  journeyStage: JourneyStage;
   lifetimeValue: number;
   tags: string[];
   propertyCount: number;
@@ -64,6 +74,7 @@ export interface CustomerProfile {
   secondaryPhone: string | null;
   source: string | null;
   leadStatus: string;
+  journeyStage: JourneyStage;
   lifetimeValue: number;
   tags: string[];
   notesText: string | null;

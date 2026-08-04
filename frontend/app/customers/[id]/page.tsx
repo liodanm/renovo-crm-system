@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
-import { customersApi } from '../../../lib/api/customers';
+import { customersApi, JOURNEY_STAGE_LABELS } from '../../../lib/api/customers';
 import { PermissionGate } from '../../../components/auth/permission-gate';
 import { CardSkeleton, CardError } from '../../../components/dashboard/dashboard-card';
 import { OverviewTab } from '../../../components/customers/tabs/overview-tab';
@@ -23,6 +23,7 @@ const LEAD_STATUS_STYLES: Record<string, string> = {
   lead: 'bg-amber-100 text-amber-700',
   active: 'bg-emerald-100 text-emerald-700',
   inactive: 'bg-slate-100 text-slate-600',
+  archived: 'bg-violet-100 text-violet-700',
   churned: 'bg-red-100 text-red-700',
 };
 
@@ -55,13 +56,22 @@ export default function CustomerProfilePage() {
           <>
             <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-semibold text-slate-900">
-                    {customer.businessName || `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || 'Unnamed customer'}
-                  </h1>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[customer.leadStatus] ?? 'bg-slate-100'}`}>
-                    {customer.leadStatus}
-                  </span>
+                <h1 className="text-xl font-semibold text-slate-900">
+                  {customer.businessName || `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || 'Unnamed customer'}
+                </h1>
+                <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">Relationship:</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[customer.leadStatus] ?? 'bg-slate-100'}`}>
+                      {customer.leadStatus}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">Journey:</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                      {JOURNEY_STAGE_LABELS[customer.journeyStage]}
+                    </span>
+                  </div>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
                   {customer.phone && <span>{customer.phone}</span>}

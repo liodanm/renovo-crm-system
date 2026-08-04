@@ -197,13 +197,14 @@ export class DashboardService {
       where: { companyId, deletedAt: null, latitude: { not: null }, longitude: { not: null } },
       include: {
         customer: { select: { firstName: true, lastName: true, businessName: true, leadStatus: true } },
-        jobs: { orderBy: { scheduledStart: 'desc' }, take: 1, select: { status: true, scheduledStart: true } },
+        jobs: { orderBy: { scheduledStart: 'desc' }, take: 1, select: { status: true, scheduledStart: true, priority: true } },
       },
       take: 500, // hard cap — a map with more than this needs clustering, not a bigger payload
     });
 
     return properties.map((p) => ({
       id: p.id,
+      customerId: p.customerId,
       latitude: p.latitude!.toNumber(),
       longitude: p.longitude!.toNumber(),
       address: `${p.addressLine1}, ${p.city}, ${p.state}`,
@@ -211,6 +212,7 @@ export class DashboardService {
       leadStatus: p.customer.leadStatus,
       lastJobStatus: p.jobs[0]?.status ?? null,
       lastJobDate: p.jobs[0]?.scheduledStart ?? null,
+      lastJobPriority: p.jobs[0]?.priority ?? null,
     }));
   }
 

@@ -25,6 +25,19 @@ export interface PeriodKpis {
 export interface TrendPoint { date: string; revenue?: string; amount?: string; jobsCompleted?: string }
 export interface RevenueByService { serviceName: string; revenue: string; invoiceCount: string }
 export interface RevenueByCustomer { customerId: string; customerName: string; revenue: string; invoiceCount: string }
+export interface LeadSourceAnalytics {
+  source: string;
+  leadCount: string;
+  convertedCount: string;
+  totalRevenue: string;
+  averageRevenuePerCustomer: string;
+  invoiceCount: string;
+  averageTicket: string;
+  averageLifetimeValue: string;
+  totalLifetimeValue: string;
+  repeatCustomerCount: string;
+}
+export interface LeadSourceTrendPoint { month: string; source: string; leadCount: string }
 export interface PipelineStage { status: string; count: string; totalValue: string }
 export interface CustomerAnalytics {
   repeatCustomerCount: number;
@@ -57,6 +70,8 @@ export const reportsApi = {
   getPaymentTrend: (start: string, end: string) => apiFetch<TrendPoint[]>(`/reports/payment-trend?${range(start, end)}`),
   getRevenueByService: (start: string, end: string) => apiFetch<RevenueByService[]>(`/reports/revenue-by-service?${range(start, end)}`),
   getRevenueByCustomer: (start: string, end: string) => apiFetch<RevenueByCustomer[]>(`/reports/revenue-by-customer?${range(start, end)}`),
+  getLeadSourceAnalytics: (start: string, end: string) => apiFetch<LeadSourceAnalytics[]>(`/reports/lead-source-analytics?${range(start, end)}`),
+  getLeadSourceTrend: (start: string, end: string) => apiFetch<LeadSourceTrendPoint[]>(`/reports/lead-source-trend?${range(start, end)}`),
   getEstimatePipeline: () => apiFetch<PipelineStage[]>('/reports/estimate-pipeline'),
   getJobCompletionTrend: (start: string, end: string) => apiFetch<TrendPoint[]>(`/reports/job-completion-trend?${range(start, end)}`),
   getCustomerAnalytics: () => apiFetch<CustomerAnalytics>('/reports/customer-analytics'),

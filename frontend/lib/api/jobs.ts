@@ -22,12 +22,31 @@ export interface JobStatusHistoryEntry {
   longitude: string | null;
 }
 
+export type JobPriority = 'normal' | 'follow_up' | 'high' | 'emergency';
+
+export const JOB_PRIORITY_LABELS: Record<JobPriority, string> = {
+  normal: 'Normal',
+  follow_up: 'Follow-up',
+  high: 'High Priority',
+  emergency: 'Emergency',
+};
+
+// One shared mapping — badges, map pins, and any future priority UI all
+// read from this instead of each defining their own color logic.
+export const JOB_PRIORITY_COLORS: Record<JobPriority, { badge: string; dot: string }> = {
+  normal: { badge: 'bg-emerald-100 text-emerald-700', dot: '#10b981' },
+  follow_up: { badge: 'bg-amber-100 text-amber-700', dot: '#eab308' },
+  high: { badge: 'bg-orange-100 text-orange-700', dot: '#f97316' },
+  emergency: { badge: 'bg-red-100 text-red-700', dot: '#ef4444' },
+};
+
 export interface Job {
   id: string;
   jobNumber: string;
   title: string;
   description: string | null;
   status: string;
+  priority: JobPriority;
   customerId: string;
   propertyId: string;
   estimateId: string | null;
@@ -65,6 +84,7 @@ export interface JobListItem {
   jobNumber: string;
   title: string;
   status: string;
+  priority: JobPriority;
   price: string;
   customerId: string;
   propertyId: string;
@@ -85,6 +105,7 @@ export interface UpdateJobInput {
   scheduledStart?: string;
   scheduledEnd?: string;
   assignedUserId?: string;
+  priority?: JobPriority;
 }
 
 export interface GpsCoords {
@@ -139,7 +160,7 @@ export interface CompleteJobInput extends GpsCoords {
 }
 
 export const jobsApi = {
-  list: (params?: { status?: string; customerId?: string }) => {
+  list: (params?: { status?: string; customerId?: string; priority?: JobPriority }) => {
     const entries = params ? Object.entries(params).filter(([, v]) => v) : [];
     const query = entries.length ? '?' + entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&') : '';
     return apiFetch<JobListItem[]>(`/jobs${query}`);

@@ -3,6 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
 import { JobsService } from '../../jobs/services/jobs.service';
+import { CustomersService } from '../../customers/services/customers.service';
 
 /**
  * Every method here takes `customerId` as an explicit, required parameter
@@ -19,6 +20,7 @@ export class PortalDataService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly jobsService: JobsService,
+    private readonly customersService: CustomersService,
   ) {}
 
   async getEstimates(companyId: string, customerId: string) {
@@ -63,6 +65,10 @@ export class PortalDataService {
     // office staff recording it, not a second, lesser path.
     const job = await this.jobsService.createFromEstimate(companyId, estimateId);
     await this.writeEstimateHistory(companyId, estimateId, 'accepted', 'accepted', null, 'portal', `Job ${job.jobNumber} created automatically`);
+
+    // Same shared method EstimatesService.acceptManually calls — one
+    // implementation of this transition, not two.
+    await this.customersService.convertLeadToActiveIfNeeded(companyId, customerId);
 
     return updated;
   }

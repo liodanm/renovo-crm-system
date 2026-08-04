@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { jobsApi, JOB_STATUS_LABELS, type JobListItem } from '../../lib/api/jobs';
+import { jobsApi, JOB_STATUS_LABELS, JOB_PRIORITY_LABELS, JOB_PRIORITY_COLORS, type JobListItem } from '../../lib/api/jobs';
 import { AppShell } from '../../components/layout/AppShell';
 import { MobileListCard } from '../../components/ui/mobile-list-card';
 
@@ -121,9 +121,18 @@ export default function JobsPage() {
                   {jobs.map((job) => (
                     <tr key={job.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <Link href={`/jobs/${job.id}`} className="font-medium text-[var(--color-brand)]">
-                          {job.jobNumber}
-                        </Link>
+                        <div className="flex items-center gap-1.5">
+                          {job.priority !== 'normal' && (
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{ backgroundColor: JOB_PRIORITY_COLORS[job.priority].dot }}
+                              title={JOB_PRIORITY_LABELS[job.priority]}
+                            />
+                          )}
+                          <Link href={`/jobs/${job.id}`} className="font-medium text-[var(--color-brand)]">
+                            {job.jobNumber}
+                          </Link>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-slate-500">
                         {job.scheduledStart
@@ -164,6 +173,7 @@ export default function JobsPage() {
                           ? new Date(job.scheduledStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
                           : 'Unscheduled',
                       },
+                      ...(job.priority !== 'normal' ? [{ label: 'Priority', value: JOB_PRIORITY_LABELS[job.priority] }] : []),
                     ]}
                   />
                 ))}

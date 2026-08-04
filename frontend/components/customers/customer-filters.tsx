@@ -42,6 +42,7 @@ export function CustomerFilters({
         <option value="lead">Lead</option>
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
+        <option value="archived">Archived</option>
         <option value="churned">Churned</option>
       </select>
 

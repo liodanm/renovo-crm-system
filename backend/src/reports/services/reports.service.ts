@@ -331,4 +331,79 @@ export class ReportsService {
       GROUP BY 1 ORDER BY 1 ASC
     `);
   }
+
+  // =========================================================================
+  // Lead Source Analytics — every figure here reuses an existing, already-
+  // correct source of truth rather than recomputing anything:
+  //   - Revenue: invoices.total_amount, same table/status-filter convention
+  //     as getRevenueByCustomer above.
+  //   - Lifetime Value: customers.lifetime_value directly — the maintained
+  //     column (Phase 1/2 of the Lifetime Value work), NOT a fresh
+  //     SUM(invoices.total_amount) the way getCustomerAnalytics above does.
+  //     That existing method computes its own separate, invoice-based
+  //     "lifetime value" — a real, pre-existing inconsistency found during
+  //     this feature's audit, flagged rather than silently copied. This
+  //     method deliberately uses the correct, payments-based column so it
+  //     doesn't become a third way of answering the same question.
+  //   - Conversion: defined as "received at least one succeeded payment" —
+  //     the strongest, most economically meaningful signal a lead source
+  //     produced real revenue, not just an accepted estimate that could
+  //     still fall through before payment.
+  // =========================================================================
+
+  async getLeadSourceAnalytics(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH source_customers AS (
+        SELECT id, COALESCE(NULLIF(source, ''), 'Not specified') AS source, lifetime_value
+        FROM customers
+        WHERE company_id = ${companyId}::uuid AND created_at >= ${start} AND created_at < ${end}
+      ),
+      source_revenue AS (
+        SELECT c.id AS customer_id, SUM(i.total_amount) AS revenue, COUNT(i.id) AS invoice_count
+        FROM invoices i
+        JOIN customers c ON c.id = i.customer_id
+        WHERE i.company_id = ${companyId}::uuid AND i.status != 'void'
+        GROUP BY c.id
+      ),
+      source_jobs AS (
+        SELECT customer_id, COUNT(*) AS completed_job_count
+        FROM jobs
+        WHERE company_id = ${companyId}::uuid AND status = 'completed'
+        GROUP BY customer_id
+      ),
+      source_converted AS (
+        SELECT DISTINCT customer_id FROM payments
+        WHERE company_id = ${companyId}::uuid AND status = 'succeeded'
+      )
+      SELECT
+        sc.source,
+        COUNT(*) AS "leadCount",
+        COUNT(*) FILTER (WHERE sconv.customer_id IS NOT NULL) AS "convertedCount",
+        COALESCE(SUM(sr.revenue), 0) AS "totalRevenue",
+        COALESCE(AVG(sr.revenue), 0) AS "averageRevenuePerCustomer",
+        COALESCE(SUM(sr.invoice_count), 0) AS "invoiceCount",
+        CASE WHEN COALESCE(SUM(sr.invoice_count), 0) > 0 THEN COALESCE(SUM(sr.revenue), 0) / SUM(sr.invoice_count) ELSE 0 END AS "averageTicket",
+        COALESCE(AVG(sc.lifetime_value), 0) AS "averageLifetimeValue",
+        COALESCE(SUM(sc.lifetime_value), 0) AS "totalLifetimeValue",
+        COUNT(*) FILTER (WHERE sj.completed_job_count > 1) AS "repeatCustomerCount"
+      FROM source_customers sc
+      LEFT JOIN source_revenue sr ON sr.customer_id = sc.id
+      LEFT JOIN source_jobs sj ON sj.customer_id = sc.id
+      LEFT JOIN source_converted sconv ON sconv.customer_id = sc.id
+      GROUP BY sc.source
+      ORDER BY "totalRevenue" DESC
+    `);
+  }
+
+  /** Monthly Lead Trends — new customers per month, broken down by source. */
+  async getLeadSourceTrend(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT date_trunc('month', created_at)::date AS "month",
+             COALESCE(NULLIF(source, ''), 'Not specified') AS "source",
+             COUNT(*) AS "leadCount"
+      FROM customers
+      WHERE company_id = ${companyId}::uuid AND created_at >= ${start} AND created_at < ${end}
+      GROUP BY 1, 2 ORDER BY 1 ASC
+    `);
+  }
 }

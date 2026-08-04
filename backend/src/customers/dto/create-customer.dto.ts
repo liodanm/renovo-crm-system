@@ -1,6 +1,13 @@
 import { IsEmail, IsIn, IsOptional, IsString, MaxLength, IsArray, ValidateNested, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
+// One list, reused by this DTO's own @IsIn validator below AND by
+// customer-import-export.service.ts's CSV import validation — found
+// during the Feature 3 audit as two independently-hardcoded copies of
+// the same 4 values, closed here rather than left as a real (if minor)
+// duplicate-source-of-truth risk.
+export const LEAD_STATUS_VALUES = ['lead', 'active', 'inactive', 'archived', 'churned'] as const;
+
 export class CreatePropertyInputDto {
   @IsOptional()
   @IsString()
@@ -66,7 +73,7 @@ export class CreateCustomerDto {
   source?: string;
 
   @IsOptional()
-  @IsIn(['lead', 'active', 'inactive', 'churned'])
+  @IsIn(LEAD_STATUS_VALUES)
   leadStatus?: string;
 
   @IsOptional()
