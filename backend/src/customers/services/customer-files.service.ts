@@ -33,7 +33,7 @@ export class CustomerFilesService {
     await this.assertCustomerExists(companyId, customerId);
     this.assertKeyBelongsToCompany(companyId, input.key);
 
-    return this.prisma.photo.create({
+    const photo = await this.prisma.photo.create({
       data: {
         companyId,
         customerId,
@@ -44,6 +44,11 @@ export class CustomerFilesService {
         fileSizeBytes: input.fileSizeBytes ? BigInt(input.fileSizeBytes) : undefined,
       },
     });
+    // fileSizeBytes is a BigInt — JSON.stringify can't serialize that
+    // natively (the exact TypeError this was throwing in production),
+    // so it's converted to a string for the response, matching the same
+    // reasoning already applied to Decimal fields elsewhere in this app.
+    return { ...photo, fileSizeBytes: photo.fileSizeBytes?.toString() ?? null };
   }
 
   async listPhotos(companyId: string, customerId: string) {
@@ -87,7 +92,7 @@ export class CustomerFilesService {
     await this.assertCustomerExists(companyId, customerId);
     this.assertKeyBelongsToCompany(companyId, input.key);
 
-    return this.prisma.document.create({
+    const document = await this.prisma.document.create({
       data: {
         companyId,
         customerId,
@@ -99,6 +104,9 @@ export class CustomerFilesService {
         fileSizeBytes: input.fileSizeBytes ? BigInt(input.fileSizeBytes) : undefined,
       },
     });
+    // Same fix as confirmPhotoUpload above, same reason — BigInt can't
+    // be JSON-serialized natively.
+    return { ...document, fileSizeBytes: document.fileSizeBytes?.toString() ?? null };
   }
 
   async listDocuments(companyId: string, customerId: string) {
