@@ -152,6 +152,7 @@ export class PdfService {
       if (input.notes) this.drawLabeledBlock(doc, 'Notes', input.notes);
       if (input.terms) this.drawLabeledBlock(doc, 'Payment Terms', input.terms);
 
+      this.drawPaymentMethods(doc, input.company);
       this.drawFooter(doc, input.branding);
     });
   }
@@ -179,18 +180,24 @@ export class PdfService {
 
   private drawHeader(doc: PDFKit.PDFDocument, company: DocumentCompany, branding: DocumentBranding, accentColor: string, docType: string, docNumber: string, status: string) {
     doc.rect(0, 0, doc.page.width, 8).fill(accentColor);
+
+    // Centered letterhead name — the one place the company name now
+    // appears (previously duplicated here and again in the block below;
+    // seeing it rendered made the repetition obvious, so the block below
+    // now only carries address/contact, its own distinct job).
+    doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, 0, 24, { width: doc.page.width, align: 'center' });
+
     doc.moveDown(1.5);
 
-    doc.fontSize(18).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, PAGE_MARGIN, 40);
     doc.fontSize(9).fillColor('#64748b').font('Helvetica');
     const addressLine = [company.addressLine1, company.city, company.state, company.postalCode].filter(Boolean).join(', ');
-    if (addressLine) doc.text(addressLine);
+    if (addressLine) doc.text(addressLine, PAGE_MARGIN, 56);
     const contactLine = [company.phone, company.email, company.website].filter(Boolean).join(' · ');
-    if (contactLine) doc.text(contactLine);
+    if (contactLine) doc.text(contactLine, PAGE_MARGIN);
 
-    doc.fontSize(20).fillColor(accentColor).font('Helvetica-Bold').text(docType, 350, 40, { width: 195, align: 'right' });
-    doc.fontSize(10).fillColor('#0f172a').font('Helvetica').text(`# ${docNumber}`, 350, 65, { width: 195, align: 'right' });
-    doc.fontSize(9).fillColor('#64748b').text(status.toUpperCase(), 350, 80, { width: 195, align: 'right' });
+    doc.fontSize(20).fillColor(accentColor).font('Helvetica-Bold').text(docType, 350, 56, { width: 195, align: 'right' });
+    doc.fontSize(10).fillColor('#0f172a').font('Helvetica').text(`# ${docNumber}`, 350, 81, { width: 195, align: 'right' });
+    doc.fontSize(9).fillColor('#64748b').text(status.toUpperCase(), 350, 96, { width: 195, align: 'right' });
 
     doc.moveDown(2);
     doc.moveTo(PAGE_MARGIN, doc.y).lineTo(545, doc.y).strokeColor('#e2e8f0').stroke();
@@ -275,6 +282,26 @@ export class PdfService {
     doc.moveDown(0.5);
     doc.fontSize(9).fillColor('#64748b').font('Helvetica-Bold').text(label.toUpperCase(), PAGE_MARGIN);
     doc.fontSize(9.5).fillColor('#334155').font('Helvetica').text(text, PAGE_MARGIN, doc.y + 2, { width: 495 });
+  }
+
+  /**
+   * Payment Methods — invoices only (a quote isn't collecting payment
+   * yet, so this doesn't belong on estimates). Uses the company's real
+   * phone number already on file (the exact same field the header's
+   * contact line already shows), not a hardcoded value — stays correct
+   * automatically if that number ever changes, and works correctly for
+   * any company, not just one hardcoded number. If no phone is on file,
+   * the Zelle line is omitted entirely rather than showing a blank —
+   * the credit card line still has real, useful information on its own.
+   */
+  private drawPaymentMethods(doc: PDFKit.PDFDocument, company: DocumentCompany) {
+    doc.moveDown(0.75);
+    doc.fontSize(9).fillColor('#64748b').font('Helvetica-Bold').text('PAYMENT OPTIONS', PAGE_MARGIN);
+    doc.fontSize(9.5).fillColor('#334155').font('Helvetica');
+    if (company.phone) {
+      doc.text(`•  Zelle: ${company.phone}`, PAGE_MARGIN, doc.y + 2);
+    }
+    doc.text('•  Credit card payments are accepted with a 3% processing fee.', PAGE_MARGIN, doc.y + 2);
   }
 
   private drawSignatureArea(doc: PDFKit.PDFDocument) {
