@@ -93,6 +93,7 @@ export class JobsService {
     // page/pageSize pagination here is genuine follow-up work.
     return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT j.id, j.job_number AS "jobNumber", j.title, j.status, j.price, j.priority, j.customer_id AS "customerId", j.property_id AS "propertyId",
+             j.scheduled_start AS "scheduledStart",
              c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName",
              p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity", p.state AS "propertyState"
       FROM jobs j
