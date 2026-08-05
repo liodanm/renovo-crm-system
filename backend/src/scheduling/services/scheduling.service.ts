@@ -100,12 +100,25 @@ export class SchedulingService {
         SELECT id, assigned_to_company_user_id AS "assignedToCompanyUserId" FROM appointments WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
       `;
 
+      // Auto-assign-to-self applies only to a job's *first* scheduling
+      // (no prior appointment exists) — never to a reschedule of an
+      // already-assigned appointment, which must keep whoever it was
+      // assigned to unless someone explicitly changes it. Solo owner
+      // today, this distinction is invisible (it's always the same
+      // person either way); it's the one thing that keeps this correct
+      // once a second technician exists.
+      const autoAssignCompanyUserId =
+        !dto.assignedUserId && existing.length === 0
+          ? (await tx.$queryRaw<{ id: string }[]>`SELECT id FROM company_users WHERE user_id = ${userId}::uuid AND company_id = ${companyId}::uuid`)[0]?.id ?? null
+          : null;
+      const insertAssignedCompanyUserId = assignedCompanyUserId ?? autoAssignCompanyUserId;
+
       // The effective technician for this write: the newly-supplied one if
       // given, otherwise whatever the appointment (if any) already had —
       // matching the same COALESCE semantics the actual UPDATE below uses,
       // so the conflict check is validating the assignment that will
       // actually end up stored, not just what was passed in this call.
-      const effectiveAssignedCompanyUserId = assignedCompanyUserId ?? existing[0]?.assignedToCompanyUserId ?? null;
+      const effectiveAssignedCompanyUserId = assignedCompanyUserId ?? existing[0]?.assignedToCompanyUserId ?? insertAssignedCompanyUserId ?? null;
       await this.assertNoTechnicianConflict(tx, companyId, effectiveAssignedCompanyUserId, startsAt, endsAt, existing[0]?.id ?? null);
 
       let appointmentId: string;
@@ -122,7 +135,7 @@ export class SchedulingService {
       } else {
         const inserted = await tx.$queryRaw<{ id: string }[]>`
           INSERT INTO appointments (company_id, appointment_type, job_id, customer_id, property_id, title, starts_at, ends_at, arrival_window_minutes, assigned_to_company_user_id, status)
-          VALUES (${companyId}::uuid, 'job', ${jobId}::uuid, ${job.customerId}::uuid, ${job.propertyId}::uuid, ${job.title}, ${startsAt}, ${endsAt}, ${dto.arrivalWindowMinutes ?? null}, ${assignedCompanyUserId}::uuid, 'scheduled')
+          VALUES (${companyId}::uuid, 'job', ${jobId}::uuid, ${job.customerId}::uuid, ${job.propertyId}::uuid, ${job.title}, ${startsAt}, ${endsAt}, ${dto.arrivalWindowMinutes ?? null}, ${insertAssignedCompanyUserId}::uuid, 'scheduled')
           RETURNING id
         `;
         appointmentId = inserted[0].id;

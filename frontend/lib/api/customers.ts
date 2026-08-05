@@ -103,7 +103,16 @@ export interface DuplicateCluster {
 
 export interface ServiceHistory {
   summary: { totalJobs: number; completedJobs: number; outstandingBalance: number };
-  jobs: Array<{ id: string; title: string; status: string; scheduledStart: string | null; price: number; address: string }>;
+  intelligence: {
+    lastServiceDate: string | null;
+    jobsCompleted: number;
+    averageJobValue: number;
+    recommendedUpsell: { serviceType: string; name: string } | null;
+    overdueForCleaning: boolean;
+    reviewStatus: 'received' | 'sent' | 'failed' | 'never_requested';
+    reviewReceivedAt: string | null;
+  };
+  jobs: Array<{ id: string; title: string; status: string; serviceType: string | null; scheduledStart: string | null; price: number; address: string }>;
   estimates: Array<{ id: string; status: string; totalAmount: number; sentAt: string | null; createdAt: string }>;
   invoices: Array<{ id: string; invoiceNumber: string; status: string; totalAmount: number; amountPaid: number; dueDate: string | null }>;
   payments: Array<{ id: string; amount: number; method: string; status: string; processedAt: string | null }>;
@@ -183,6 +192,7 @@ export const customersApi = {
     apiFetch<CustomerProfile>(`/customers/${canonicalId}/merge/${duplicateId}`, { method: 'POST' }),
 
   getServiceHistory: (id: string) => apiFetch<ServiceHistory>(`/customers/${id}/service-history`),
+  markReviewReceived: (id: string) => apiFetch<void>(`/customers/${id}/mark-review-received`, { method: 'POST' }),
 
   getActivity: (id: string) => apiFetch<ActivityEvent[]>(`/customers/${id}/activity`),
 

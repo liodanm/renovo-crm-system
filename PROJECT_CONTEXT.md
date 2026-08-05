@@ -1579,3 +1579,143 @@ something it shouldn'''t. A payment recorded against a package-discounted
 invoice correctly settled the balance at the discounted total
 ($1,026), not the erroneous full amount ($1,076) a customer would have
 been overcharged before this fix.
+## 23. Auto-Assign-to-Self on Scheduling (shipped)
+
+**Architecture, per the approved single-source-of-truth correction:**
+only `Appointment.assignedToCompanyUserId` is populated automatically —
+`Job.assignedUserId` deliberately stays untouched, since the approved
+design explicitly avoided populating both fields (ADR-002 already
+establishes Appointments as the scheduling authority). No new field,
+no new endpoint, no new UI.
+
+**The one hook:** `SchedulingService.scheduleJob()` — when no
+`assignedUserId` is explicitly given, the appointment is assigned to
+whoever is performing the scheduling action, but **only on a job's
+first scheduling** (no prior appointment exists). Rescheduling an
+already-assigned appointment always preserves the existing assignment
+unless someone explicitly changes it — verified directly with two
+different acting users, since this distinction is invisible for a solo
+owner today but is the one thing that keeps the behavior correct once
+a second technician exists.
+
+**A real regression caught and fixed during implementation, not
+shipped:** an intermediate edit accidentally dropped the existing
+company-membership validation for explicitly-provided assignments.
+Caught by direct grep against the file, not assumed fixed, and
+restored before verification.
+
+**Real, disclosed scope boundary, not silently worked around:** the AI
+Receptionist creates jobs already `scheduled` without ever creating an
+Appointment row at all — a pre-existing fact about that code path, not
+something this feature touches. There is no Appointment for it to
+auto-assign, so that path is correctly unaffected, not incompletely
+covered. The Customer Portal has no separate scheduling call path
+either — it doesn't self-schedule appointments, only staff do, via this
+one method.
+## 24. Customer Intelligence Panel (shipped)
+
+**Architecture:** extends `getServiceHistory()` rather than creating a
+new endpoint — confirmed during audit that it already fetches every
+Job/Estimate/Invoice/Payment for the customer, pre-sorted newest-first,
+meaning almost every requested metric was already sitting in memory,
+just not surfaced. Two small, genuinely new queries were needed and no
+more: active Service Catalog items (for the upsell comparison) and
+`AutomationSettings` (reusing the exact same recurring-reminder
+interval the automation engine already runs on, not a second
+independently-invented threshold).
+
+**Zero new storage.** Every field in the `intelligence` object is
+recomputed on every call from existing source-of-truth tables.
+
+**Frontend:** one compact card on the Customer Detail page, rows hidden
+entirely when there's nothing meaningful to show (no balance due, no
+open estimates, etc.) rather than displaying zeros. Fetches the same
+service-history data the existing Service History tab already fetches,
+under the identical SWR key — confirmed this shares one cached request
+rather than duplicating it.
+
+**Verified against a real database** with a hand-calculable scenario
+(two completed jobs at different dates/prices, three active catalog
+services): last-service-date correctly picked the more recent of two
+jobs (not just the first row), average job value matched exactly,
+recommended upsell correctly identified the one unperformed active
+service, and the overdue threshold correctly evaluated true against a
+job scheduled outside the interval.
+## 25. Review Tracking (shipped)
+
+**A real mistake caught and corrected during implementation, not
+shipped broken:** an intermediate version of this feature queried
+`ReviewRequest`/`Review` — real models that genuinely exist in the
+schema and are backed by real tables (confirmed via
+`init-scripts/00-schema.sql`). But exhaustive search proved they are
+completely unused anywhere else in the application — the actual
+review-request send path (`AutomationService.runReviewRequests`) writes
+to `AutomationLog`, not `ReviewRequest`, and nothing anywhere writes to
+`Review` at all. Building on the unused tables would have made
+"Request Sent" silently and permanently show as never-sent, regardless
+of real activity — a plausible-looking but non-functional feature.
+Caught by verifying against actual usage, not just schema existence,
+and corrected before verification rather than after a bug report.
+
+**Real, disclosed architectural finding, not fixed here:** those two
+unused tables (`ReviewRequest`, `Review`) look like a more
+sophisticated review-tracking design was planned at some point —
+platform, rating, review text, click tracking — but never wired up.
+Worth a real decision later: wire them up properly with an actual
+review-platform integration, or remove them as dead schema. Not
+decided or touched by this feature.
+
+**The actual architecture, once corrected:** "Request Sent"/"Request
+Failed" derive from `AutomationLog` (`ruleType = 'review_request'`) —
+the real table the real send logic already writes to, zero new
+storage. "Review Received" required exactly one new nullable column,
+`Customer.reviewReceivedAt`, set only by a manual staff action (no
+Google Business Profile integration exists anywhere in this codebase,
+confirmed by direct search — automated detection genuinely isn't
+possible today). Verified against a real database across all four
+states (never requested, sent, failed, received) with exact fixtures,
+not simulated.
+## 26. Review Tracking — Final End-to-End Verification (v0.1.0-rc.2)
+
+Ran the full realistic sequence on one customer, in order, against a
+real database: never requested -> request sent -> a second, newer
+request that failed (confirmed the newest entry wins even when it is
+*less* successful than an older one, not just newest-by-coincidence) ->
+manually marked reviewed (confirmed this overrides the failed log state
+immediately, exactly as it should). All four transitions matched
+expectations exactly.
+
+**Multi-company isolation, tested directly, not assumed:** created a
+second company with an identically-named customer. Confirmed zero
+contamination — the second company's customer showed no trace of the
+first company's review activity, and a query using the wrong
+company/customer pairing (right customer_id, wrong company_id) returned
+nothing at all, confirming the companyId filter is structurally
+load-bearing.
+
+**SWR/caching:** confirmed the Customer Detail page and the Service
+History tab use the byte-identical SWR key — one shared cache entry,
+not two independent fetches, and calling mutate() after marking a
+review received correctly revalidates that one shared entry for every
+component subscribed to it.
+
+**Regression, confirmed by content search, not just file-touch scope:**
+Automation, Dashboard, and Reports contain zero real references to
+anything from this feature (one grep false-positive on
+`runReviewRequests`/`reviewRequestDelayDays` — pre-existing names that
+happen to contain the substring "ReviewRequest", not the actual unused
+model).
+
+**Simplification review:** looked for a smaller version of the status
+derivation and didn't find one — it's already a single small query plus
+a four-branch check over two already-fetched values. Nothing removed.
+## 27. Pre-Ship Re-Confirmation (v0.1.0-rc.3)
+
+No code changed since v0.1.0-rc.2's exhaustive verification pass — this
+was a re-confirmation, not a re-discovery. tsc/build/tests re-run clean.
+One targeted smoke test against a completely fresh database (full
+migration chain including 033 applied from scratch, not an existing
+instance) reproduced the identical result already verified: manual
+review-received correctly overrides log state, and a second company's
+identically-named customer showed zero contamination. Simplification
+reviewed again — same conclusion as rc.2, nothing further to remove.

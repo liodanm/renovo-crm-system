@@ -131,6 +131,12 @@ export class CustomersController {
     return this.customersService.getServiceHistory(user.companyId, id);
   }
 
+  @RequirePermissions('customers.write')
+  @Post(':id/mark-review-received')
+  markReviewReceived(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.customersService.markReviewReceived(user.companyId, id);
+  }
+
   @Get(':id/activity')
   getActivity(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
     return this.customersService.getActivityTimeline(user.companyId, id);

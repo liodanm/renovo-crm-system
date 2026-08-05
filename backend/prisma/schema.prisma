@@ -171,6 +171,12 @@ model Customer {
   source           String?
   leadStatus       String    @default("lead") @map("lead_status")
   lifetimeValue    Decimal   @default(0) @map("lifetime_value") @db.Decimal(12, 2)
+  // Manual flag, not automated — no Google Business Profile integration
+  // exists to detect this. Set only by a direct staff action on the
+  // Customer Detail page. NULL means no review confirmed yet; the
+  // timestamp is when the owner marked it, not when the review itself
+  // was posted (which this app has no way to know).
+  reviewReceivedAt DateTime? @map("review_received_at")
   tags             String[]  @default([])
   notesText        String?   @map("notes")
   createdBy        String?   @map("created_by")
@@ -831,5 +837,46 @@ model AutomationLog {
 
   @@unique([companyId, dedupeKey])
   @@map("automation_log")
+}
+
+// Found already sitting in the base schema, unused by any application
+// code, during the Feature 2 (Review Tracking) audit — a real,
+// significant correction to that audit's first pass, which concluded
+// no review-completion infrastructure existed at all. It does; it was
+// just never wired to a Prisma model. Using these tables directly
+// rather than adding a redundant Customer column is what "never create
+// a second source of truth" means in practice here.
+model ReviewRequest {
+  id         String    @id @default(uuid())
+  companyId  String    @map("company_id")
+  customerId String    @map("customer_id")
+  jobId      String?   @map("job_id")
+  channel    String // 'sms' | 'email'
+  status     String    @default("pending") // 'pending' | 'sent' | 'clicked' | 'completed'
+  sentAt     DateTime? @map("sent_at")
+  clickedAt  DateTime? @map("clicked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("review_requests")
+}
+
+model Review {
+  id                String    @id @default(uuid())
+  companyId         String    @map("company_id")
+  customerId        String?   @map("customer_id")
+  jobId             String?   @map("job_id")
+  platform          String // 'google' | 'yelp' | 'facebook' | 'internal'
+  rating            Int?
+  reviewText        String?   @map("review_text")
+  reviewerName      String?   @map("reviewer_name")
+  platformReviewId  String?   @map("platform_review_id")
+  aiDraftResponse   String?   @map("ai_draft_response") // not used by this feature — see PROJECT_CONTEXT.md
+  responseText      String?   @map("response_text")
+  respondedAt       DateTime? @map("responded_at")
+  reviewDate        DateTime? @map("review_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("reviews")
 }
 

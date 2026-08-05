@@ -280,6 +280,19 @@ export class CustomersService {
     });
   }
 
+  /**
+   * The one manual action Review Tracking needs — there's no way to
+   * derive this, so the owner records it themselves. A second call is
+   * a harmless no-op (just updates the timestamp), not an error.
+   */
+  async markReviewReceived(companyId: string, customerId: string) {
+    await this.assertExists(companyId, customerId);
+    await this.prisma.customer.update({
+      where: { id: customerId },
+      data: { reviewReceivedAt: new Date() },
+    });
+  }
+
   async getProfile(companyId: string, customerId: string) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, companyId, deletedAt: null },
@@ -412,9 +425,9 @@ export class CustomersService {
   // ===========================================================================
 
   async getServiceHistory(companyId: string, customerId: string) {
-    await this.assertExists(companyId, customerId);
+    const customer = await this.assertExists(companyId, customerId);
 
-    const [jobs, estimates, invoices, payments] = await Promise.all([
+    const [jobs, estimates, invoices, payments, activeCatalogItems, automationSettings, reviewRequestLog] = await Promise.all([
       this.prisma.job.findMany({
         where: { companyId, customerId },
         orderBy: { scheduledStart: 'desc' },
@@ -423,7 +436,63 @@ export class CustomersService {
       this.prisma.estimate.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.invoice.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.payment.findMany({ where: { companyId, customerId }, orderBy: { processedAt: 'desc' } }),
+      // Only the two fields the upsell comparison actually needs — not a
+      // full catalog fetch. Reuses the exact same service_type vocabulary
+      // Job.serviceType already uses, confirmed identical.
+      this.prisma.serviceCatalogItem.findMany({
+        where: { companyId, isActive: true },
+        select: { name: true, serviceType: true },
+      }),
+      // Reuses the exact same threshold the recurring-reminder automation
+      // already runs on — same table, same 12-month fallback when no
+      // settings row exists — not a second, independently-invented number.
+      this.prisma.automationSettings.findUnique({ where: { companyId }, select: { recurringReminderIntervalMonths: true } }),
+      // "Request Sent" is fully derivable from the same table the real
+      // sending logic (AutomationService.runReviewRequests) already
+      // writes to on every send — not a new log, not a duplicate.
+      //
+      // Note: this schema also has ReviewRequest and Review models —
+      // confirmed by exhaustive search to be completely unused anywhere
+      // in the application (no send path writes to ReviewRequest, no
+      // webhook or form writes to Review at all). They look like a more
+      // sophisticated design was planned at some point (platform,
+      // rating, reviewText, clickedAt) but never wired up. Deliberately
+      // not building on them here — an unpopulated table would make
+      // "Request Sent" silently always show as never-sent, regardless of
+      // real activity. Flagged as a real finding for a future decision
+      // (wire them up properly with a real integration, or remove them),
+      // not something to route around silently.
+      this.prisma.automationLog.findFirst({
+        where: { companyId, customerId, ruleType: 'review_request' },
+        orderBy: { sentAt: 'desc' },
+        select: { status: true, sentAt: true },
+      }),
     ]);
+
+    const completedJobs = jobs.filter((j) => j.status === 'completed');
+    const lastCompletedJob = completedJobs[0]; // jobs already sorted newest-first
+    const performedServiceTypes = new Set(jobs.map((j) => j.serviceType).filter((t): t is string => !!t));
+    const recommendedUpsell = activeCatalogItems.find((item) => !performedServiceTypes.has(item.serviceType));
+
+    const intervalMonths = automationSettings?.recurringReminderIntervalMonths ?? 12;
+    const overdueForCleaning = (() => {
+      if (!lastCompletedJob?.scheduledStart) return false;
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - intervalMonths);
+      return lastCompletedJob.scheduledStart <= cutoff;
+    })();
+
+    // Review status — the manual reviewReceivedAt flag always wins once
+    // set, since a customer who's confirmed to have left a review
+    // shouldn't keep showing as merely "requested." Otherwise reads
+    // straight from the automation log entry already fetched above.
+    const reviewStatus: 'received' | 'sent' | 'failed' | 'never_requested' = customer.reviewReceivedAt
+      ? 'received'
+      : reviewRequestLog?.status === 'failed'
+        ? 'failed'
+        : reviewRequestLog
+          ? 'sent'
+          : 'never_requested';
 
     // Lifetime spend used to be recalculated here from payments directly
     // — removed. Customer.lifetimeValue is now maintained centrally
@@ -441,10 +510,26 @@ export class CustomersService {
           0,
         ),
       },
+      // Customer Intelligence Panel — every field here is either read
+      // directly from the arrays already fetched above, or one of the
+      // two small, justified new lookups (upsell comparison, overdue
+      // threshold). Nothing here is stored; all of it is recomputed on
+      // every call from the same source-of-truth tables everything else
+      // in this app already reads.
+      intelligence: {
+        lastServiceDate: lastCompletedJob?.scheduledStart ?? null,
+        jobsCompleted: completedJobs.length,
+        averageJobValue: completedJobs.length > 0 ? completedJobs.reduce((sum, j) => sum + j.price.toNumber(), 0) / completedJobs.length : 0,
+        recommendedUpsell: recommendedUpsell ? { serviceType: recommendedUpsell.serviceType, name: recommendedUpsell.name } : null,
+        overdueForCleaning,
+        reviewStatus,
+        reviewReceivedAt: customer.reviewReceivedAt,
+      },
       jobs: jobs.map((j) => ({
         id: j.id,
         title: j.title,
         status: j.status,
+        serviceType: j.serviceType,
         scheduledStart: j.scheduledStart,
         price: j.price.toNumber(),
         address: `${j.property.addressLine1}, ${j.property.city}`,
