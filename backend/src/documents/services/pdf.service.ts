@@ -386,10 +386,20 @@ export class PdfService {
 
   private drawFooter(doc: PDFKit.PDFDocument, branding: DocumentBranding) {
     if (!branding.footerMessage) return;
+    const footerWidth = 495;
+    doc.fontSize(8);
+    // This message often wraps to two lines — measuring first and
+    // placing it relative to the page's own bottom margin (not a
+    // hardcoded offset) guarantees the whole block stays inside the
+    // printable area. The old fixed "page.height - 40" sat below the
+    // real margin boundary, which silently made pdfkit auto-paginate a
+    // second page just to fit the wrapped second line.
+    const footerHeight = doc.heightOfString(branding.footerMessage, { width: footerWidth });
+    const footerY = doc.page.height - doc.page.margins.bottom - footerHeight;
     const range = doc.bufferedPageRange();
     for (let i = range.start; i < range.start + range.count; i++) {
       doc.switchToPage(i);
-      doc.fontSize(8).fillColor('#94a3b8').text(branding.footerMessage!, PAGE_MARGIN, doc.page.height - 40, { width: 495, align: 'center' });
+      doc.fontSize(8).fillColor('#94a3b8').text(branding.footerMessage!, PAGE_MARGIN, footerY, { width: footerWidth, align: 'center' });
     }
   }
 
