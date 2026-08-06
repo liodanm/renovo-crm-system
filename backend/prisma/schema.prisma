@@ -233,6 +233,11 @@ model Estimate {
   subtotal          Decimal   @default(0) @map("subtotal") @db.Decimal(12, 2)
   discountType      String?   @map("discount_type") // 'fixed' | 'percentage'
   discountAmount    Decimal   @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  // WHY the discount exists, not HOW it's calculated (discountType
+  // covers that) — 'package' when auto-applied by Package Discounts,
+  // 'manual' when typed in directly, null for anything predating this
+  // field or with no discount at all.
+  discountSource    String?   @map("discount_source") // 'package' | 'manual'
   taxRate           Decimal   @default(0) @map("tax_rate") @db.Decimal(5, 4) // fraction, e.g. 0.0825 for 8.25%
   taxAmount         Decimal   @default(0) @map("tax_amount") @db.Decimal(12, 2)
   totalAmount       Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
@@ -524,6 +529,9 @@ model Invoice {
   subtotal          Decimal   @default(0) @db.Decimal(12, 2)
   discountType      String?   @map("discount_type")
   discountAmount    Decimal   @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  // Snapshotted from the source estimate, same rule as every other
+  // financial field on Invoice — never recalculated after creation.
+  discountSource    String?   @map("discount_source") // 'package' | 'manual'
   taxRate           Decimal   @default(0) @map("tax_rate") @db.Decimal(5, 4)
   taxAmount         Decimal   @default(0) @map("tax_amount") @db.Decimal(12, 2)
   totalAmount       Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)

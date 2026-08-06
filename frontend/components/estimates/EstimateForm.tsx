@@ -193,6 +193,23 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
     mutate: mutateProperties,
   } = useSWR(customerId ? ['properties', customerId] : null, () => customersApi.listProperties(customerId));
 
+  // Auto-select the property when a customer has exactly one — zero
+  // extra clicks for the common case. Keyed on [customerId, properties],
+  // not propertyId itself, so this only re-evaluates when the customer
+  // (and therefore their property list) actually changes, never just
+  // because propertyId changed for some other reason. Guarding on
+  // "propertyId is currently empty" is what protects editing an
+  // existing estimate, a restored draft, and a user who deliberately
+  // cleared their selection back to blank — none of those should be
+  // silently overwritten just because the customer happens to have one
+  // property.
+  useEffect(() => {
+    if (properties && properties.length === 1 && !propertyId) {
+      setPropertyId(properties[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, properties]);
+
   const [lineItems, setLineItems] = useState<DraftLineItem[]>(
     existingEstimate && existingEstimate.lineItems.length > 0
       ? existingEstimate.lineItems.map(lineItemFromExisting)
@@ -348,6 +365,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         })),
         discountType: discountType || undefined,
         discountValue: discountType ? toNumber(discountValue) : undefined,
+        discountSource: discountType ? (isManualDiscount ? 'manual' : 'package') : undefined,
         taxRatePercent: taxRatePercent ? toNumber(taxRatePercent) : undefined,
         notes: notes || undefined,
         internalNotes: internalNotes || undefined,

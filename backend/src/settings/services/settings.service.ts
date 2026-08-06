@@ -4,6 +4,7 @@ import { PasswordService } from '../../auth/services/password.service';
 import { IntegrationStatusService } from '../../common/integrations/integration-status.service';
 import { MailService } from '../../mail/mail.service';
 import { SmsService } from '../../sms/sms.service';
+import { StorageService } from '../../common/storage/storage.service';
 import {
   UpdateProfileDto,
   ChangePasswordDto,
@@ -47,6 +48,7 @@ export class SettingsService {
     private readonly integrationStatus: IntegrationStatusService,
     private readonly mail: MailService,
     private readonly sms: SmsService,
+    private readonly storage: StorageService,
   ) {}
 
   // ---- Profile ----
@@ -164,6 +166,24 @@ export class SettingsService {
   }
 
   // ---- Branding (companies.settings JSONB — its originally intended purpose) ----
+
+  /**
+   * Reuses the exact presigned-upload pattern already established for
+   * Customer photos (customer-files.service.ts) — same StorageService,
+   * same shape, not a second upload system. The one real difference: a
+   * logo needs a stable, always-fetchable URL (the browser displays it
+   * directly, and the PDF generator fetches it fresh on every
+   * generation), so this returns getPublicUrl() rather than a
+   * short-lived presigned download link. Requires the S3 bucket/CDN to
+   * allow public read on the `branding/` prefix — an AWS-side setting,
+   * not something this code configures (same class of setup step as
+   * the CORS policy Customer photo uploads needed).
+   */
+  async presignLogoUpload(companyId: string, fileName: string, mimeType: string) {
+    const key = this.storage.buildKey(companyId, 'branding', fileName);
+    const uploadUrl = await this.storage.getPresignedUploadUrl(key, mimeType);
+    return { uploadUrl, publicUrl: this.storage.getPublicUrl(key), expiresInSeconds: 300 };
+  }
 
   async getBranding(companyId: string) {
     const rows: { settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT settings FROM companies WHERE id = $1::uuid`, companyId);

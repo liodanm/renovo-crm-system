@@ -3,11 +3,33 @@ import PDFDocument from 'pdfkit';
 
 export interface DocumentLineItem {
   description: string;
+  serviceType?: string | null;
   quantity: number;
   unitOfMeasure?: string | null;
   unitPrice: number;
   total: number;
 }
+
+// Mirrors frontend/lib/api/estimates.ts's SERVICE_TYPES labels — a
+// plain display-string lookup, not business logic, so a small amount
+// of duplication between the two runtimes (browser vs. this backend
+// PDF generator) is the normal, unavoidable cost of them being
+// separate processes, not a "second source of truth" for anything
+// calculated.
+const SERVICE_TYPE_LABELS: Record<string, string> = {
+  roof_soft_wash: 'Roof Soft Wash',
+  driveway_cleaning: 'Driveway Cleaning',
+  house_wash: 'House Wash',
+  pool_deck: 'Pool Deck',
+  patio: 'Patio',
+  fence: 'Fence',
+  gutters: 'Gutters',
+  screen_enclosure: 'Screen Enclosure',
+  rust_removal: 'Rust Removal',
+  paver_cleaning: 'Paver Cleaning',
+  window_cleaning: 'Window Cleaning',
+  other: 'Other',
+};
 
 export interface DocumentBranding {
   logoUrl: string | null;
@@ -49,6 +71,7 @@ export interface EstimatePdfInput {
   lineItems: DocumentLineItem[];
   subtotal: number;
   discountAmount: number;
+  discountSource?: string | null;
   taxRatePercent: number;
   taxAmount: number;
   totalAmount: number;
@@ -68,6 +91,7 @@ export interface InvoicePdfInput {
   lineItems: DocumentLineItem[];
   subtotal: number;
   discountAmount: number;
+  discountSource?: string | null;
   taxRatePercent: number;
   taxAmount: number;
   totalAmount: number;
@@ -95,10 +119,12 @@ const PAGE_MARGIN = 50;
  */
 @Injectable()
 export class PdfService {
-  generateEstimatePdf(input: EstimatePdfInput): Promise<Buffer> {
+  async generateEstimatePdf(input: EstimatePdfInput): Promise<Buffer> {
+    const logoBuffer = await this.fetchLogoBuffer(input.branding.logoUrl);
     return this.render((doc) => {
       const accentColor = input.branding.primaryColor || '#0e7490';
-      this.drawHeader(doc, input.company, input.branding, accentColor, 'ESTIMATE', input.estimateNumber, input.status);
+      this.drawHeader(doc, input.company, input.branding, accentColor, 'ESTIMATE', input.estimateNumber, input.status, logoBuffer);
+      this.drawGrandTotal(doc, input.totalAmount, accentColor, 'TOTAL');
       this.drawPartyBlocks(doc, input.company, input.customer, input.property);
 
       doc.fontSize(9).fillColor('#64748b');
@@ -122,10 +148,12 @@ export class PdfService {
     });
   }
 
-  generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer> {
+  async generateInvoicePdf(input: InvoicePdfInput): Promise<Buffer> {
+    const logoBuffer = await this.fetchLogoBuffer(input.branding.logoUrl);
     return this.render((doc) => {
       const accentColor = input.branding.primaryColor || '#0e7490';
-      this.drawHeader(doc, input.company, input.branding, accentColor, 'INVOICE', input.invoiceNumber, input.status);
+      this.drawHeader(doc, input.company, input.branding, accentColor, 'INVOICE', input.invoiceNumber, input.status, logoBuffer);
+      this.drawGrandTotal(doc, input.totalAmount, accentColor, 'TOTAL');
       this.drawPartyBlocks(doc, input.company, input.customer, input.property);
 
       doc.fontSize(9).fillColor('#64748b');
@@ -157,6 +185,27 @@ export class PdfService {
     });
   }
 
+  /**
+   * Fetches the logo once, before the PDF stream starts — pdfkit's
+   * drawing calls are synchronous once render() begins, so an async
+   * image fetch can't happen mid-stream. Returns null on any failure
+   * (missing logo, network issue, non-image response) rather than
+   * throwing — a broken/unreachable logo must never block generating
+   * the actual document; the header already falls back to the text
+   * company name in that case.
+   */
+  private async fetchLogoBuffer(logoUrl: string | null): Promise<Buffer | null> {
+    if (!logoUrl) return null;
+    try {
+      const response = await fetch(logoUrl, { signal: AbortSignal.timeout(5000) });
+      if (!response.ok) return null;
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch {
+      return null;
+    }
+  }
+
   private render(draw: (doc: PDFKit.PDFDocument) => void): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       // bufferPages: true is what actually makes "multi-page" real — it
@@ -178,30 +227,54 @@ export class PdfService {
     });
   }
 
-  private drawHeader(doc: PDFKit.PDFDocument, company: DocumentCompany, branding: DocumentBranding, accentColor: string, docType: string, docNumber: string, status: string) {
+  private drawHeader(doc: PDFKit.PDFDocument, company: DocumentCompany, branding: DocumentBranding, accentColor: string, docType: string, docNumber: string, status: string, logoBuffer: Buffer | null) {
     doc.rect(0, 0, doc.page.width, 8).fill(accentColor);
 
-    // Centered letterhead name — the one place the company name now
-    // appears (previously duplicated here and again in the block below;
-    // seeing it rendered made the repetition obvious, so the block below
-    // now only carries address/contact, its own distinct job).
-    doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, 0, 24, { width: doc.page.width, align: 'center' });
+    // Centered letterhead — logo image if the company has one uploaded,
+    // otherwise the text company name (the existing, already-working
+    // fallback, never left blank).
+    if (logoBuffer) {
+      try {
+        // fit centers within the given box; height capped so a very
+        // tall/narrow logo can't push the rest of the header down.
+        doc.image(logoBuffer, (doc.page.width - 140) / 2, 20, { fit: [140, 44], align: 'center' });
+      } catch {
+        doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, 0, 24, { width: doc.page.width, align: 'center' });
+      }
+    } else {
+      doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, 0, 24, { width: doc.page.width, align: 'center' });
+    }
 
     doc.moveDown(1.5);
 
+    // Address intentionally removed per request — contact info (phone/
+    // email/website) is the useful part for a customer, not the mailing
+    // address.
     doc.fontSize(9).fillColor('#64748b').font('Helvetica');
-    const addressLine = [company.addressLine1, company.city, company.state, company.postalCode].filter(Boolean).join(', ');
-    if (addressLine) doc.text(addressLine, PAGE_MARGIN, 56);
     const contactLine = [company.phone, company.email, company.website].filter(Boolean).join(' · ');
-    if (contactLine) doc.text(contactLine, PAGE_MARGIN);
+    if (contactLine) doc.text(contactLine, PAGE_MARGIN, 70);
 
     doc.fontSize(20).fillColor(accentColor).font('Helvetica-Bold').text(docType, 350, 56, { width: 195, align: 'right' });
     doc.fontSize(10).fillColor('#0f172a').font('Helvetica').text(`# ${docNumber}`, 350, 81, { width: 195, align: 'right' });
     doc.fontSize(9).fillColor('#64748b').text(status.toUpperCase(), 350, 96, { width: 195, align: 'right' });
 
-    doc.moveDown(2);
+    doc.y = 110;
     doc.moveTo(PAGE_MARGIN, doc.y).lineTo(545, doc.y).strokeColor('#e2e8f0').stroke();
     doc.moveDown(1);
+  }
+
+  /**
+   * The prominent Grand Total — directly below the doc number/status,
+   * before anything else, per the explicit "immediately visible without
+   * scrolling" requirement. Reads a number that's already fully
+   * computed and validated upstream (computeDocumentTotals) — this only
+   * draws it, never recalculates it.
+   */
+  private drawGrandTotal(doc: PDFKit.PDFDocument, totalAmount: number, accentColor: string, label: string) {
+    doc.moveDown(0.25);
+    doc.fontSize(10).fillColor('#64748b').font('Helvetica-Bold').text(label, PAGE_MARGIN, doc.y, { align: 'center', width: 495 });
+    doc.fontSize(32).fillColor(accentColor).font('Helvetica-Bold').text(this.money(totalAmount), PAGE_MARGIN, doc.y + 2, { align: 'center', width: 495 });
+    doc.moveDown(1.5);
   }
 
   private drawPartyBlocks(doc: PDFKit.PDFDocument, company: DocumentCompany, customer: DocumentCustomer, property: DocumentProperty) {
@@ -220,41 +293,40 @@ export class PdfService {
   }
 
   private drawLineItemsTable(doc: PDFKit.PDFDocument, items: DocumentLineItem[], accentColor: string) {
-    const tableTop = doc.y;
-    const colDescription = PAGE_MARGIN;
-    const colQty = 340;
-    const colPrice = 410;
-    const colTotal = 480;
+    const descWidth = 400;
+    doc.fontSize(9).fillColor('#94a3b8').font('Helvetica-Bold');
+    doc.text('SERVICE', PAGE_MARGIN, doc.y);
+    doc.moveDown(0.75);
 
-    doc.rect(PAGE_MARGIN, tableTop, 495, 20).fill('#f8fafc');
-    doc.fontSize(9).fillColor('#475569').font('Helvetica-Bold');
-    doc.text('DESCRIPTION', colDescription + 6, tableTop + 6);
-    doc.text('QTY', colQty, tableTop + 6, { width: 60, align: 'right' });
-    doc.text('PRICE', colPrice, tableTop + 6, { width: 60, align: 'right' });
-    doc.text('TOTAL', colTotal, tableTop + 6, { width: 60, align: 'right' });
-
-    let y = tableTop + 26;
-    doc.font('Helvetica').fontSize(9.5).fillColor('#0f172a');
     for (const item of items) {
-      // Real multi-page support: if the next row would overflow the
-      // page, start a fresh page and continue the table there rather
-      // than letting pdfkit silently clip content off the bottom.
-      if (y > 700) {
+      // Real multi-page support: measure the row's actual height before
+      // drawing it (description text wraps, so rows aren't a fixed
+      // height anymore) and start a fresh page if it wouldn't fit,
+      // rather than letting pdfkit silently clip content off the bottom.
+      const nameLabel = item.serviceType ? SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType : null;
+      doc.font('Helvetica-Bold').fontSize(10.5);
+      const nameHeight = nameLabel ? doc.heightOfString(nameLabel, { width: descWidth }) + 2 : 0;
+      doc.font('Helvetica').fontSize(9.5);
+      const descHeight = doc.heightOfString(item.description, { width: descWidth });
+      const rowHeight = nameHeight + descHeight + 14;
+      if (doc.y + rowHeight > 700) {
         doc.addPage();
-        y = PAGE_MARGIN;
       }
-      const unit = item.unitOfMeasure ? item.unitOfMeasure.replace('_', ' ') : '';
-      doc.text(item.description, colDescription + 6, y, { width: 280 });
-      doc.text(`${item.quantity}${unit ? ' ' + unit : ''}`, colQty, y, { width: 60, align: 'right' });
-      doc.text(this.money(item.unitPrice), colPrice, y, { width: 60, align: 'right' });
-      doc.text(this.money(item.total), colTotal, y, { width: 60, align: 'right' });
-      y += 20;
-      doc.moveTo(PAGE_MARGIN, y - 4).lineTo(545, y - 4).strokeColor('#f1f5f9').stroke();
+
+      const rowTop = doc.y;
+      if (nameLabel) {
+        doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#0f172a').text(nameLabel, PAGE_MARGIN, rowTop, { width: descWidth });
+      }
+      doc.font('Helvetica').fontSize(9.5).fillColor('#475569').text(item.description, PAGE_MARGIN, doc.y + (nameLabel ? 1 : 0), { width: descWidth });
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#0f172a').text(this.money(item.total), 470, rowTop, { width: 75, align: 'right' });
+
+      doc.y = Math.max(doc.y, rowTop + nameHeight + descHeight) + 10;
+      doc.moveTo(PAGE_MARGIN, doc.y).lineTo(545, doc.y).strokeColor('#e2e8f0').stroke();
+      doc.moveDown(0.75);
     }
-    doc.y = y + 6;
   }
 
-  private drawTotals(doc: PDFKit.PDFDocument, input: { subtotal: number; discountAmount: number; taxRatePercent: number; taxAmount: number; totalAmount: number }, accentColor: string, payment?: { amountPaid: number; balanceDue: number }) {
+  private drawTotals(doc: PDFKit.PDFDocument, input: { subtotal: number; discountAmount: number; discountSource?: string | null; taxRatePercent: number; taxAmount: number; totalAmount: number }, accentColor: string, payment?: { amountPaid: number; balanceDue: number }) {
     const x = 350;
     let y = doc.y + 6;
     doc.fontSize(9.5).fillColor('#475569').font('Helvetica');
@@ -265,7 +337,10 @@ export class PdfService {
       y += 16;
     };
     row('Subtotal', this.money(input.subtotal));
-    if (input.discountAmount > 0) row('Discount', `-${this.money(input.discountAmount)}`);
+    if (input.discountAmount > 0) {
+      const discountLabel = input.discountSource === 'package' ? 'Package Discount' : 'Discount';
+      row(discountLabel, `-${this.money(input.discountAmount)}`);
+    }
     row(`Tax (${input.taxRatePercent.toFixed(2)}%)`, this.money(input.taxAmount));
     doc.moveTo(x, y).lineTo(545, y).strokeColor('#e2e8f0').stroke();
     y += 6;
@@ -296,12 +371,12 @@ export class PdfService {
    */
   private drawPaymentMethods(doc: PDFKit.PDFDocument, company: DocumentCompany) {
     doc.moveDown(0.75);
-    doc.fontSize(9).fillColor('#64748b').font('Helvetica-Bold').text('PAYMENT OPTIONS', PAGE_MARGIN);
+    doc.fontSize(9).fillColor('#64748b').font('Helvetica-Bold').text('PAYMENT METHODS', PAGE_MARGIN);
     doc.fontSize(9.5).fillColor('#334155').font('Helvetica');
     if (company.phone) {
       doc.text(`•  Zelle: ${company.phone}`, PAGE_MARGIN, doc.y + 2);
     }
-    doc.text('•  Credit card payments are accepted with a 3% processing fee.', PAGE_MARGIN, doc.y + 2);
+    doc.text('•  Credit Card: A 3% processing fee applies to all credit card payments.', PAGE_MARGIN, doc.y + 2);
   }
 
   private drawSignatureArea(doc: PDFKit.PDFDocument) {

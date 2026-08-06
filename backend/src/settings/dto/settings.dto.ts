@@ -351,6 +351,17 @@ export class UpdateLeadSourcesDto {
   options!: LeadSourceOptionDto[];
 }
 
+export class PresignLogoUploadDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(255)
+  fileName: string;
+
+  @IsNotEmpty()
+  @IsString()
+  mimeType: string;
+}
+
 export class PackageDiscountTierDto {
   @IsNumber()
   @Min(2)

@@ -282,6 +282,7 @@ export class PortalController {
       validUntil: estimate.validUntil,
       lineItems: estimate.lineItems.map((li) => ({
         description: li.description,
+        serviceType: (li as any).serviceType,
         quantity: Number(li.quantity),
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: Number(li.unitPrice),
@@ -331,6 +332,7 @@ export class PortalController {
       dueDate: invoice.dueDate,
       lineItems: invoice.lineItems.map((li: any) => ({
         description: li.description,
+        serviceType: li.serviceType,
         quantity: Number(li.quantity),
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: Number(li.unitPrice),
@@ -338,6 +340,7 @@ export class PortalController {
       })),
       subtotal: invoice.subtotal.toNumber(),
       discountAmount: invoice.discountAmount.toNumber(),
+      discountSource: (invoice as any).discountSource ?? null,
       taxRatePercent: invoice.taxRate.toNumber() * 100,
       taxAmount: invoice.taxAmount.toNumber(),
       totalAmount: invoice.totalAmount.toNumber(),

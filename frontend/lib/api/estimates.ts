@@ -88,6 +88,7 @@ export interface CreateEstimateInput {
   lineItems: CreateLineItemInput[];
   discountType?: string;
   discountValue?: number;
+  discountSource?: string;
   taxRatePercent?: number;
   notes?: string;
   terms?: string;

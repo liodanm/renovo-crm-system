@@ -1719,3 +1719,53 @@ instance) reproduced the identical result already verified: manual
 review-received correctly overrides log state, and a second company's
 identically-named customer showed zero contamination. Simplification
 reviewed again — same conclusion as rc.2, nothing further to remove.
+## 28. Invoice/Estimate PDF Redesign + Estimate Property Auto-Select (shipped)
+
+**discountSource, wired end to end:** one new nullable column on both
+Estimate and Invoice (migration 034), distinguishing WHY a discount
+exists (package-applied vs. manually typed) from HOW it's calculated
+(discountType already covers that). Threaded through create/update
+(with the same partial-update protection already used for
+discountType/discountValue), duplicate(), and critically through the
+Invoice snapshot mechanism in generateFromJob() — verified against a
+real database that a package-sourced estimate correctly produces a
+package-sourced invoice, not the identical bug the earlier Financial
+Integrity fix already closed once.
+
+**A real process mistake caught before it repeated the earlier
+production incident:** the new migration was written but not copied
+into init-scripts/ — the exact gap that caused the Review Tracking
+production outage. Caught this time by running the real verification
+against a fresh database before packaging, not after a person reported
+a broken page. Fixed and confirmed via the actual CI sync-check script,
+not eyeballed.
+
+**PDF redesign, verified by rendering real output, not just reading
+the code:** centered logo (falls back to the existing text company
+name if none is uploaded or the fetch fails — never blocks generating
+the document), a prominent large bold TOTAL immediately after the
+header before anything else, line items redesigned to bold service
+name + description + divider (Qty/Unit Price removed), company address
+removed, Payment Methods section with Zelle (the company's real phone
+number, already flowing through the existing CompanyContextService —
+no new field for the number itself) and the credit-card fee notice,
+and "Package Discount" vs "Discount" labeling driven by the new field.
+
+**Logo upload:** found that Branding's save/read path already fully
+supported a logoUrl field — the only real gap was a way to obtain one.
+Added one new presigned-upload endpoint, reusing the exact same
+StorageService pattern already proven for Customer photos, not a
+second upload system. Requires the S3 bucket/CDN to allow public read
+on the branding/ prefix — an AWS-side setting, same class of one-time
+setup as the CORS policy customer photo uploads needed.
+
+**Estimate property auto-select:** a customer with exactly one property
+is selected automatically, with real edge-case protection verified in
+code review — keyed on [customerId, properties] rather than propertyId
+itself, so editing an existing estimate, a restored draft, or a
+deliberately-cleared selection are all correctly left alone.
+
+**Two real "str_replace consumed the anchor method signature" mistakes
+this session, both caught immediately via follow-up grep, not
+assumed fixed** — logged again here as a recurring pattern worth
+watching for specifically in this codebase.

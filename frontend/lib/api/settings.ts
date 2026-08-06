@@ -153,6 +153,11 @@ export const settingsApi = {
 
   getBranding: () => apiFetch<BrandingSettings>('/settings/branding'),
   updateBranding: (input: Partial<BrandingSettings>) => apiFetch<BrandingSettings>('/settings/branding', { method: 'PATCH', body: JSON.stringify(input) }),
+  presignLogoUpload: (fileName: string, mimeType: string) =>
+    apiFetch<{ uploadUrl: string; publicUrl: string; expiresInSeconds: number }>('/settings/branding/logo-upload-url', {
+      method: 'POST',
+      body: JSON.stringify({ fileName, mimeType }),
+    }),
   getLeadSources: () => apiFetch<{ options: LeadSourceOption[] }>('/settings/lead-sources'),
   updateLeadSources: (options: LeadSourceOption[]) =>
     apiFetch<{ options: LeadSourceOption[] }>('/settings/lead-sources', { method: 'PATCH', body: JSON.stringify({ options }) }),

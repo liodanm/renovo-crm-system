@@ -61,7 +61,7 @@ export class EstimatesService {
 
       await this.insertLineItems(tx, companyId, estimate.id, dto.lineItems);
       await this.computeAndSaveLineItemProfitability(tx, companyId, estimate.id);
-      return this.recalculateAndSave(tx, companyId, estimate.id, dto.discountType, dto.discountValue, dto.taxRatePercent);
+      return this.recalculateAndSave(tx, companyId, estimate.id, dto.discountType, dto.discountValue, dto.taxRatePercent, dto.discountSource);
     });
 
     return this.applyProfitabilityVisibility(result, canViewProfitability);
@@ -146,8 +146,12 @@ export class EstimatesService {
       const effectiveTaxRatePercent = dto.taxRatePercent !== undefined
         ? dto.taxRatePercent
         : Number(existing.taxRate ?? 0) * 100;
+      // Same "don't wipe on partial update" rule as discountType/Value —
+      // a line-items-only edit shouldn't silently clear which system
+      // applied the existing discount.
+      const effectiveDiscountSource = dto.discountSource !== undefined ? dto.discountSource : (existing as any).discountSource ?? undefined;
 
-      return this.recalculateAndSave(tx, companyId, id, effectiveDiscountType, effectiveDiscountValue, effectiveTaxRatePercent);
+      return this.recalculateAndSave(tx, companyId, id, effectiveDiscountType, effectiveDiscountValue, effectiveTaxRatePercent, effectiveDiscountSource);
     });
 
     return this.applyProfitabilityVisibility(result, canViewProfitability);
@@ -340,6 +344,7 @@ export class EstimatesService {
           taxAmount: source.taxAmount,
           discountAmount: source.discountAmount,
           discountType: source.discountType,
+          discountSource: (source as any).discountSource,
           totalAmount: source.totalAmount,
           notes: source.notes,
           terms: source.terms,
@@ -397,6 +402,7 @@ export class EstimatesService {
       validUntil: estimate.validUntil,
       lineItems: estimate.lineItems.map((li: any) => ({
         description: li.description,
+        serviceType: li.serviceType,
         quantity: Number(li.quantity),
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: Number(li.unitPrice),
@@ -404,6 +410,7 @@ export class EstimatesService {
       })),
       subtotal: Number(estimate.subtotal),
       discountAmount: Number(estimate.discountAmount),
+      discountSource: (estimate as any).discountSource ?? null,
       taxRatePercent: Number(estimate.taxRate) * 100,
       taxAmount: Number(estimate.taxAmount),
       totalAmount: Number(estimate.totalAmount),
@@ -663,7 +670,7 @@ export class EstimatesService {
    * always derived server-side from the line items that were actually
    * persisted.
    */
-  private async recalculateAndSave(tx: any, companyId: string, estimateId: string, discountType?: string, discountValue?: number, taxRatePercent?: number) {
+  private async recalculateAndSave(tx: any, companyId: string, estimateId: string, discountType?: string, discountValue?: number, taxRatePercent?: number, discountSource?: string | null) {
     const lineItems: Array<{ total: unknown }> = await tx.$queryRaw`
       SELECT total FROM estimate_line_items WHERE estimate_id = ${estimateId}::uuid AND company_id = ${companyId}::uuid
     `;
@@ -677,6 +684,10 @@ export class EstimatesService {
         subtotal: totals.subtotal,
         discountType: discountType ?? null,
         discountAmount: totals.discountAmount,
+        // No discount at all -> source is meaningless, force it null
+        // rather than leaving a stale 'package'/'manual' value sitting
+        // on a $0 discount.
+        discountSource: discountType ? (discountSource ?? null) : null,
         taxRate: totals.taxRateFraction,
         taxAmount: totals.taxAmount,
         totalAmount: totals.totalAmount,

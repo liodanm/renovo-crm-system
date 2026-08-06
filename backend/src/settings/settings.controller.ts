@@ -14,6 +14,7 @@ import {
   SendTestSmsDto,
   UpdateLeadSourcesDto,
   UpdatePackageDiscountsDto,
+  PresignLogoUploadDto,
 } from './dto/settings.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -75,6 +76,12 @@ export class SettingsController {
   @Get('branding')
   getBranding(@CurrentUser() user: AuthenticatedRequestUser) {
     return this.settings.getBranding(user.companyId);
+  }
+
+  @Post('branding/logo-upload-url')
+  @RequirePermissions('settings.manage')
+  presignLogoUpload(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: PresignLogoUploadDto) {
+    return this.settings.presignLogoUpload(user.companyId, dto.fileName, dto.mimeType);
   }
 
   @Patch('branding')

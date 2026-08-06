@@ -73,12 +73,12 @@ export class InvoicesService {
       // when there's no source estimate at all (e.g. a job the AI
       // Receptionist created directly) — that path is unchanged, not
       // just preserved by accident.
-      let totals: { subtotal: number; discountAmount: number; discountType: string | null; taxAmount: number; totalAmount: number; taxRateFraction: number };
+      let totals: { subtotal: number; discountAmount: number; discountType: string | null; discountSource: string | null; taxAmount: number; totalAmount: number; taxRateFraction: number };
       if (job.estimateId) {
         const estimateRows = await tx.$queryRaw<
-          { subtotal: string; discountAmount: string; discountType: string | null; taxRate: string; taxAmount: string; totalAmount: string }[]
+          { subtotal: string; discountAmount: string; discountType: string | null; discountSource: string | null; taxRate: string; taxAmount: string; totalAmount: string }[]
         >`
-          SELECT subtotal, discount_amount AS "discountAmount", discount_type AS "discountType", tax_rate AS "taxRate", tax_amount AS "taxAmount", total_amount AS "totalAmount"
+          SELECT subtotal, discount_amount AS "discountAmount", discount_type AS "discountType", discount_source AS "discountSource", tax_rate AS "taxRate", tax_amount AS "taxAmount", total_amount AS "totalAmount"
           FROM estimates WHERE id = ${job.estimateId}::uuid AND company_id = ${companyId}::uuid
         `;
         const estimate = estimateRows[0];
@@ -86,6 +86,7 @@ export class InvoicesService {
           subtotal: Number(estimate.subtotal),
           discountAmount: Number(estimate.discountAmount),
           discountType: estimate.discountType,
+          discountSource: estimate.discountSource,
           taxAmount: Number(estimate.taxAmount),
           totalAmount: Number(estimate.totalAmount),
           taxRateFraction: Number(estimate.taxRate),
@@ -94,7 +95,7 @@ export class InvoicesService {
         const taxRatePercent = company?.defaultTaxRatePercent ? Number(company.defaultTaxRatePercent) : undefined;
         const subtotal = lineItems.reduce((sum, li) => sum + Number(li.quantity) * Number(li.unitPrice), 0);
         const computed = computeDocumentTotals(subtotal, undefined, undefined, taxRatePercent);
-        totals = { ...computed, discountType: null };
+        totals = { ...computed, discountType: null, discountSource: null };
       }
 
       const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
@@ -104,10 +105,10 @@ export class InvoicesService {
       const invoiceRows = await tx.$queryRaw<{ id: string }[]>`
         INSERT INTO invoices (
           company_id, customer_id, property_id, job_id, estimate_id, invoice_number, status,
-          subtotal, tax_rate, tax_amount, discount_amount, discount_type, total_amount, due_date, notes, created_by
+          subtotal, tax_rate, tax_amount, discount_amount, discount_type, discount_source, total_amount, due_date, notes, created_by
         ) VALUES (
           ${companyId}::uuid, ${job.customerId}::uuid, ${job.propertyId}::uuid, ${jobId}::uuid, ${job.estimateId}::uuid, ${invoiceNumber}, 'draft',
-          ${totals.subtotal}, ${totals.taxRateFraction}, ${totals.taxAmount}, ${totals.discountAmount}, ${totals.discountType}, ${totals.totalAmount}, ${dueDate}, ${job.notes}, ${userId}::uuid
+          ${totals.subtotal}, ${totals.taxRateFraction}, ${totals.taxAmount}, ${totals.discountAmount}, ${totals.discountType}, ${totals.discountSource}, ${totals.totalAmount}, ${dueDate}, ${job.notes}, ${userId}::uuid
         )
         RETURNING id
       `;
@@ -152,7 +153,7 @@ export class InvoicesService {
       const rows = await client.$queryRaw<any[]>`
         SELECT i.*, i.invoice_number AS "invoiceNumber", i.customer_id AS "customerId", i.property_id AS "propertyId",
                i.job_id AS "jobId", i.estimate_id AS "estimateId", i.discount_type AS "discountType",
-               i.discount_amount AS "discountAmount", i.tax_rate AS "taxRate", i.tax_amount AS "taxAmount",
+               i.discount_amount AS "discountAmount", i.discount_source AS "discountSource", i.tax_rate AS "taxRate", i.tax_amount AS "taxAmount",
                i.total_amount AS "totalAmount", i.amount_paid AS "amountPaid", i.balance_due AS "balanceDue",
                i.due_date AS "dueDate", i.sent_at AS "sentAt", i.viewed_at AS "viewedAt", i.paid_at AS "paidAt", i.created_at AS "createdAt",
                c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName",
@@ -249,6 +250,7 @@ export class InvoicesService {
       dueDate: invoice.dueDate,
       lineItems: invoice.lineItems.map((li: any) => ({
         description: li.description,
+        serviceType: li.serviceType,
         quantity: Number(li.quantity),
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: Number(li.unitPrice),
@@ -256,6 +258,7 @@ export class InvoicesService {
       })),
       subtotal: Number(invoice.subtotal),
       discountAmount: Number(invoice.discountAmount),
+      discountSource: invoice.discountSource ?? null,
       taxRatePercent: Number(invoice.taxRate) * 100,
       taxAmount: Number(invoice.taxAmount),
       totalAmount: Number(invoice.totalAmount),

@@ -27,7 +27,7 @@ export class StorageService {
     });
   }
 
-  buildKey(companyId: string, category: 'photos' | 'documents', originalFileName: string): string {
+  buildKey(companyId: string, category: 'photos' | 'documents' | 'branding', originalFileName: string): string {
     const ext = originalFileName.includes('.') ? originalFileName.split('.').pop() : undefined;
     const uniqueName = `${randomUUID()}${ext ? `.${ext}` : ''}`;
     return `${companyId}/${category}/${uniqueName}`;

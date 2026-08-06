@@ -134,6 +134,14 @@ export class CreateEstimateDto {
   @Min(0)
   discountValue?: number;
 
+  // WHY the discount exists, not HOW it's calculated (discountType
+  // covers that) — sent by the frontend, which already knows whether
+  // this came from the Package Discounts auto-apply logic or was typed
+  // in directly.
+  @IsOptional()
+  @IsIn(['package', 'manual'])
+  discountSource?: string;
+
   // A percentage (e.g. 8.25 for 8.25%), not the stored fraction —
   // converted to the DB's fraction convention (tax_rate NUMERIC(5,4)) in
   // the service layer, so the API stays in the units a person actually

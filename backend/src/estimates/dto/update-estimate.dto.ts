@@ -25,6 +25,10 @@ export class UpdateEstimateDto {
   discountValue?: number;
 
   @IsOptional()
+  @IsIn(['package', 'manual'])
+  discountSource?: string;
+
+  @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100)
