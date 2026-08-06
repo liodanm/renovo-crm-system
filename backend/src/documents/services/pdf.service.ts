@@ -125,8 +125,7 @@ export class PdfService {
     const logoBuffer = await this.fetchLogoBuffer(input.branding.logoUrl);
     return this.render((doc) => {
       const accentColor = input.branding.primaryColor || '#0e7490';
-      this.drawHeader(doc, input.company, input.branding, accentColor, 'ESTIMATE', input.estimateNumber, input.status, logoBuffer);
-      this.drawGrandTotal(doc, input.totalAmount, accentColor, 'TOTAL INVESTMENT');
+      this.drawHeader(doc, input.company, input.branding, accentColor, 'ESTIMATE', input.estimateNumber, input.status, logoBuffer, input.totalAmount, 'Total Investment');
       this.drawPartyBlocks(doc, input.company, input.customer, input.property);
 
       doc.fontSize(9).fillColor('#64748b');
@@ -145,7 +144,6 @@ export class PdfService {
       if (input.notes) this.drawLabeledBlock(doc, 'Notes', input.notes);
       if (input.terms) this.drawLabeledBlock(doc, 'Terms', input.terms);
 
-      this.drawSignatureArea(doc);
       this.drawFooter(doc, input.branding);
     });
   }
@@ -154,8 +152,7 @@ export class PdfService {
     const logoBuffer = await this.fetchLogoBuffer(input.branding.logoUrl);
     return this.render((doc) => {
       const accentColor = input.branding.primaryColor || '#0e7490';
-      this.drawHeader(doc, input.company, input.branding, accentColor, 'INVOICE', input.invoiceNumber, input.status, logoBuffer);
-      this.drawGrandTotal(doc, input.totalAmount, accentColor, 'TOTAL');
+      this.drawHeader(doc, input.company, input.branding, accentColor, 'INVOICE', input.invoiceNumber, input.status, logoBuffer, input.totalAmount, 'Total');
       this.drawPartyBlocks(doc, input.company, input.customer, input.property);
 
       doc.fontSize(9).fillColor('#64748b');
@@ -229,54 +226,51 @@ export class PdfService {
     });
   }
 
-  private drawHeader(doc: PDFKit.PDFDocument, company: DocumentCompany, branding: DocumentBranding, accentColor: string, docType: string, docNumber: string, status: string, logoBuffer: Buffer | null) {
+  private drawHeader(doc: PDFKit.PDFDocument, company: DocumentCompany, branding: DocumentBranding, accentColor: string, docType: string, docNumber: string, status: string, logoBuffer: Buffer | null, totalAmount: number, totalLabel: string) {
     doc.rect(0, 0, doc.page.width, 8).fill(accentColor);
 
-    // Centered letterhead — logo image if the company has one uploaded,
-    // otherwise the text company name (the existing, already-working
-    // fallback, never left blank).
+    // Left column: logo (if uploaded) or company name, then contact
+    // info stacked one line per item — never joined with separators,
+    // per request. Right column: doc type/number/status, with the
+    // prominent total directly beneath it — both columns start at the
+    // same y so they read as one aligned header, not two unrelated
+    // blocks.
+    let leftY = 24;
     if (logoBuffer) {
       try {
-        // fit centers within the given box; height capped so a very
-        // tall/narrow logo can't push the rest of the header down.
-        doc.image(logoBuffer, (doc.page.width - 140) / 2, 20, { fit: [140, 44], align: 'center' });
+        doc.image(logoBuffer, PAGE_MARGIN, leftY, { fit: [140, 44] });
+        leftY += 50;
       } catch {
-        doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, 0, 24, { width: doc.page.width, align: 'center' });
+        doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, PAGE_MARGIN, leftY, { width: 280 });
+        leftY += 20;
       }
     } else {
-      doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, 0, 24, { width: doc.page.width, align: 'center' });
+      doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold').text(company.dba || company.name, PAGE_MARGIN, leftY, { width: 280 });
+      leftY += 20;
     }
 
-    doc.moveDown(1.5);
-
-    // Address intentionally removed per request — contact info (phone/
-    // email/website) is the useful part for a customer, not the mailing
-    // address.
     doc.fontSize(9).fillColor('#64748b').font('Helvetica');
-    const contactLine = [company.phone, company.email, company.website].filter(Boolean).join(' · ');
-    if (contactLine) doc.text(contactLine, PAGE_MARGIN, 70);
+    for (const contactValue of [company.phone, company.email, company.website]) {
+      if (!contactValue) continue;
+      doc.text(contactValue, PAGE_MARGIN, leftY, { width: 280 });
+      leftY += 13;
+    }
 
-    doc.fontSize(20).fillColor(accentColor).font('Helvetica-Bold').text(docType, 350, 56, { width: 195, align: 'right' });
-    doc.fontSize(10).fillColor('#0f172a').font('Helvetica').text(`# ${docNumber}`, 350, 81, { width: 195, align: 'right' });
-    doc.fontSize(9).fillColor('#64748b').text(status.toUpperCase(), 350, 96, { width: 195, align: 'right' });
+    let rightY = 24;
+    doc.fontSize(20).fillColor(accentColor).font('Helvetica-Bold').text(docType, 350, rightY, { width: 195, align: 'right' });
+    rightY += 25;
+    doc.fontSize(10).fillColor('#0f172a').font('Helvetica').text(`# ${docNumber}`, 350, rightY, { width: 195, align: 'right' });
+    rightY += 15;
+    doc.fontSize(9).fillColor('#64748b').text(status.toUpperCase(), 350, rightY, { width: 195, align: 'right' });
+    rightY += 20;
+    doc.fontSize(9).fillColor('#64748b').font('Helvetica-Bold').text(totalLabel.toUpperCase(), 350, rightY, { width: 195, align: 'right' });
+    rightY += 14;
+    doc.fontSize(22).fillColor(accentColor).font('Helvetica-Bold').text(this.money(totalAmount), 350, rightY, { width: 195, align: 'right' });
+    rightY += 28;
 
-    doc.y = 110;
+    doc.y = Math.max(leftY, rightY) + 8;
     doc.moveTo(PAGE_MARGIN, doc.y).lineTo(545, doc.y).strokeColor('#e2e8f0').stroke();
     doc.moveDown(1);
-  }
-
-  /**
-   * The prominent Grand Total — directly below the doc number/status,
-   * before anything else, per the explicit "immediately visible without
-   * scrolling" requirement. Reads a number that's already fully
-   * computed and validated upstream (computeDocumentTotals) — this only
-   * draws it, never recalculates it.
-   */
-  private drawGrandTotal(doc: PDFKit.PDFDocument, totalAmount: number, accentColor: string, label: string) {
-    doc.moveDown(0.25);
-    doc.fontSize(10).fillColor('#64748b').font('Helvetica-Bold').text(label, PAGE_MARGIN, doc.y, { align: 'center', width: 495 });
-    doc.fontSize(32).fillColor(accentColor).font('Helvetica-Bold').text(this.money(totalAmount), PAGE_MARGIN, doc.y + 2, { align: 'center', width: 495 });
-    doc.moveDown(1.5);
   }
 
   private drawPartyBlocks(doc: PDFKit.PDFDocument, company: DocumentCompany, customer: DocumentCustomer, property: DocumentProperty) {
@@ -388,15 +382,6 @@ export class PdfService {
       doc.text(`•  Zelle: ${company.phone}`, PAGE_MARGIN, doc.y + 2);
     }
     doc.text('•  Credit Card: A 3% processing fee applies to all credit card payments.', PAGE_MARGIN, doc.y + 2);
-  }
-
-  private drawSignatureArea(doc: PDFKit.PDFDocument) {
-    doc.moveDown(2);
-    const y = doc.y;
-    doc.moveTo(PAGE_MARGIN, y + 30).lineTo(280, y + 30).strokeColor('#94a3b8').stroke();
-    doc.fontSize(8).fillColor('#64748b').text('Customer Signature', PAGE_MARGIN, y + 34);
-    doc.moveTo(320, y + 30).lineTo(430, y + 30).strokeColor('#94a3b8').stroke();
-    doc.fontSize(8).fillColor('#64748b').text('Date', 320, y + 34);
   }
 
   private drawFooter(doc: PDFKit.PDFDocument, branding: DocumentBranding) {
