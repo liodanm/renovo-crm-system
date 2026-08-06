@@ -259,6 +259,7 @@ export class InvoicesService {
       subtotal: Number(invoice.subtotal),
       discountAmount: Number(invoice.discountAmount),
       discountSource: invoice.discountSource ?? null,
+      discountType: invoice.discountType ?? null,
       taxRatePercent: Number(invoice.taxRate) * 100,
       taxAmount: Number(invoice.taxAmount),
       totalAmount: Number(invoice.totalAmount),

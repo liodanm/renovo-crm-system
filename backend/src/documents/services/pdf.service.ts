@@ -72,6 +72,7 @@ export interface EstimatePdfInput {
   subtotal: number;
   discountAmount: number;
   discountSource?: string | null;
+  discountType?: string | null;
   taxRatePercent: number;
   taxAmount: number;
   totalAmount: number;
@@ -92,6 +93,7 @@ export interface InvoicePdfInput {
   subtotal: number;
   discountAmount: number;
   discountSource?: string | null;
+  discountType?: string | null;
   taxRatePercent: number;
   taxAmount: number;
   totalAmount: number;
@@ -124,7 +126,7 @@ export class PdfService {
     return this.render((doc) => {
       const accentColor = input.branding.primaryColor || '#0e7490';
       this.drawHeader(doc, input.company, input.branding, accentColor, 'ESTIMATE', input.estimateNumber, input.status, logoBuffer);
-      this.drawGrandTotal(doc, input.totalAmount, accentColor, 'TOTAL');
+      this.drawGrandTotal(doc, input.totalAmount, accentColor, 'TOTAL INVESTMENT');
       this.drawPartyBlocks(doc, input.company, input.customer, input.property);
 
       doc.fontSize(9).fillColor('#64748b');
@@ -138,7 +140,7 @@ export class PdfService {
       }
 
       this.drawLineItemsTable(doc, input.lineItems, accentColor);
-      this.drawTotals(doc, input, accentColor);
+      this.drawTotals(doc, input, accentColor, undefined, 'Total Investment');
 
       if (input.notes) this.drawLabeledBlock(doc, 'Notes', input.notes);
       if (input.terms) this.drawLabeledBlock(doc, 'Terms', input.terms);
@@ -326,7 +328,7 @@ export class PdfService {
     }
   }
 
-  private drawTotals(doc: PDFKit.PDFDocument, input: { subtotal: number; discountAmount: number; discountSource?: string | null; taxRatePercent: number; taxAmount: number; totalAmount: number }, accentColor: string, payment?: { amountPaid: number; balanceDue: number }) {
+  private drawTotals(doc: PDFKit.PDFDocument, input: { subtotal: number; discountAmount: number; discountSource?: string | null; discountType?: string | null; taxRatePercent: number; taxAmount: number; totalAmount: number }, accentColor: string, payment?: { amountPaid: number; balanceDue: number }, totalLabel = 'Total') {
     const x = 350;
     let y = doc.y + 6;
     doc.fontSize(9.5).fillColor('#475569').font('Helvetica');
@@ -338,13 +340,22 @@ export class PdfService {
     };
     row('Subtotal', this.money(input.subtotal));
     if (input.discountAmount > 0) {
-      const discountLabel = input.discountSource === 'package' ? 'Package Discount' : 'Discount';
+      const baseLabel = input.discountSource === 'package' ? 'Package Discount' : 'Discount';
+      // Neither Estimate nor Invoice stores the raw percentage that was
+      // entered (confirmed directly against schema.prisma) — only
+      // discountType and the resulting dollar discountAmount. Deriving
+      // the percentage back from discountAmount/subtotal is therefore
+      // the exact original figure (not an approximation of a "real"
+      // stored value that doesn't exist), modulo cent-level rounding.
+      const discountLabel = input.discountType === 'percentage' && input.subtotal > 0
+        ? `${baseLabel} (${((input.discountAmount / input.subtotal) * 100).toFixed(0)}%)`
+        : baseLabel;
       row(discountLabel, `-${this.money(input.discountAmount)}`);
     }
     row(`Tax (${input.taxRatePercent.toFixed(2)}%)`, this.money(input.taxAmount));
     doc.moveTo(x, y).lineTo(545, y).strokeColor('#e2e8f0').stroke();
     y += 6;
-    row('Total', this.money(input.totalAmount), true);
+    row(totalLabel, this.money(input.totalAmount), true);
     if (payment) {
       row('Amount Paid', this.money(payment.amountPaid));
       doc.fillColor(payment.balanceDue > 0 ? '#dc2626' : '#16a34a');

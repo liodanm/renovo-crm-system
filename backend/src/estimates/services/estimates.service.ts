@@ -411,6 +411,7 @@ export class EstimatesService {
       subtotal: Number(estimate.subtotal),
       discountAmount: Number(estimate.discountAmount),
       discountSource: (estimate as any).discountSource ?? null,
+      discountType: estimate.discountType ?? null,
       taxRatePercent: Number(estimate.taxRate) * 100,
       taxAmount: Number(estimate.taxAmount),
       totalAmount: Number(estimate.totalAmount),
