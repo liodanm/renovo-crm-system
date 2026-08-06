@@ -37,7 +37,7 @@ export class EmailLogService {
     return this.prisma.withTenantContext(input.companyId, async (tx) => {
       const rows: { id: string }[] = await tx.$queryRawUnsafe(
         `INSERT INTO email_log (company_id, related_type, related_id, recipient_email, subject, template, status, sent_by_user_id)
-         VALUES ($1, $2, $3, $4, $5, $6, 'queued', $7)
+         VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, 'queued', $7::uuid)
          RETURNING id`,
         input.companyId,
         input.relatedType,
