@@ -1,154 +1,141 @@
 # Renovo CRM — Project Context
 
-*Lean reference for every Claude session. Full build history, ADRs, and detailed postmortems: `PROJECT_HISTORY.md`.*
-
-**⚠️ Version tracking is inconsistent — flagged, not resolved:** the prior context doc's header tracked a separate "CRM Version" (last seen v0.26.0) distinct from `backend/package.json`'s semver (last seen `0.1.0-rc.4` after this session's work). These two numbers have never been reconciled to one source of truth. Until they are, don't trust either number alone — check `backend/package.json` directly for the real current version, and treat any "CRM Version" header as informational only.
+*Lean reference for Claude sessions. Full build history, ADRs, and past bug postmortems: `PROJECT_HISTORY.md`.*
 
 ## 1. Product Overview
 
-- **What it is:** Multi-tenant SaaS CRM purpose-built for pressure washing businesses — leads, customers, estimates, jobs, scheduling, invoicing, payments, self-service customer portal, AI phone receptionist, an embeddable Instant Quote Widget.
-- **Target user:** Solo/small-crew pressure washing operator today (Relentless Pressure Wash, the one live company). Multi-tech/team features are built into the schema but intentionally de-prioritized for polish until there are actual employees.
-- **Business goals:** Save the owner time weekly, reduce pricing/invoicing mistakes, become a $99–199/mo subscription SaaS for other pressure washing companies within 1–2 years — without building premature multi-tenant management UI now.
-- **Maturity:** Production-hardening phase, not new-module phase. Core financial, scheduling, and PDF paths have been through real-database verification, not just code review. One live production company; SaaS subscription/billing not yet built.
+- **What it is:** Multi-tenant SaaS CRM purpose-built for pressure washing businesses — customers, properties, estimates, jobs, scheduling, invoicing, payments, self-service customer portal, AI phone receptionist.
+- **Target user:** Solo/small pressure washing operator today (Leo, Relentless Pressure Wash). Built to become a $99–199/mo subscription SaaS for other pressure washing companies within 1–2 years.
+- **Business goals:** Save the owner time weekly, reduce pricing/invoicing mistakes, win more jobs (instant quoting, AI receptionist), be genuinely better for this trade than generalist FSM tools (Jobber, Housecall Pro) or the trade-specific niche tools (ServiceMonster, QuoteIQ).
+- **Maturity:** Pre-launch, actively developed, one production deployment (single real company). Core financial and scheduling paths are verified and hardened. Not yet handling real subscription billing or multiple paying companies.
 
 ## 2. Technical Architecture
 
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js (App Router), React, Tailwind, SWR |
-| Backend | NestJS (TypeScript), one module per domain |
-| Database | PostgreSQL on Railway |
-| ORM | Prisma for typed queries; raw `$queryRawUnsafe` for complex joins/reporting — **`appointments` has no Prisma model at all**, managed entirely via raw SQL by deliberate choice |
-| Migrations | Hand-numbered SQL files in `backend/prisma/migrations/`, applied via a plain `psql` loop — **not** Prisma's own migrate engine. Must be mirrored into `init-scripts/` (Docker's Postgres init source) — enforced by CI (`scripts/check-migration-sync.sh`, `scripts/check-duplicate-source.sh`, ADR-012). **Two real production outages this cycle were caused by a migration existing in code but never applied to the live Railway database** — CI catches the `init-scripts/` drift, but does not catch "ran locally, never ran on Railway." That gap is still open. |
-| Cache | Redis (Railway) — also backs Customer Portal magic links and Quote Widget submission idempotency |
-| Hosting | Railway (backend, Postgres, Redis, frontend) |
-| Email | Postmark, via one processor (`mail/mail.processor.ts`) + `email_log` table (polymorphic, per-document send history) |
+| Frontend | Next.js 14 (App Router), React, Tailwind, SWR for data fetching |
+| Backend | NestJS (TypeScript) |
+| Database | PostgreSQL, hosted on Railway |
+| ORM | Prisma — **not** 100% of tables are modeled; some (e.g. `appointments`) are managed entirely via raw `$queryRaw`/`$executeRaw` by deliberate choice |
+| Cache/Queue | Redis (Railway) |
+| Hosting | Railway (backend service, Postgres, Redis); frontend also Railway |
+| Email | Postmark |
 | SMS | Twilio |
-| File storage | AWS S3, presigned upload pattern. Public-read required on `branding/` prefix (logos); private/presigned-download for customer photos/docs |
-| Auth | JWT access/refresh (`auth/`), email/password + optional Google/Microsoft OAuth (degrades gracefully if unconfigured), email verification, password reset. Multi-company support (`select-company`, `switch-company`, invites) already built, unused today. Customer Portal uses separate magic-link auth. |
-| Payments | Stripe — success **and** failure webhook paths both handled (`payment_intent.succeeded` / `payment_intent.payment_failed`); webhook invoice lookups explicitly scoped by `companyId` via PaymentIntent metadata |
-| PDF generation | PDFKit, programmatic, one shared service for both Estimates and Invoices. Branding (logo/colors) is read live at render time — never snapshotted into a document. |
-| Maps/Geocoding | OpenStreetMap Nominatim (free) — route optimization not built, blocked on a Mapbox account decision. Live production reliability of geocoding never confirmed end-to-end. |
-| AI | AI Receptionist (Twilio-integrated call handling, backend built, **never tested against a live call**); AI Assistant (chat, no aggregate-query capability yet) |
-| Multi-tenancy | Postgres Row-Level Security on every tenant-scoped table, keyed on `company_id`. The **only** way to set the session variable RLS depends on is `TenantContextService`/`TenantContextInterceptor` (`AsyncLocalStorage`-based). Any tenant-scoped query reached without this context is a bug. |
-| Permissions | Backend `PermissionsGuard`/`RolesGuard` are the real boundary. Frontend `<PermissionGate>` is UX convenience only — explicitly documented as not a security boundary. |
+| File storage | AWS S3 (presigned upload pattern; public-read needed on `branding/` prefix for logos, private for customer photos/docs) |
+| Auth | Custom JWT-based (NestJS), email/password + Google/Microsoft OAuth, email verification, password reset, multi-company support (`select-company`, `switch-company`, invites) already built but unused (solo company today) |
+| Payments | Stripe (Customer Portal payment flow) |
+| PDF generation | PDFKit, programmatic (no HTML template engine), one shared service for both Estimates and Invoices |
+| Maps/Geocoding | OpenStreetMap Nominatim (free, no key) — route optimization not built, blocked on a Mapbox account decision |
+| AI | Custom AI Receptionist (phone answering, job booking) and AI Assistant (chat) — Assistant currently has no aggregate-query capability |
 
 ## 3. Current Modules
 
 | Module | Status | Key Files | Known Limitations |
 |---|---|---|---|
-| Dashboard | Complete | `dashboard/` | Map/geocoding live reliability unconfirmed |
-| Leads | Not built | Nav stub only | Standalone lead-capture (`leads.service.ts`) exists but bypassed `CustomersService` until a fix this cycle; no dedicated module planned until call/inquiry volume justifies it |
-| Customers | Complete | `customers/` | Journey Stage / Customer Intelligence verified correct against real scenarios; "Restore Customer" is UI copy only, no real capability; "Edit Property" doesn't exist (Add/Delete do) |
-| Estimates | Complete | `estimates/`, `EstimateForm.tsx`, `CustomerPicker.tsx` | Package Discounts mode toggle (tiered/fixed) is unnecessary complexity; manual convert-to-job endpoint still live alongside auto-creation on accept (ADR-007) — undecided whether to deprecate |
-| Scheduling | Complete | `scheduling/` (raw-SQL `appointments`, no Prisma model) | No route optimization; multi-tech assignment model not yet simplified for solo use; calendar drag-reschedule is desktop-only by design (Reschedule modal is the mobile path) |
-| Jobs | Complete | `jobs/` | No Archive system yet (full approved spec exists, zero code — see Section 6); Completion Flow now embeds Photos/Chemicals/Equipment inline instead of jump-links |
-| Invoices | Complete | `invoices/` | Void blocked when active payments exist; PDF redesigned (logo, prominent Total, Payment Methods, discount-source labeling) and verified by rendering real output |
-| Payments | Complete | `payments/` | Stripe success + failure both handled; manual recording supported |
-| Customer Portal | Backend complete, frontend unconfirmed | `portal/` | Frontend completeness never directly verified |
-| Settings/Branding | Complete for built sections | `settings/` | Logo upload now real (presigned S3); Users & Roles, API Keys still UI-stubbed "Soon" |
-| Reports | Complete | `reports/` | `getCustomerAnalytics` LTV independently re-sums invoices instead of reading `Customer.lifetimeValue` — known, unfixed inconsistency |
-| Integrations | Complete | `settings/services/integrations.service.ts` | Single page for Stripe/Postmark/Twilio/Anthropic/S3 status + Business Links. **No provider secret ever stored in Postgres** (ADR-011) — Railway env vars only. Verify/Test buttons confirmed to call the right endpoints; never tested against real provider accounts. "Coming Soon" cards (Roof Measurement, Google Maps, QuickBooks, Zapier, Google Calendar, Outlook, CompanyCam) are placeholders only |
-| Automations | Complete (backend), invisible (frontend) | `automation/` | Cron-driven, real SMS/email (follow-ups, recurring reminders, review requests); nothing shows a pending automated action before it fires or lets staff cancel one |
-| AI Receptionist | Backend complete, unverified live | `receptionist/` | No frontend for behavior settings (greeting/FAQ/hours) despite the DTO existing |
-| Service Catalog | Complete | `service-catalog/` | Drag-to-reorder (desktop) / Up-Down buttons (mobile) shipped; reorder endpoint doesn't reject malformed input (self-healing, not validated) |
-| Instant Quote Widget | Backend complete + hardened, standalone frontend bundle not built | `public/quote-widget/` | Idempotency, structured logging, typed DTOs all shipped; roof measurement/AI upselling/coupons/analytics explicitly Phase 2+ |
-| Review System | Partial | `Customer.reviewReceivedAt` (manual flag) | `ReviewRequest`/`Review` Prisma models exist but are **dead — zero real usage anywhere**. Real decision point: wire up with a real review-platform integration, or remove |
-| Customer Intelligence | Complete | `getServiceHistory()` | Verified against 8 real scenarios |
+| Dashboard | Complete | `backend/src/dashboard`, `frontend/app/page.tsx` (implied) | Map/geocoding live reliability never confirmed end-to-end in production |
+| Leads | Partial | `backend/src/leads` | Frontend nav shows "SOON" — backend exists, minimal dedicated UI |
+| Customers | Complete | `backend/src/customers`, `frontend/app/customers` | Journey Stage/Customer Intelligence verified correct; real usage value still unconfirmed |
+| Properties | Planned | — | Frontend nav "SOON," intentionally deferred |
+| Estimates | Complete | `backend/src/estimates`, `frontend/components/estimates/EstimateForm.tsx` | Package Discounts mode toggle (tiered/fixed) is unnecessary complexity, flagged for simplification |
+| Scheduling | Complete | `backend/src/scheduling` (raw-SQL `appointments` table, not a Prisma model) | No route optimization; auto-assign-to-self shipped and verified |
+| Jobs | Complete | `backend/src/jobs` | — |
+| Invoices | Complete | `backend/src/invoices` | Financial-integrity snapshot-on-generation fix shipped (was a real overcharge bug); PDF redesigned and verified |
+| Payments | Complete | `backend/src/payments` | Additive-only, no gaps found |
+| Customer Portal | Complete | `backend/src/portal` | Estimate approval, invoice view, Stripe payment all working |
+| Settings/Branding | Complete | `backend/src/settings` | Logo upload now real (presigned S3, reuses customer-photo pattern) |
+| Reports | Complete | `backend/src/reports` | `getCustomerAnalytics` LTV independently re-sums invoices instead of reading `Customer.lifetimeValue` — known, unfixed inconsistency |
+| Automations | Complete (backend), Invisible (frontend) | `backend/src/automation` | Real, working (estimate follow-up, recurring reminders, review requests) but no real settings visibility page — nav shows "SOON" |
+| AI Receptionist | Complete | `backend/src/receptionist` | Creates jobs directly `scheduled`, bypasses the `appointments` table entirely (pre-existing, not yet fixed) |
+| AI Assistant | Partial | `backend/src/ai` | No aggregate-query capability (can't answer "how much did I make this month") |
+| Review System | Partial | `Customer.reviewReceivedAt` (manual flag) | `ReviewRequest`/`Review` Prisma models exist but are **dead — unused anywhere in the app**. Real decision point: wire up properly with a review-platform integration, or remove |
+| Customer Intelligence | Complete | `customers.service.ts: getServiceHistory()` | Verified against 8 real scenarios |
+| Equipment / Chemical Tracking | Partial | `JobEquipmentUsage`, `JobChemicalUsage` (junction tables only, no standalone catalog models) | Not deeply audited this project cycle |
+| Integrations | Partial | `backend/src/settings/services/integrations.service.ts` | Google/Microsoft OAuth, Stripe, Postmark, Twilio wired; no accounting (QuickBooks) export |
 
 ## 4. Database Overview
 
-- Prisma-modeled tables plus `appointments` (real table, zero Prisma model, raw-SQL only). *(Exact model count not independently verified against the real repo — my working copy was confirmed stale mid-session; verify directly with `grep "^model " backend/prisma/schema.prisma` next time this matters.)*
-- **Core chain:** `Company` → `CompanyUser`/`User` → `Customer` → `Property` → `Estimate` → `Job` → `Invoice` → `Payment`. Financial documents snapshot their numbers at creation — **never recalculated after creation.**
-- **Status vs. business-state separation (ADR-013):** `Job.status` reflects only what happened to the work; a separate, still-unbuilt `archivedAt`/`archivedBy`/`archiveReason` will represent an independent "should this still show in active views" fact — approved spec, not built (Section 6).
-- **`Customer.leadStatus`** (`lead`/`active`/`inactive`/`archived`/`churned`) is the only stored relationship field — a real DB CHECK constraint lives inline in the base schema (`init-scripts/00-schema.sql`), not a separate migration; easy to miss if only searching `prisma/migrations/*.sql`. A separate, always-derived "journey stage" (`getJourneyStages()`) is computed live from Estimate/Job status, never stored.
-- **Known dead/unused schema:** `ReviewRequest`, `Review` models — real tables, no code path writes to them.
-- **Known duplication, not consolidated:** `LEAD_STATUS_STYLES` (badge color map) exists identically in two frontend files.
-- **Raw SQL rule:** any `$queryRawUnsafe`/`$executeRawUnsafe` parameter touching a `uuid` or `jsonb` column must be explicitly cast (`$1::uuid`) in the SQL string — Postgres will not infer this.
-- **`companies.settings`** is a JSONB blob merged via `jsonb_set` (never overwritten wholesale) for sub-sections: branding, package discounts, lead sources, integration health, business links.
+- **36 Prisma models.** Multi-tenant via `companyId` on every tenant-scoped table, enforced with Row-Level Security via a `withTenantContext` wrapper — **every raw SQL query must go through this**, never a bare `$queryRaw` outside it.
+- **Core chain:** `Company` → `CompanyUser` (join to `User`, role-scoped) → `Customer` → `Property` → `Estimate` → `Job` → `Invoice` → `Payment`. Financial documents (`Invoice`) snapshot their numbers at creation from the source `Estimate` — **never recalculated after creation.**
+- **`appointments` table exists but has no Prisma model** — managed entirely via raw SQL in `scheduling.service.ts`. Do not assume `prisma.appointment` works.
+- **Known schema gaps:**
+  - `ReviewRequest`/`Review` models — real tables, zero real usage anywhere in the app.
+  - Raw `$queryRawUnsafe` calls require explicit Postgres casts (`::uuid`, `::jsonb`, `::uuid[]`) — a standing, repeatedly-enforced project rule.
+  - **Every new migration must be copied into `init-scripts/` and verified with `scripts/check-migration-sync.sh`, and confirmed to actually run against production after deploy** — two real production outages this cycle were caused by a migration existing in code but never applied to the live database. Railway is not currently confirmed to auto-run migrations on deploy; this needs a real fix.
 
 ## 5. Completed & Verified Features
 
-Only listing what's been confirmed against real data, not just shipped:
+Only listing what's been confirmed working against real data, not just shipped:
 
-- Multi-tenant auth (register, login, OAuth, email verification, password reset)
-- Estimate creation with Package Discounts, service-specific validated fields, inline customer/property creation, draft persistence, discount-value/partial-update bugs fixed
-- Accept-estimate → auto-create-job (ADR-001), idempotent
-- Auto-assign-to-self on scheduling (first-schedule-only, never overwrites an existing assignment)
-- Technician double-booking prevention (`assertNoTechnicianConflict`)
-- Appointment cancellation with reason + full audit history, without deleting the row
-- Invoice generation with correct discount/tax snapshotting from source estimate (real overcharge bug found and fixed)
-- Invoice Void blocked when active payments exist
-- Stripe success **and** failure webhook handling, tenant-scoped lookups
-- Invoice/Estimate PDF redesign (logo-or-name, prominent Total, Payment Methods, Package-vs-manual discount labeling) — verified by rendering real output
-- Customer Intelligence panel — verified against 8 real scenarios
-- Review tracking (manual flag + `AutomationLog`-derived request status) — verified across all 4 states, multi-company isolation confirmed
-- Lifetime Value: live updates on every payment/refund/void path + historical backfill script; Customer Merge now correctly recalculates it (real bug found and fixed)
-- Service Catalog drag/button reordering, self-healing sort-order normalization
+- Multi-tenant auth (register, login, OAuth, email verification, password reset) — confirmed via direct code read, not a demo-only system
+- Estimate creation, Package Discounts, service-type-specific required-field validation, Instant Quote Widget
+- Job creation from accepted estimate (idempotent), auto-assign-to-self on scheduling (verified: first-schedule-only, never overwrites an existing assignment)
+- Invoice generation with correct discount/tax snapshotting from source estimate (real bug found and fixed)
+- Invoice/Estimate PDF: centered logo or company name, prominent Total, redesigned line-item layout, Payment Methods (Zelle via real company phone, credit card fee notice), Package Discount vs. Discount labeling — all verified by rendering real output, not just code review
+- Customer Intelligence panel (Last Service, LTV, Balance Due, Open Estimates/Invoices, Jobs Completed, Avg Job Value, Recommended Upsell, Overdue flag) — verified against 8 real scenarios
+- Review tracking (manual mark-as-reviewed; request-sent/failed derived from `AutomationLog`)
 - Photo/document upload to S3 (CORS + BigInt-serialization bugs found and fixed)
-- Repository integrity CI (`scripts/check-duplicate-source.sh`, `scripts/check-migration-sync.sh`) — proven to catch both failure modes by intentional reintroduction, not just written and assumed
+- Property auto-select on Estimate creation when a customer has exactly one property
 
 ## 6. Current Problems / Technical Debt
 
 | Issue | Type | Notes |
 |---|---|---|
-| Migrations not confirmed to auto-run on Railway deploy | **Process risk, unresolved** | Caused two real production outages. CI catches local drift, not "never ran on Railway." |
-| Version number drift | Process | Separate "CRM Version" tracking vs. `package.json` semver never reconciled — see header warning |
+| Migrations not confirmed to auto-run on Railway deploy | **Process/Deploy risk** | Caused two real production outages this cycle. Needs a real fix — a deploy-time migration step. |
 | `getCustomerAnalytics` LTV inconsistency | Bug (minor) | Re-sums invoices instead of reading `Customer.lifetimeValue` |
 | `ReviewRequest`/`Review` dead schema | Architecture | Real tables, zero usage — decide: wire up or remove |
-| Job Archive System | Missing feature | Full approved spec exists (business rules, screen-by-screen classification, UI copy) — zero code written |
-| AI Receptionist bypasses `appointments` | Architecture | Creates jobs directly `scheduled`, no real Appointment row |
+| AI Receptionist bypasses `appointments` table | Architecture | Creates jobs directly `scheduled`, no real Appointment row |
 | Package Discounts mode toggle | Complexity | Tiered-only would cover both cases |
-| No route optimization | Missing feature | Blocked on a Mapbox account decision |
+| No route optimization | Missing feature | Blocked on a Mapbox account decision from the owner |
 | AI Assistant has no aggregate queries | Missing feature | — |
-| Map/geocoding never confirmed live | Unverified | — |
-| AI Receptionist never tested on a live call | Unverified | — |
-| Customer Portal frontend completeness | Unverified | Backend confirmed real |
-| Integrations Verify/Test buttons | Unverified | Confirmed to call correct endpoints; never run against real provider accounts |
-| No automation-pending visibility | Missing feature | Nothing shows a pending automated message before it sends, or lets staff cancel it |
-| No cancel-job/cancel-appointment UI path for jobs (appointments now have one) | Gap | `cancelled` exists as a job status but has no reachable UI action |
-| Invoice Void uses native `confirm()` | Minor, disclosed | Rest of the app uses the shared `ConfirmDialog` |
+| Map/geocoding never confirmed live | Unverified | Flagged repeatedly, never confirmed end-to-end in production |
 | No accounting/QuickBooks export | Missing feature | Common competitor table-stakes |
 
 ## 7. Development Rules
 
-- **Verify against actual code and a real database before answering or changing anything** — do not assume from memory or from this document alone. Several real bugs this project's history (LTV on merge, discount snapshotting, missing constraints) were only caught this way.
-- **Never duplicate business logic or create a second source of truth.** Totals go through `computeDocumentTotals` only. Tenant scoping goes through `TenantContextService` only. One PDF system, one email system, one automation engine, one permission system.
-- **Every tenant-scoped query must go through `withTenantContext`** — never call the base Prisma client directly for a tenant-scoped model.
-- **Extend existing shared components/services, never build a parallel one-off:** `StatusBadge`/`StatusTimeline`, `ConfirmDialog`, `SettingsSectionShell`, `computeDocumentTotals`, `IntegrationStatusService`.
-- **Additive migrations only.** Never edit a shipped migration. Every new migration: write it, copy it verbatim into `init-scripts/`, run `scripts/check-migration-sync.sh`, verify against a freshly-built database, **and confirm it actually ran on the real Railway deploy** (the step that's failed twice).
-- **No provider secret ever goes into Postgres** (ADR-011) — Railway env vars only, unless a real bring-your-own-keys decision is made explicitly.
-- **Every new tenant-scoped table needs a real RLS policy.**
-- **Verify real behavior, not just compile success** — `tsc`/tests passing is necessary but not sufficient. Run real-database scenarios; for PDF/visual work, actually render and inspect the output.
-- **No enterprise features, no premature SaaS management UI**, nothing built only because "developers appreciate it."
-- **Avoid unnecessary refactoring** — preserve existing structure and naming already established in the file being edited.
+- **Verify against actual code before answering or changing anything** — do not assume a file's contents from memory or from this document alone.
+- **Never duplicate business logic or create a second source of truth.** Financial calculations are computed once (`computeDocumentTotals`) and never re-derived elsewhere.
+- **Every new query/table must be `companyId`-scoped.** No multi-tenant management UI yet — don't build one unless asked.
+- **Reuse existing services and patterns** (e.g., the presigned-S3-upload pattern, the Settings JSONB pattern, the Invoice-snapshots-Estimate pattern) rather than inventing parallel ones.
+- **Every new migration:** write it in `backend/prisma/migrations/`, copy it verbatim into `init-scripts/`, run `scripts/check-migration-sync.sh`, and verify against a real, freshly-built database before considering it done.
+- **Verify real behavior, not just compile success** — test suite + `tsc` passing is necessary but not sufficient; run real-database scenarios and, for visual/PDF work, actually render and inspect the output.
+- **Avoid unnecessary refactoring.** Preserve existing structure and naming conventions already established in the file being edited.
+- **No enterprise features, no premature SaaS management UI, no features "developers appreciate" but owners don't use.**
 
 ## 8. Future Roadmap
 
 **High Priority**
-- Fix Railway migration auto-run / verified-deploy step (prevents recurring outages)
+- Fix Railway migration auto-run (prevents recurring production outages)
 - Confirm Map/geocoding works live
 - Route optimization (pending Mapbox decision)
 - Surface Automations as a real, visible settings page
-- Reconcile the two version-number systems
 
 **Medium Priority**
 - `getCustomerAnalytics` LTV fix
-- Job Archive System (spec already approved — see `PROJECT_HISTORY.md` §17 for the full requirement)
-- Real Google review-completion tracking (replace/extend the manual flag)
+- Real Google review-completion tracking (replace/extend manual flag)
+- Recurring Services as a visible module
 - AI Assistant aggregate queries
-- Job/appointment cancel-UI parity (appointments have it, jobs don't)
-- Decide fate of `ReviewRequest`/`Review` dead schema
-- Decide fate of the duplicate manual convert-to-job endpoint (ADR-007)
+- Weather-aware scheduling (Weather service already exists)
 
 **Nice-to-Have**
 - Simplify Package Discounts mode toggle
-- Consolidate the duplicated `LEAD_STATUS_STYLES` map
 - Invoice `duplicate()`
-- Replace Invoice Void's native `confirm()` with `ConfirmDialog`
 - QuickBooks export
-- Instant Quote Widget's actual embeddable frontend bundle (backend is done)
+- Equipment/Chemical Tracking deeper audit and polish
 
 **Explicitly Deferred (do not build yet)**
-- Auth/session-lifetime redesign (ADR-referenced, deferred until real multi-user SaaS prep begins)
-- Team/technician management UI, multi-company admin UI, advanced RBAC, subscription billing, plugin/feature-flag architecture
+- Team/technician management, multi-company admin UI, advanced RBAC, subscription billing, plugin/feature-flag architecture
+
+
+## Addendum — Customer Portal Phase 1 (shipped)
+
+**Architecture decision reversed mid-project, deliberately:** a separate `portal-frontend` Next.js app was seriously considered and then correctly rejected — one deployment, one repo, one CI/CD pipeline outweighs the marginal isolation benefit, especially given this project's own history of migration/deploy-sync outages being made worse by multiple deploy targets, not fewer.
+
+**A real constraint discovered during implementation, not before:** the originally-specified `(staff)`/`(portal)` route-group structure was assessed and found genuinely risky — this entire frontend uses relative imports (`../../lib/...`) everywhere, not the `@/` alias already configured in `tsconfig.json`. Moving every existing staff route into a `(staff)` group would have shifted hundreds of files' relative import depth, with no safe way to verify that scale of change within one session. Built genuine functional isolation a different way instead: portal pages live under a real path segment (`app/portal/...`, not a parenthetical group), and `AuthProvider` — which wraps the whole app — explicitly bails out on any `/portal/` route before its staff-specific effects (the `/auth/me` fetch, the redirect-to-staff-login effect) can run. Zero existing staff files were touched to achieve this; only `middleware.ts` and `auth-context.tsx` were modified, both surgically, both verified to leave staff behavior byte-identical.
+
+**Backend — one true BFF endpoint:** `GET /portal/dashboard` composes `getEstimates()`, `getInvoices()`, `getServiceHistory()`, `CompanyContextService.getCompanyAndBranding()`, and one genuinely new read-only query (`getUpcomingAppointments()`, reusing the exact raw-SQL style already established in `SchedulingService`). Zero duplicated business logic, zero duplicated calculations — `outstandingBalance` sums the real `balanceDue` generated column rather than re-deriving it. Verified against a real database with a hand-calculable scenario; every figure matched exactly. Multi-company isolation confirmed directly: a query with the correct `customerId` but wrong `companyId` returns nothing.
+
+**Real bugs found and fixed during implementation, not shipped:** the Verify page's redirect target, the Dashboard's logout target, and the "request a new link" fallback link all initially pointed at non-existent bare paths (`/dashboard`, `/login`) instead of the real `/portal/...`-prefixed routes. Fixed by storing the company slug alongside the portal session token (`getPortalCompanySlug()`), so every redirect can correctly target that specific company's login page — not just the dashboard's own happy path.
+
+**Deployment:** confirmed directly against Railway's own documentation — multiple custom domains are supported per service, so `portal.renovocrm.com` can be added as a second custom domain on the existing frontend service. Not yet added; documented as the one remaining manual step before this can go live.
+
+**Explicitly deferred to Phase 2, per approved scope:** Estimates/Invoices/Payments/Photos/Service Requests/AI Chat UI. The backend for all of these already exists (see the original Customer Portal audit) — Phase 2 is UI-only work against an already-proven API.

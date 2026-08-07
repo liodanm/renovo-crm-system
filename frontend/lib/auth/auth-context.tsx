@@ -25,15 +25,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  // The customer portal (app/portal/...) has its own completely separate
+  // auth mechanism (portal-token-storage.ts, portal-api-client.ts,
+  // PortalCustomerGuard on the backend) — a different token, a different
+  // secret, a different session model. This provider must never fetch
+  // staff /auth/me or redirect to staff /login on a portal route; both
+  // of those would be actively wrong for a homeowner who was never
+  // meant to have a staff session at all. This check is deliberately
+  // the very first thing this component does, before any of its
+  // effects below can run.
+  const isPortalRoute = pathname?.startsWith('/portal/') ?? false;
 
   const loadUser = useCallback(async () => {
+    if (isPortalRoute) return;
     try {
       const me = await authApi.me();
       setUser(me);
     } catch {
       setUser(null);
     }
-  }, []);
+  }, [isPortalRoute]);
 
   // On app boot there's no access token in memory (see token-storage.ts),
   // only a possible refresh token in sessionStorage. Silently attempt a
@@ -52,6 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Clearing the marker here, whenever this check lands on "not
   // authenticated" for any reason, keeps the marker honest.
   useEffect(() => {
+    if (isPortalRoute) {
+      setIsLoading(false);
+      return;
+    }
     (async () => {
       setIsLoading(true);
       if (getRefreshToken()) {
@@ -74,13 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // never be redirected away from, so they're excluded exactly like
   // middleware.ts excludes them.
   useEffect(() => {
-    if (isLoading || user) return;
+    if (isPortalRoute || isLoading || user) return;
     clearTokens();
     const isPublic = PUBLIC_PATHS.some((path) => pathname?.startsWith(path));
     if (!isPublic) {
       router.push(`/login?redirect=${encodeURIComponent(pathname ?? '/')}`);
     }
-  }, [isLoading, user, pathname, router]);
+  }, [isPortalRoute, isLoading, user, pathname, router]);
 
   const login = useCallback(
     async (email: string, password: string) => {

@@ -236,6 +236,12 @@ export class PortalController {
   }
 
   @UseGuards(PortalCustomerGuard)
+  @Get('dashboard')
+  getDashboard(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
+    return this.data.getDashboard(customer.companyId, customer.customerId);
+  }
+
+  @UseGuards(PortalCustomerGuard)
   @Get('estimates')
   getEstimates(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
     return this.data.getEstimates(customer.companyId, customer.customerId);

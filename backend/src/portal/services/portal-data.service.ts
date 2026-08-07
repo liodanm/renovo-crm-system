@@ -4,6 +4,7 @@ import { StorageService } from '../../common/storage/storage.service';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
 import { JobsService } from '../../jobs/services/jobs.service';
 import { CustomersService } from '../../customers/services/customers.service';
+import { CompanyContextService } from '../../documents/services/company-context.service';
 
 /**
  * Every method here takes `customerId` as an explicit, required parameter
@@ -21,6 +22,7 @@ export class PortalDataService {
     private readonly storage: StorageService,
     private readonly jobsService: JobsService,
     private readonly customersService: CustomersService,
+    private readonly companyContext: CompanyContextService,
   ) {}
 
   async getEstimates(companyId: string, customerId: string) {
@@ -262,5 +264,79 @@ export class PortalDataService {
 
   async getServiceRequests(companyId: string, customerId: string) {
     return this.prisma.serviceRequest.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  // ===========================================================================
+  // Dashboard — one composed, read-only response. This is the ONLY new
+  // business logic in this feature (the appointments read); everything
+  // else below reuses the exact methods already defined above in this
+  // same class, or CompanyContextService, which the controller already
+  // used for PDF generation. Nothing here recalculates anything — it
+  // reads already-computed fields (Estimate.totalAmount,
+  // Invoice.balanceDue) and only does the kind of harmless, unavoidable
+  // aggregation a dashboard needs (counting, summing, picking the first
+  // item off an already-sorted list), never re-deriving a financial
+  // number a service already owns.
+  // ===========================================================================
+
+  /**
+   * Reuses the exact same `appointments` table SchedulingService already
+   * owns — same raw-SQL style, same column names — filtered by both
+   * companyId and customerId (the same double-scoping every other
+   * method in this file already enforces). This is a read-only query;
+   * it introduces no new write path and no second scheduling concept.
+   */
+  async getUpcomingAppointments(companyId: string, customerId: string, limit = 5) {
+    return this.prisma.withTenantContext(companyId, (tx) =>
+      tx.$queryRawUnsafe<
+        { id: string; jobId: string | null; title: string; startsAt: Date; endsAt: Date; status: string }[]
+      >(
+        `SELECT id, job_id AS "jobId", title, starts_at AS "startsAt", ends_at AS "endsAt", status
+         FROM appointments
+         WHERE company_id = $1::uuid AND customer_id = $2::uuid
+           AND status IN ('scheduled', 'confirmed') AND starts_at >= now()
+         ORDER BY starts_at ASC
+         LIMIT $3`,
+        companyId,
+        customerId,
+        limit,
+      ),
+    );
+  }
+
+  async getDashboard(companyId: string, customerId: string) {
+    const [customer, { company, branding }, estimates, invoices, serviceHistory, upcomingAppointments] = await Promise.all([
+      this.prisma.customer.findFirst({
+        where: { id: customerId, companyId },
+        select: { firstName: true, lastName: true, businessName: true },
+      }),
+      this.companyContext.getCompanyAndBranding(companyId),
+      this.getEstimates(companyId, customerId),
+      this.getInvoices(companyId, customerId),
+      this.getServiceHistory(companyId, customerId),
+      this.getUpcomingAppointments(companyId, customerId),
+    ]);
+    if (!customer) throw new NotFoundException('Customer not found');
+
+    const openEstimates = estimates.filter((e: any) => ['draft', 'sent', 'viewed'].includes(e.status));
+    const openInvoices = invoices.filter((i: any) => !['paid', 'void', 'draft'].includes(i.status));
+    // balanceDue is already a real, stored/generated column on Invoice
+    // (confirmed against schema.prisma) — summing it across open
+    // invoices is the only arithmetic here, and it's a sum of an
+    // already-correct per-invoice figure, not a re-derivation of it.
+    const outstandingBalance = openInvoices.reduce((sum: number, i: any) => sum + Number(i.balanceDue ?? 0), 0);
+    const lastCompletedService = serviceHistory[0] ?? null;
+
+    return {
+      customer: {
+        name: customer.businessName || [customer.firstName, customer.lastName].filter(Boolean).join(' ') || 'there',
+      },
+      company: { name: company.dba || company.name, logoUrl: branding.logoUrl },
+      outstandingBalance,
+      openEstimatesCount: openEstimates.length,
+      openInvoicesCount: openInvoices.length,
+      upcomingAppointments,
+      lastCompletedService,
+    };
   }
 }
