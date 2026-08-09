@@ -183,3 +183,17 @@ app has zero independent filename-generation logic; both staff and
 portal downloads rely entirely on the browser respecting the backend's
 `Content-Disposition` header, meaning the four backend fixes are the
 complete, exhaustive fix.
+
+## Addendum — OAuth Graceful Failure + Google Sign-In Enablement (shipped)
+
+**The real bug, confirmed precisely, not assumed:** `/auth/google` (and `/auth/microsoft`) returned a raw, opaque 500 when unconfigured. Root cause: an earlier fix already stopped the whole app from crashing at boot when `GOOGLE_CLIENT_ID` is missing (by conditionally skipping `GoogleStrategy` construction), but left the *routes* themselves always reachable, still always running `AuthGuard('google')` — which throws an unhandled "Unknown authentication strategy" error the moment that strategy was never registered. The boot-crash was fixed; this route-level crash was not, and it's the direct, inevitable consequence of the same root cause.
+
+**The fix:** `OAuthConfiguredGuard`, placed *before* `AuthGuard(provider)` in the guard chain (NestJS runs guards in array order) — checks the same env var `auth.module.ts` already uses to decide whether to construct the strategy, and throws a clean `ServiceUnavailableException` (503, real message) if it's missing, so `AuthGuard` never gets a chance to fail on an unregistered strategy. Confirmed valid, official NestJS usage (mixing a guard instance with a guard class reference in one `@UseGuards()` call) directly against NestJS's own source. Verified directly: unconfigured → clean 503 with a real message; configured → passes through unchanged.
+
+**Frontend:** new `GET /auth/oauth-providers` (public, reuses the exact same env-var signal, not a second source of truth) tells the login/register pages which buttons are safe to show. New `OAuthButtonsSection` component replaces the previously-unconditional buttons — renders nothing at all (not even the "OR" divider) when neither provider is configured, rather than showing a button guaranteed to fail.
+
+**Existing account-linking logic (`AuthService.handleOAuthLogin`) was audited, found already correct, and left untouched** — a genuinely complete, SaaS-ready implementation: a brand-new Google identity gets its own brand-new Company (never hardcoded, never assumes one company), an existing password account with a matching email gets the OAuth identity *linked* (never duplicated — backed by a real DB unique constraint on `(provider, providerAccountId)`, not just application logic), and a user in multiple companies gets the same company-selection flow password login already uses. Verified all three scenarios against a real database, including confirming the unique constraint genuinely rejects a duplicate link attempt at the database level.
+
+**Google Cloud + Railway configuration required to complete real Google sign-in** — see chat for the full step-by-step; not yet completed as of this addendum. Real callback URL confirmed from code + the actual deployed domain (not guessed): `https://renovo-crm-system-production.up.railway.app/auth/google/callback`.
+
+**Microsoft:** same graceful-failure fix applied (identical bug, identical pattern) — full Microsoft OAuth implementation itself explicitly out of scope for this pass, per approved scope.

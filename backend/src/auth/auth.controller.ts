@@ -21,6 +21,7 @@ import { TokenService } from './services/token.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
+import { requireOAuthConfigured } from './guards/oauth-configured.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -197,14 +198,14 @@ export class AuthController {
   // ===========================================================================
 
   @Public()
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(requireOAuthConfigured('google'), AuthGuard('google'))
   @Get('google')
   googleLogin() {
     // Passport redirects to Google's consent screen; nothing to do here.
   }
 
   @Public()
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(requireOAuthConfigured('google'), AuthGuard('google'))
   @Get('google/callback')
   async googleCallback(@Req() req: Request & { user: OAuthProfile }, @Res() res: Response) {
     const result = await this.authService.handleOAuthLogin(req.user, this.extractDevice(req));
@@ -216,16 +217,32 @@ export class AuthController {
   // ===========================================================================
 
   @Public()
-  @UseGuards(AuthGuard('microsoft'))
+  @UseGuards(requireOAuthConfigured('microsoft'), AuthGuard('microsoft'))
   @Get('microsoft')
   microsoftLogin() {}
 
   @Public()
-  @UseGuards(AuthGuard('microsoft'))
+  @UseGuards(requireOAuthConfigured('microsoft'), AuthGuard('microsoft'))
   @Get('microsoft/callback')
   async microsoftCallback(@Req() req: Request & { user: OAuthProfile }, @Res() res: Response) {
     const result = await this.authService.handleOAuthLogin(req.user, this.extractDevice(req));
     return this.redirectWithAuthResult(res, result);
+  }
+
+  /**
+   * Public, unauthenticated — lets the login/register page know which
+   * OAuth buttons are actually safe to show, reusing the exact same
+   * env-var signal auth.module.ts already uses to decide whether to
+   * construct each strategy at all. Not a new source of truth — one
+   * more reader of the one that already exists.
+   */
+  @Public()
+  @Get('oauth-providers')
+  getOAuthProviders() {
+    return {
+      google: Boolean(process.env.GOOGLE_CLIENT_ID),
+      microsoft: Boolean(process.env.MICROSOFT_CLIENT_ID),
+    };
   }
 
   // ===========================================================================

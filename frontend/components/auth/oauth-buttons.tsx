@@ -1,4 +1,5 @@
 import { authApi } from '../../lib/api/auth';
+import { useOAuthProviders } from '../../lib/hooks/use-oauth-providers';
 
 export function GoogleLoginButton() {
   return (
@@ -31,5 +32,30 @@ export function MicrosoftLoginButton() {
       </svg>
       Continue with Microsoft
     </a>
+  );
+}
+
+/**
+ * The one place login/register pages should reach for OAuth — includes
+ * its own divider, so a company with neither Google nor Microsoft
+ * configured (true for this app today) renders nothing here at all,
+ * not an empty "or continue with" divider above two missing buttons.
+ */
+export function OAuthButtonsSection() {
+  const { google, microsoft, isLoading } = useOAuthProviders();
+  if (isLoading || (!google && !microsoft)) return null;
+
+  return (
+    <>
+      <div className="space-y-3">
+        {google && <GoogleLoginButton />}
+        {microsoft && <MicrosoftLoginButton />}
+      </div>
+      <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
+        <div className="h-px flex-1 bg-slate-200" />
+        OR
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
+    </>
   );
 }
