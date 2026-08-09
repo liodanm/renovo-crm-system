@@ -705,7 +705,14 @@ export class CustomersService {
   ) {
     return {
       id: c.id,
-      displayName: c.businessName ?? `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
+      // businessName?.trim() || fallback (not ??) is deliberate — an
+      // empty string is a real, confirmed value the CSV import path can
+      // produce (residential customers export with businessName: '',
+      // not null), and ?? only falls through on null/undefined, not on
+      // ''. Using ?? here previously showed "Unnamed customer" for every
+      // imported residential customer despite firstName/lastName being
+      // present and correct.
+      displayName: c.businessName?.trim() || `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
       customerType: c.customerType,
       email: c.email,
       phone: c.phone,

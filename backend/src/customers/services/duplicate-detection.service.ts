@@ -67,7 +67,7 @@ export class DuplicateDetectionService {
       candidates.push(
         ...similarityMatches.map((m) => ({
           id: m.id,
-          displayName: m.business_name ?? `${m.first_name ?? ''} ${m.last_name ?? ''}`.trim(),
+          displayName: m.business_name?.trim() || `${m.first_name ?? ''} ${m.last_name ?? ''}`.trim(),
           email: m.email,
           phone: m.phone,
           matchReason: 'similar_name' as const,
@@ -159,7 +159,7 @@ export class DuplicateDetectionService {
     });
     const map = new Map<string, DuplicateCluster['customers'][number]>();
     customers.forEach((c) => {
-      map.set(c.id, { id: c.id, displayName: c.businessName ?? `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(), email: c.email, phone: c.phone });
+      map.set(c.id, { id: c.id, displayName: c.businessName?.trim() || `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(), email: c.email, phone: c.phone });
     });
     return map;
   }
@@ -170,7 +170,7 @@ export class DuplicateDetectionService {
   ): DuplicateCandidate {
     return {
       id: m.id,
-      displayName: m.businessName ?? `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim(),
+      displayName: m.businessName?.trim() || `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim(),
       email: m.email,
       phone: m.phone,
       matchReason: reason,

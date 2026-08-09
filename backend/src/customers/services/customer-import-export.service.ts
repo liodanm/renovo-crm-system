@@ -126,11 +126,17 @@ export class CustomerImportExportService {
 
     rows.forEach((row, index) => {
       const rowNum = index + 2; // +1 for 1-indexing, +1 for the header row
-      const firstName = row.firstName?.trim();
-      const lastName = row.lastName?.trim();
-      const businessName = row.businessName?.trim();
-      const email = row.email?.trim().toLowerCase();
-      const phone = row.phone?.trim();
+      const firstName = row.firstName?.trim() || undefined;
+      const lastName = row.lastName?.trim() || undefined;
+      // `|| undefined`, not just .trim() — an empty CSV cell must become
+      // "field not set" (stored as null), not a literal empty string.
+      // The export intentionally writes '' for a residential customer's
+      // businessName (see EXPORT_COLUMNS above), and storing that back
+      // as '' verbatim broke displayName's fallback logic downstream —
+      // an empty string was winning over the real firstName/lastName.
+      const businessName = row.businessName?.trim() || undefined;
+      const email = row.email?.trim().toLowerCase() || undefined;
+      const phone = row.phone?.trim() || undefined;
 
       if (!firstName && !businessName) {
         errors.push({ row: rowNum, reason: 'Missing both firstName and businessName' });
