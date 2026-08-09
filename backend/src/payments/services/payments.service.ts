@@ -100,6 +100,48 @@ export class PaymentsService {
   }
 
   /**
+   * A payment received from a customer with no invoice involved at
+   * all — e.g. historical work completed before this CRM existed, with
+   * no invoice ever created for it. Deliberately does NOT reuse
+   * recordPayment()'s invoice-status gate or balance-due cap — neither
+   * rule has any meaning here, there is no invoice to be draft/void and
+   * no balance to overpay. What IS reused: the exact same INSERT shape,
+   * the same payment_status_history entry, and the same LTV-increment
+   * pattern (amount only, tip excluded) — the only two differences are
+   * invoice_id is NULL and no invoices/customers-amountPaid update runs.
+   */
+  async recordStandalonePayment(companyId: string, customerId: string, userId: string, dto: RecordPaymentDto) {
+    const customerRows: { id: string }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT id FROM customers WHERE id = ${customerId}::uuid AND company_id = ${companyId}::uuid
+    `);
+    if (customerRows.length === 0) throw new NotFoundException('Customer not found');
+
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const receiptNumber = `RCPT-${Date.now().toString().slice(-6)}`;
+      const paymentRows = await tx.$queryRaw<{ id: string }[]>`
+        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
+        VALUES (${companyId}::uuid, NULL, ${customerId}::uuid, NULL, ${dto.amount}, ${dto.tipAmount ?? 0}, ${dto.method}, 'succeeded',
+                ${dto.referenceNumber ?? null}, ${dto.notes ?? null}, ${dto.paymentDate ? new Date(dto.paymentDate) : new Date()}, now(), ${receiptNumber})
+        RETURNING id
+      `;
+      const paymentId = paymentRows[0].id;
+      await tx.$executeRaw`
+        INSERT INTO payment_status_history (company_id, payment_id, from_status, to_status, changed_by_user_id, note)
+        VALUES (${companyId}::uuid, ${paymentId}::uuid, NULL, 'succeeded', ${userId}::uuid, 'Standalone payment recorded (no invoice)')
+      `;
+
+      // Identical to recordPayment's own LTV update — dto.amount only,
+      // tip excluded, same as the invoice-payment path.
+      await tx.$executeRaw`
+        UPDATE customers SET lifetime_value = lifetime_value + ${dto.amount}
+        WHERE id = ${customerId}::uuid AND company_id = ${companyId}::uuid
+      `;
+
+      return this.findOne(companyId, paymentId, tx);
+    });
+  }
+
+  /**
    * Company-wide payment list — added during the cross-module audit,
    * which found the nav pointed to a Payments page that never actually
    * existed; only per-invoice listing (listByInvoice) had been built.
@@ -114,7 +156,7 @@ export class PaymentsService {
         `SELECT ${PAYMENT_SELECT}, i.invoice_number AS "invoiceNumber",
               c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName"
        FROM payments p
-       JOIN invoices i ON i.id = p.invoice_id
+       LEFT JOIN invoices i ON i.id = p.invoice_id
        JOIN customers c ON c.id = p.customer_id
        WHERE p.company_id = $1::uuid AND ($2::text IS NULL OR p.status = $2)
        ORDER BY p.created_at DESC
@@ -150,7 +192,7 @@ export class PaymentsService {
         INSERT INTO payment_status_history (company_id, payment_id, from_status, to_status, changed_by_user_id, note)
         VALUES (${companyId}::uuid, ${id}::uuid, ${payment.status}, 'void', ${userId}::uuid, ${dto.note ?? null})
       `;
-      await this.reverseAmountFromInvoice(tx, companyId, payment.invoiceId, Number(payment.amount));
+      await this.reverseAmountFromInvoice(tx, companyId, payment.invoiceId, payment.customerId, Number(payment.amount));
       return this.findOne(companyId, id, tx);
     });
   }
@@ -178,13 +220,30 @@ export class PaymentsService {
         INSERT INTO payment_status_history (company_id, payment_id, from_status, to_status, changed_by_user_id, note)
         VALUES (${companyId}::uuid, ${id}::uuid, ${payment.status}, ${newStatus}, ${userId}::uuid, ${dto.note ?? null})
       `;
-      await this.reverseAmountFromInvoice(tx, companyId, payment.invoiceId, refundAmount);
+      await this.reverseAmountFromInvoice(tx, companyId, payment.invoiceId, payment.customerId, refundAmount);
       return this.findOne(companyId, id, tx);
     });
   }
 
   /** Shared by void and refund — both remove money from the invoice's amount_paid and let the same status-recompute logic decide what happens next. Also reverses the same amount from the customer's lifetimeValue, since a voided or refunded payment shouldn't keep counting as money collected — one shared reversal path for both callers, not two. */
-  private async reverseAmountFromInvoice(tx: any, companyId: string, invoiceId: string, amount: number) {
+  /**
+   * Reverses what recordPayment (or recordStandalonePayment) applied on
+   * void/refund. When invoiceId is present, this is the exact existing
+   * behavior — unchanged. When it's null (a standalone payment), there
+   * is no invoice balance to reverse, but the customer's LTV was still
+   * incremented at recording time and must still be undone — using
+   * customerId directly off the payment itself, since there's no
+   * invoice row here to read it from.
+   */
+  private async reverseAmountFromInvoice(tx: any, companyId: string, invoiceId: string | null, customerId: string, amount: number) {
+    if (!invoiceId) {
+      await tx.$executeRaw`
+        UPDATE customers SET lifetime_value = GREATEST(0, lifetime_value - ${amount})
+        WHERE id = ${customerId}::uuid AND company_id = ${companyId}::uuid
+      `;
+      return;
+    }
+
     const invoiceRows = await tx.$queryRaw<{ customerId: string; status: string; totalAmount: string; amountPaid: string }[]>`
       SELECT customer_id AS "customerId", status, total_amount AS "totalAmount", amount_paid AS "amountPaid" FROM invoices WHERE id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid
     `;
@@ -225,7 +284,7 @@ export class PaymentsService {
               co.email AS "companyEmail", co.address_line1 AS "companyAddressLine1", co.city AS "companyCity", co.state AS "companyState",
               co.settings AS "companySettings", co.google_review_url AS "googleReviewUrl"
        FROM payments p
-       JOIN invoices i ON i.id = p.invoice_id
+       LEFT JOIN invoices i ON i.id = p.invoice_id
        JOIN customers c ON c.id = p.customer_id
        LEFT JOIN properties pr ON pr.id = p.property_id
        JOIN companies co ON co.id = p.company_id

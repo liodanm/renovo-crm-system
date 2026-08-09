@@ -15,6 +15,7 @@ import { PhotosTab } from '../../../components/customers/tabs/photos-tab';
 import { DocumentsTab } from '../../../components/customers/tabs/documents-tab';
 import { ActivityTab } from '../../../components/customers/tabs/activity-tab';
 import { AppShell } from '../../../components/layout/AppShell';
+import { RecordStandalonePayment } from '../../../components/customers/record-standalone-payment';
 
 const TABS = ['Overview', 'Properties', 'Service History', 'Notes', 'Photos', 'Documents', 'Activity'] as const;
 type Tab = (typeof TABS)[number];
@@ -107,6 +108,11 @@ export default function CustomerProfilePage() {
                   >
                     Delete Customer
                   </button>
+                </div>
+              </PermissionGate>
+              <PermissionGate permissions={['payments.write']}>
+                <div className="mt-2">
+                  <RecordStandalonePayment customerId={customerId} onRecorded={() => mutateServiceHistory()} />
                 </div>
               </PermissionGate>
             </div>

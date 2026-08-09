@@ -221,3 +221,19 @@ complete, exhaustive fix.
 **Receipt:** shows a clean three-line Payment/Tip/Total Received breakdown only when a tip exists; a receipt with no tip renders exactly as it did before this feature, unchanged.
 
 **Explicitly not built, per approved scope:** tip reports, tip analytics, tip percentages/suggestions, automatic gratuity, tip taxation, payroll/tip distribution, Customer Portal tipping, Stripe tipping. All correctly out of scope.
+
+## Addendum — Standalone Offline Payments, No Invoice Required (shipped)
+
+**Migration 036**: `ALTER TABLE payments ALTER COLUMN invoice_id DROP NOT NULL`. Confirmed synced via `check-migration-sync.sh` (passed) and confirmed to apply cleanly against a completely fresh init-scripts build. `customer_id` remains required and unaffected — every payment, standalone or invoice-linked, has always required a real customer; this was the key fact (confirmed directly from the schema, not assumed) that made the whole feature small.
+
+**New:** `PaymentsService.recordStandalonePayment()`, `POST /customers/:customerId/payments`. Reuses the exact same INSERT/history/LTV pattern as the existing `recordPayment()` — deliberately does NOT reuse its invoice-status gate or balance-due cap, since neither rule has meaning without an invoice.
+
+**The one genuinely tricky part:** `reverseAmountFromInvoice()` (used by both void and refund) previously assumed an invoice always existed. Restructured to branch on whether `invoiceId` is present — full invoice+LTV reversal when it is (byte-for-byte the same as before), LTV-only reversal (using the payment's own `customerId`, since there's no invoice row to read it from) when it isn't. Voiding a standalone payment correctly undoes its LTV contribution without ever attempting to touch a nonexistent invoice.
+
+**Two `INNER JOIN`s fixed to `LEFT JOIN`** (`findAll()`, `getReceipt()`) — confirmed by direct, side-by-side comparison against real data that the old join would have silently excluded every standalone payment from both the payments list and its own receipt.
+
+**Three frontend spots** assumed `invoiceId`/`invoiceNumber` were always present and needed fixing: the payments list's desktop table cell, its mobile card link, and the receipt page's "For Invoice" line — all now show "No invoice" gracefully, and the mobile card links to the payment's own receipt instead of a broken `/invoices/null` when there's no invoice to link to.
+
+**New UI:** a "Record Payment" button on the Customer detail page (gated behind `payments.write`, same permission as the existing invoice flow), opening a self-contained inline form — no separate screen.
+
+**Verified against real data, not just code review:** recorded the exact spec scenario ($500 cash, March 15, $50 tip, no invoice) and confirmed: `invoice_id` genuinely NULL, tip stored separately, LTV exactly $500 (tip excluded). Directly compared the fixed `LEFT JOIN` against the old `INNER JOIN` on the same data — new query surfaces the payment, old query's count is 0, proving the fix matters rather than assuming it does. Voided the standalone payment and confirmed LTV correctly reversed to $0 with no crash and no invoice touched. Separately recorded and voided a normal invoice-linked payment on the same customer to confirm that branch is completely unaffected — invoice correctly paid then correctly reversed, exactly as before this feature existed. Confirmed company isolation: a cross-company customer lookup for the new route returns nothing, meaning the route throws before ever inserting a payment.

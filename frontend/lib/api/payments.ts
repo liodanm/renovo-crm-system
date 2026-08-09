@@ -2,7 +2,7 @@ import { apiFetch } from './api-client';
 
 export interface Payment {
   id: string;
-  invoiceId: string;
+  invoiceId: string | null;
   customerId: string;
   propertyId: string | null;
   amount: string;
@@ -28,9 +28,9 @@ export interface Receipt {
   referenceNumber: string | null;
   paymentDate: string | null;
   notes: string | null;
-  invoiceNumber: string;
-  invoiceTotal: string;
-  invoiceBalanceDue: string;
+  invoiceNumber: string | null;
+  invoiceTotal: string | null;
+  invoiceBalanceDue: string | null;
   customerFirstName: string | null;
   customerLastName: string | null;
   customerBusinessName: string | null;
@@ -69,6 +69,7 @@ export const paymentsApi = {
   list: (status?: string) => apiFetch<PaymentListItem[]>(`/payments${status ? `?status=${status}` : ''}`),
   listByInvoice: (invoiceId: string) => apiFetch<Payment[]>(`/invoices/${invoiceId}/payments`),
   record: (invoiceId: string, input: RecordPaymentInput) => apiFetch<Payment>(`/invoices/${invoiceId}/payments`, { method: 'POST', body: JSON.stringify(input) }),
+  recordStandalone: (customerId: string, input: RecordPaymentInput) => apiFetch<Payment>(`/customers/${customerId}/payments`, { method: 'POST', body: JSON.stringify(input) }),
   get: (id: string) => apiFetch<Payment>(`/payments/${id}`),
   void: (id: string, note?: string) => apiFetch<Payment>(`/payments/${id}/void`, { method: 'POST', body: JSON.stringify({ note }) }),
   refund: (id: string, amount?: number, note?: string) => apiFetch<Payment>(`/payments/${id}/refund`, { method: 'POST', body: JSON.stringify({ amount, note }) }),

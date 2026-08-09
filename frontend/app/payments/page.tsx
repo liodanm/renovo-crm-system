@@ -49,7 +49,11 @@ export default function PaymentsPage() {
                   {payments.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <Link href={`/invoices/${p.invoiceId}`} className="font-medium text-[var(--color-brand)]">{p.invoiceNumber}</Link>
+                        {p.invoiceId ? (
+                          <Link href={`/invoices/${p.invoiceId}`} className="font-medium text-[var(--color-brand)]">{p.invoiceNumber}</Link>
+                        ) : (
+                          <Link href={`/payments/receipt/${p.id}`} className="italic text-slate-400 hover:text-slate-600">No invoice</Link>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-slate-700">{invoiceCustomerNameFromReceipt(p)}</td>
                       <td className="px-4 py-3 text-slate-500">{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</td>
@@ -77,7 +81,7 @@ export default function PaymentsPage() {
                 {payments.map((p) => (
                   <MobileListCard
                     key={p.id}
-                    href={`/invoices/${p.invoiceId}`}
+                    href={p.invoiceId ? `/invoices/${p.invoiceId}` : `/payments/receipt/${p.id}`}
                     title={invoiceCustomerNameFromReceipt(p)}
                     subtitle={p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : undefined}
                     statusLabel={PAYMENT_STATUS_LABELS[p.status] ?? p.status}
@@ -85,7 +89,7 @@ export default function PaymentsPage() {
                     amount={formatMoney(p.amount)}
                     amountLabel="Amount"
                     meta={[
-                      { label: 'Invoice', value: p.invoiceNumber },
+                      { label: 'Invoice', value: p.invoiceNumber ?? 'No invoice' },
                       { label: 'Method', value: PAYMENT_METHOD_LABELS[p.method] ?? p.method },
                     ]}
                   />

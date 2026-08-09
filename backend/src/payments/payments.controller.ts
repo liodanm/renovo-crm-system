@@ -27,6 +27,12 @@ export class PaymentsController {
     return this.payments.recordPayment(user.companyId, invoiceId, user.userId, dto);
   }
 
+  @Post('customers/:customerId/payments')
+  @RequirePermissions('payments.write')
+  recordStandalonePayment(@CurrentUser() user: AuthenticatedRequestUser, @Param('customerId') customerId: string, @Body() dto: RecordPaymentDto) {
+    return this.payments.recordStandalonePayment(user.companyId, customerId, user.userId, dto);
+  }
+
   @Get('payments/:id')
   @RequirePermissions('invoices.read')
   findOne(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {

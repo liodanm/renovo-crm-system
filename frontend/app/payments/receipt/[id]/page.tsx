@@ -57,7 +57,9 @@ export default function ReceiptPage() {
               </div>
               <div className="text-right">
                 <p className="text-xs font-medium text-slate-500">For Invoice</p>
-                <p className="mt-0.5 text-slate-900">{receipt.invoiceNumber}</p>
+                <p className={`mt-0.5 ${receipt.invoiceNumber ? 'text-slate-900' : 'italic text-slate-400'}`}>
+                  {receipt.invoiceNumber ?? 'No invoice'}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-500">Payment Method</p>
@@ -94,7 +96,7 @@ export default function ReceiptPage() {
                   <p className="mt-1 text-2xl font-bold text-emerald-800">{formatMoney(receipt.amount)}</p>
                 </>
               )}
-              {Number(receipt.invoiceBalanceDue) > 0 && (
+              {receipt.invoiceBalanceDue && Number(receipt.invoiceBalanceDue) > 0 && (
                 <p className="mt-1 text-xs text-emerald-700">Remaining balance on invoice: {formatMoney(receipt.invoiceBalanceDue)}</p>
               )}
             </div>
