@@ -435,7 +435,12 @@ export class CustomersService {
       }),
       this.prisma.estimate.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.invoice.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.payment.findMany({ where: { companyId, customerId }, orderBy: { processedAt: 'desc' } }),
+      // No orderBy here — Prisma can't sort by a computed
+      // COALESCE(paymentDate, processedAt) directly, and this already
+      // fetches this one customer's full payment history unbounded (no
+      // take limit), so sorting by the real effective date after fetch,
+      // below, is exact, not an approximation.
+      this.prisma.payment.findMany({ where: { companyId, customerId } }),
       // Only the two fields the upsell comparison actually needs — not a
       // full catalog fetch. Reuses the exact same service_type vocabulary
       // Job.serviceType already uses, confirmed identical.
@@ -549,12 +554,14 @@ export class CustomersService {
         amountPaid: i.amountPaid.toNumber(),
         dueDate: i.dueDate,
       })),
-      payments: payments.map((p) => ({
+      payments: [...payments]
+        .sort((a, b) => (b.paymentDate ?? b.processedAt ?? b.createdAt).getTime() - (a.paymentDate ?? a.processedAt ?? a.createdAt).getTime())
+        .map((p) => ({
         id: p.id,
         amount: p.amount.toNumber(),
         method: p.method,
         status: p.status,
-        processedAt: p.processedAt,
+        processedAt: p.paymentDate ?? p.processedAt,
       })),
     };
   }
@@ -582,7 +589,7 @@ export class CustomersService {
       }),
       this.prisma.payment.findMany({
         where: { companyId, customerId },
-        select: { id: true, amount: true, processedAt: true, createdAt: true },
+        select: { id: true, amount: true, paymentDate: true, processedAt: true, createdAt: true },
       }),
       this.prisma.customerNote.findMany({
         where: { companyId, customerId, deletedAt: null },
@@ -615,7 +622,7 @@ export class CustomersService {
         id: p.id,
         type: 'payment',
         description: `Payment of $${p.amount.toNumber().toFixed(2)} received`,
-        occurredAt: p.processedAt ?? p.createdAt,
+        occurredAt: p.paymentDate ?? p.processedAt ?? p.createdAt,
       });
     }
     for (const n of notes) {

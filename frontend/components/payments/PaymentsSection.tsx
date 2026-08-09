@@ -24,6 +24,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -33,8 +34,9 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
     setIsSaving(true);
     setError(null);
     try {
-      await paymentsApi.record(invoiceId, { amount: Number(amount), method, referenceNumber: referenceNumber || undefined, notes: notes || undefined });
+      await paymentsApi.record(invoiceId, { amount: Number(amount), method, paymentDate, referenceNumber: referenceNumber || undefined, notes: notes || undefined });
       setAmount('');
+      setPaymentDate(new Date().toISOString().slice(0, 10));
       setReferenceNumber('');
       setNotes('');
       setShowForm(false);
@@ -89,7 +91,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
       {showForm && (
         <div className="mt-3 rounded-lg bg-slate-50 p-3">
           {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
@@ -102,6 +104,19 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
                 <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
               ))}
             </select>
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              // Historical dates are the whole point of this field — a
+              // job/payment from before this CRM existed. Not restricting
+              // how far back it can go. Future dates are left open too
+              // rather than blocked outright: a same-day payment entered
+              // just after midnight, or a deliberately post-dated check,
+              // are both real, ordinary cases — not something worth a
+              // hard validation error for a solo owner's own bookkeeping.
+              className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+            />
             <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>

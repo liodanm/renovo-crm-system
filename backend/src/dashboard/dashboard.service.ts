@@ -96,11 +96,21 @@ export class DashboardService {
   }
 
   private async getTodaysRevenue(companyId: string) {
+    const start = startOfToday();
+    const end = endOfToday();
+    // Prisma can't filter on a computed COALESCE directly, so this OR
+    // expresses the same thing: a payment counts as "today" if its
+    // business-effective date (paymentDate when set, else processedAt)
+    // falls in today's window — matching every other revenue query in
+    // this codebase, not a special case for the dashboard.
     const result = await this.prisma.payment.aggregate({
       where: {
         companyId,
         status: 'succeeded',
-        processedAt: { gte: startOfToday(), lt: endOfToday() },
+        OR: [
+          { paymentDate: { gte: start, lt: end } },
+          { paymentDate: null, processedAt: { gte: start, lt: end } },
+        ],
       },
       _sum: { amount: true },
       _count: true,
@@ -145,20 +155,35 @@ export class DashboardService {
   }
 
   private async getRecentPayments(companyId: string, limit = 5) {
+    // Prisma can't order by a computed COALESCE(paymentDate, processedAt)
+    // directly, and no single real column reliably approximates it for
+    // the fetch — a batch of historical payments entered the same day
+    // would all share nearly-identical createdAt/processedAt regardless
+    // of how far apart their real paymentDates are. A solo business's
+    // total lifetime payment count is realistically in the hundreds, not
+    // millions, so fetching the whole company-scoped set and sorting by
+    // the real effective date in JS is the only approach that's always
+    // correct — same bounded-ceiling reasoning already used elsewhere in
+    // this codebase (e.g. the customer CSV export's take: 50_000) rather
+    // than a tight, fetch-order-dependent limit.
     const payments = await this.prisma.payment.findMany({
       where: { companyId, status: 'succeeded' },
-      orderBy: { processedAt: 'desc' },
-      take: limit,
+      take: 5000,
       include: { customer: { select: { firstName: true, lastName: true, businessName: true } } },
     });
 
-    return payments.map((p) => ({
-      id: p.id,
-      amount: p.amount.toNumber(),
-      method: p.method,
-      processedAt: p.processedAt,
-      customerName: p.customer.businessName ?? `${p.customer.firstName ?? ''} ${p.customer.lastName ?? ''}`.trim(),
-    }));
+    return payments
+      .map((p) => ({
+        id: p.id,
+        amount: p.amount.toNumber(),
+        method: p.method,
+        processedAt: p.paymentDate ?? p.processedAt,
+        customerName: p.customer.businessName ?? `${p.customer.firstName ?? ''} ${p.customer.lastName ?? ''}`.trim(),
+        _effectiveDate: p.paymentDate ?? p.processedAt ?? p.createdAt,
+      }))
+      .sort((a, b) => (b._effectiveDate?.getTime() ?? 0) - (a._effectiveDate?.getTime() ?? 0))
+      .slice(0, limit)
+      .map(({ _effectiveDate, ...rest }) => rest);
   }
 
   // ===========================================================================

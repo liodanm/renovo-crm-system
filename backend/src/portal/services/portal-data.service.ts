@@ -124,7 +124,7 @@ export class PortalDataService {
     return this.prisma.invoice.findMany({
       where: { companyId, customerId },
       orderBy: { createdAt: 'desc' },
-      include: { payments: { where: { status: 'succeeded' }, select: { amount: true, processedAt: true, method: true } } },
+      include: { payments: { where: { status: 'succeeded' }, select: { amount: true, paymentDate: true, processedAt: true, method: true } } },
     });
   }
 
@@ -136,7 +136,7 @@ export class PortalDataService {
         property: true,
         job: { include: { property: true } },
         estimate: { select: { estimateNumber: true } },
-        payments: { where: { status: 'succeeded' }, select: { amount: true, processedAt: true, method: true } },
+        payments: { where: { status: 'succeeded' }, select: { amount: true, paymentDate: true, processedAt: true, method: true } },
       },
     });
     if (!invoice) throw new NotFoundException('Invoice not found');

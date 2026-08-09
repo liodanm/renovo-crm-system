@@ -48,7 +48,7 @@ export class ReportsService {
 
       const payments: any[] = await tx.$queryRaw`
         SELECT COALESCE(SUM(amount), 0) AS "paymentsReceivedThisMonth"
-        FROM payments WHERE company_id = ${companyId}::uuid AND status = 'succeeded' AND processed_at >= date_trunc('month', now())
+        FROM payments WHERE company_id = ${companyId}::uuid AND status = 'succeeded' AND COALESCE(payment_date, processed_at) >= date_trunc('month', now())
       `;
 
       const taxes: any[] = await tx.$queryRaw`
@@ -132,9 +132,9 @@ export class ReportsService {
   /** Payment Trend chart — daily payments actually collected. */
   async getPaymentTrend(companyId: string, start: Date, end: Date) {
     return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
-      SELECT date_trunc('day', processed_at)::date AS "date", SUM(amount) AS "amount"
+      SELECT date_trunc('day', COALESCE(payment_date, processed_at))::date AS "date", SUM(amount) AS "amount"
       FROM payments
-      WHERE company_id = ${companyId}::uuid AND status = 'succeeded' AND processed_at >= ${start} AND processed_at < ${end}
+      WHERE company_id = ${companyId}::uuid AND status = 'succeeded' AND COALESCE(payment_date, processed_at) >= ${start} AND COALESCE(payment_date, processed_at) < ${end}
       GROUP BY 1 ORDER BY 1 ASC
     `);
   }
