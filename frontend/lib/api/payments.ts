@@ -6,6 +6,7 @@ export interface Payment {
   customerId: string;
   propertyId: string | null;
   amount: string;
+  tipAmount: string;
   method: string;
   status: string;
   referenceNumber: string | null;
@@ -21,6 +22,7 @@ export interface Receipt {
   id: string;
   receiptNumber: string;
   amount: string;
+  tipAmount: string;
   method: string;
   status: string;
   referenceNumber: string | null;
@@ -51,6 +53,7 @@ export interface RecordPaymentInput {
   amount: number;
   method: string;
   paymentDate?: string;
+  tipAmount?: number;
   referenceNumber?: string;
   notes?: string;
 }

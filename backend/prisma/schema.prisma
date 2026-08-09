@@ -574,6 +574,12 @@ model Payment {
   paymentDate         DateTime? @map("payment_date") @db.Date
   receiptNumber       String?   @map("receipt_number")
   refundedAmount      Decimal   @default(0) @map("refunded_amount") @db.Decimal(12, 2)
+  // Optional gratuity, entirely separate from `amount` — never combined
+  // with it. `amount` keeps its existing meaning everywhere (invoice
+  // balance/status, Customer LTV, dashboard/reports revenue), so those
+  // stay correct with zero changes. Same default-0, non-nullable
+  // pattern as refundedAmount above, not a new modeling convention.
+  tipAmount           Decimal   @default(0) @map("tip_amount") @db.Decimal(12, 2)
   stripePaymentIntentId String? @map("stripe_payment_intent_id")
   stripeChargeId      String?   @map("stripe_charge_id")
   processedAt         DateTime? @map("processed_at")

@@ -14,6 +14,15 @@ export class RecordPaymentDto {
   @IsISO8601()
   paymentDate?: string;
 
+  // Optional, separate from `amount` — @Min(0) (not 0.01 like amount
+  // above) since a tip legitimately can be exactly $0 (the default,
+  // meaning "no tip"), unlike the payment amount itself which must be
+  // a genuine positive payment.
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  tipAmount?: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(100)

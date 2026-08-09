@@ -71,8 +71,29 @@ export default function ReceiptPage() {
             </div>
 
             <div className="mt-6 rounded-lg bg-emerald-50 p-4 text-center">
-              <p className="text-xs font-medium text-emerald-700">Amount Paid</p>
-              <p className="mt-1 text-2xl font-bold text-emerald-800">{formatMoney(receipt.amount)}</p>
+              {Number(receipt.tipAmount) > 0 ? (
+                <>
+                  <div className="flex justify-between text-sm text-emerald-800">
+                    <span>Payment</span>
+                    <span className="font-medium">{formatMoney(receipt.amount)}</span>
+                  </div>
+                  <div className="mt-1 flex justify-between text-sm text-emerald-800">
+                    <span>Tip</span>
+                    <span className="font-medium">{formatMoney(receipt.tipAmount)}</span>
+                  </div>
+                  <div className="mt-2 border-t border-emerald-200 pt-2">
+                    <p className="text-xs font-medium text-emerald-700">Total Received</p>
+                    <p className="mt-1 text-2xl font-bold text-emerald-800">
+                      {formatMoney((Number(receipt.amount) + Number(receipt.tipAmount)).toFixed(2))}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-medium text-emerald-700">Amount Paid</p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-800">{formatMoney(receipt.amount)}</p>
+                </>
+              )}
               {Number(receipt.invoiceBalanceDue) > 0 && (
                 <p className="mt-1 text-xs text-emerald-700">Remaining balance on invoice: {formatMoney(receipt.invoiceBalanceDue)}</p>
               )}

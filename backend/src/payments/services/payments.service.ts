@@ -6,7 +6,7 @@ import { logAutomationEvent } from '../../common/utils/automation-event.util';
 
 const PAYMENT_SELECT = `
   p.id, p.invoice_id AS "invoiceId", p.customer_id AS "customerId", p.property_id AS "propertyId",
-  p.amount, p.method, p.status, p.reference_number AS "referenceNumber", p.notes,
+  p.amount, p.tip_amount AS "tipAmount", p.method, p.status, p.reference_number AS "referenceNumber", p.notes,
   p.payment_date AS "paymentDate", p.processed_at AS "processedAt", p.refunded_amount AS "refundedAmount",
   p.receipt_number AS "receiptNumber", p.created_at AS "createdAt"
 `;
@@ -47,9 +47,12 @@ export class PaymentsService {
 
     return this.prisma.withTenantContext(companyId, async (tx) => {
       const receiptNumber = `RCPT-${Date.now().toString().slice(-6)}`;
+      // tip_amount is stored here and nowhere else touches it — the
+      // invoice/LTV updates below continue to read only dto.amount,
+      // exactly as before this field existed.
       const paymentRows = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
-        VALUES (${companyId}::uuid, ${invoiceId}::uuid, ${invoice.customerId}::uuid, ${invoice.propertyId}::uuid, ${dto.amount}, ${dto.method}, 'succeeded',
+        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
+        VALUES (${companyId}::uuid, ${invoiceId}::uuid, ${invoice.customerId}::uuid, ${invoice.propertyId}::uuid, ${dto.amount}, ${dto.tipAmount ?? 0}, ${dto.method}, 'succeeded',
                 ${dto.referenceNumber ?? null}, ${dto.notes ?? null}, ${dto.paymentDate ? new Date(dto.paymentDate) : new Date()}, now(), ${receiptNumber})
         RETURNING id
       `;
@@ -213,7 +216,7 @@ export class PaymentsService {
   async getReceipt(companyId: string, paymentId: string) {
     const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) =>
       tx.$queryRawUnsafe(
-        `SELECT p.id, p.receipt_number AS "receiptNumber", p.amount, p.method, p.status,
+        `SELECT p.id, p.receipt_number AS "receiptNumber", p.amount, p.tip_amount AS "tipAmount", p.method, p.status,
               p.reference_number AS "referenceNumber", p.payment_date AS "paymentDate", p.notes,
               i.invoice_number AS "invoiceNumber", i.total_amount AS "invoiceTotal", i.balance_due AS "invoiceBalanceDue",
               c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName", c.email AS "customerEmail",

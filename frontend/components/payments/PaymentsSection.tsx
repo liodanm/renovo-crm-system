@@ -25,6 +25,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [tipAmount, setTipAmount] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -34,9 +35,17 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
     setIsSaving(true);
     setError(null);
     try {
-      await paymentsApi.record(invoiceId, { amount: Number(amount), method, paymentDate, referenceNumber: referenceNumber || undefined, notes: notes || undefined });
+      await paymentsApi.record(invoiceId, {
+        amount: Number(amount),
+        method,
+        paymentDate,
+        tipAmount: tipAmount ? Number(tipAmount) : undefined,
+        referenceNumber: referenceNumber || undefined,
+        notes: notes || undefined,
+      });
       setAmount('');
       setPaymentDate(new Date().toISOString().slice(0, 10));
+      setTipAmount('');
       setReferenceNumber('');
       setNotes('');
       setShowForm(false);
@@ -91,7 +100,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
       {showForm && (
         <div className="mt-3 rounded-lg bg-slate-50 p-3">
           {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
@@ -115,6 +124,17 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               // just after midnight, or a deliberately post-dated check,
               // are both real, ordinary cases — not something worth a
               // hard validation error for a solo owner's own bookkeeping.
+              className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+            />
+            <input
+              value={tipAmount}
+              onChange={(e) => setTipAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder="Tip (Optional)"
+              inputMode="decimal"
+              // Blank, not $0.00 — a blank field reads as "no tip
+              // entered" at a glance, and blank correctly sends
+              // undefined (stored as 0) rather than forcing every
+              // ordinary cash payment to show a $0.00 tip value.
               className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
             />
             <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
@@ -141,6 +161,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               <p className="text-xs text-slate-400">
                 {p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : '—'}
                 {p.referenceNumber && ` · Ref: ${p.referenceNumber}`}
+                {Number(p.tipAmount) > 0 && ` · Tip: ${formatMoney(p.tipAmount)}`}
                 {Number(p.refundedAmount) > 0 && ` · Refunded: ${formatMoney(p.refundedAmount)}`}
               </p>
             </div>
