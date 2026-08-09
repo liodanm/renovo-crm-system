@@ -242,6 +242,10 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
   const [internalNotes, setInternalNotes] = useState(existingEstimate?.internalNotes ?? restoredDraft?.internalNotes ?? '');
   const [validUntil, setValidUntil] = useState(existingEstimate?.validUntil?.slice(0, 10) ?? restoredDraft?.validUntil ?? '');
   const [isSaving, setIsSaving] = useState(false);
+  // Which button's label should reflect the busy state — isSaving alone
+  // disables every button in the row (the existing, correct behavior),
+  // this just decides what text the active one shows.
+  const [saveAction, setSaveAction] = useState<'draft' | 'send' | 'accept' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -353,6 +357,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
     if (!validate()) return;
 
     setIsSaving(true);
+    setSaveAction(andSend ? 'send' : 'draft');
     try {
       const payload = {
         customerId,
@@ -385,6 +390,81 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
       router.push(`/estimates/${estimate.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : `Failed to ${isEdit ? 'update' : 'create'} estimate. Check your connection and try again.`);
+      setIsSaving(false);
+    }
+  }
+
+  /**
+   * Save, then — only if that succeeds — accept, reusing the exact same
+   * estimatesApi.update() this form already uses and the exact same
+   * estimatesApi.acceptManually() the estimate detail page's own Accept
+   * dialog already calls. No new endpoint, no duplicated status-change
+   * logic.
+   *
+   * isSaving (not a separate flag) intentionally gates every button in
+   * this row — the existing Save/Cancel buttons already disable
+   * together this same way, and a second, save-and-accept-specific
+   * request firing while one of those is in flight is exactly the kind
+   * of race this reuses the existing guard to prevent, rather than
+   * inventing a parallel one.
+   */
+  async function handleSaveAndAccept() {
+    if (!validate()) return;
+
+    setIsSaving(true);
+    setSaveAction('accept');
+    try {
+      const payload = {
+        customerId,
+        propertyId,
+        lineItems: lineItems.map(({ key, quantity, unitPrice, serviceDetails, ...rest }) => ({
+          ...rest,
+          quantity: toNumber(quantity),
+          unitPrice: toNumber(unitPrice),
+          serviceDetails: normalizeServiceDetails(serviceDetails),
+        })),
+        discountType: discountType || undefined,
+        discountValue: discountType ? toNumber(discountValue) : undefined,
+        discountSource: discountType ? (isManualDiscount ? 'manual' : 'package') : undefined,
+        taxRatePercent: taxRatePercent ? toNumber(taxRatePercent) : undefined,
+        notes: notes || undefined,
+        internalNotes: internalNotes || undefined,
+        validUntil: validUntil || undefined,
+      };
+
+      // Same strip-before-update as handleSave, and for the same real
+      // reason: the backend's UpdateEstimateDto doesn't accept these
+      // two fields at all, and the global validation pipe rejects any
+      // request body containing a field the target DTO doesn't define
+      // (forbidNonWhitelisted: true, main.ts) — sending them here would
+      // make every Save & Accept fail at the save step.
+      const { customerId: _customerId, propertyId: _propertyId, ...updatePayload } = payload;
+      const estimate = await estimatesApi.update(existingEstimate!.id, updatePayload);
+
+      try {
+        await estimatesApi.acceptManually(estimate.id);
+      } catch (acceptErr) {
+        // The save above genuinely succeeded — your edits are real and
+        // kept. Only acceptance failed. Staying on this page (not
+        // navigating away) rather than the detail page is deliberate:
+        // navigating away here would be truthful (the estimate really
+        // is still just "draft," not falsely "accepted"), but staying
+        // put lets you immediately retry acceptance without re-editing
+        // and re-saving everything again.
+        setError(
+          acceptErr instanceof ApiError
+            ? `Your changes were saved, but the estimate could not be accepted: ${acceptErr.message}`
+            : 'Your changes were saved, but the estimate could not be accepted. Check your connection and try again.',
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      router.push(`/estimates/${estimate.id}`);
+    } catch (err) {
+      // Save itself failed — acceptManually is never reached, so the
+      // estimate's status is untouched.
+      setError(err instanceof ApiError ? err.message : 'Failed to update estimate. Check your connection and try again.');
       setIsSaving(false);
     }
   }
@@ -538,7 +618,9 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
 
         <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-4">
           <div>
-            <label className="text-sm font-medium text-slate-700">Valid until</label>
+            <div className="flex min-h-[22px] items-center justify-between">
+              <label className="text-sm font-medium text-slate-700">Valid until</label>
+            </div>
             <input
               type="date"
               value={validUntil}
@@ -547,15 +629,15 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             />
           </div>
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex min-h-[22px] items-center justify-between">
               <label className="text-sm font-medium text-slate-700">Discount type</label>
               {activePackageDiscount && (
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                <span className="whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                   {activePackageDiscount.label} • {activePackageDiscount.value}%
                 </span>
               )}
               {isManualDiscount && discountType && (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Manual Discount</span>
+                <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Manual Discount</span>
               )}
             </div>
             <select
@@ -575,7 +657,9 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Discount value</label>
+            <div className="flex min-h-[22px] items-center justify-between">
+              <label className="text-sm font-medium text-slate-700">Discount value</label>
+            </div>
             <input
               type="text"
               inputMode="decimal"
@@ -595,7 +679,9 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Tax rate (%)</label>
+            <div className="flex min-h-[22px] items-center justify-between">
+              <label className="text-sm font-medium text-slate-700">Tax rate (%)</label>
+            </div>
             <input
               type="text"
               inputMode="decimal"
@@ -657,16 +743,27 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             Cancel
           </button>
           {isEdit ? (
-            <button onClick={() => handleSave(false)} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
-              {isSaving ? 'Saving…' : 'Save Changes'}
-            </button>
+            <>
+              <button onClick={() => handleSave(false)} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+                {isSaving && saveAction === 'draft' ? 'Saving…' : 'Save Changes'}
+              </button>
+              {existingEstimate!.status === 'draft' && (
+                <button
+                  onClick={handleSaveAndAccept}
+                  disabled={isSaving}
+                  className="rounded-lg border border-[var(--color-brand)] px-4 py-2 text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-50"
+                >
+                  {isSaving && saveAction === 'accept' ? 'Saving & Accepting…' : 'Save & Accept'}
+                </button>
+              )}
+            </>
           ) : (
             <>
               <button onClick={() => handleSave(false)} disabled={isSaving} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50">
-                {isSaving ? 'Saving…' : 'Save as Draft'}
+                {isSaving && saveAction === 'draft' ? 'Saving…' : 'Save as Draft'}
               </button>
               <button onClick={() => handleSave(true)} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
-                {isSaving ? 'Saving…' : 'Save & Send'}
+                {isSaving && saveAction === 'send' ? 'Saving…' : 'Save & Send'}
               </button>
             </>
           )}
@@ -748,7 +845,7 @@ function LineItemRow({
             {SERVICE_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-4">
           <RequiredLabel size="sm">Description</RequiredLabel>
           <input
             ref={descriptionRef}
@@ -777,7 +874,7 @@ function LineItemRow({
             className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300'}`}
           />
         </div>
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-2">
           <RequiredLabel size="sm">Unit Price</RequiredLabel>
           <input
             ref={unitPriceRef}
