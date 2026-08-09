@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { computeDocumentTotals } from '../../common/utils/document-totals.util';
+import { generateInvoiceFilename } from '../../common/utils/pdf-filename.util';
 import { UpdateInvoiceDto, QueryInvoicesDto } from '../dto/invoice.dto';
 import { PdfService } from '../../documents/services/pdf.service';
 import { EmailLogService } from '../../documents/services/email-log.service';
@@ -159,11 +160,13 @@ export class InvoicesService {
                c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName",
                c.email AS "customerEmail", c.phone AS "customerPhone",
                p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity", p.state AS "propertyState",
-               j.job_number AS "jobNumber"
+               j.job_number AS "jobNumber",
+               e.estimate_number AS "sourceEstimateNumber"
         FROM invoices i
         JOIN customers c ON c.id = i.customer_id
         LEFT JOIN properties p ON p.id = i.property_id
         LEFT JOIN jobs j ON j.id = i.job_id
+        LEFT JOIN estimates e ON e.id = i.estimate_id
         WHERE i.id = ${id}::uuid AND i.company_id = ${companyId}::uuid
       `;
       if (rows.length === 0) throw new NotFoundException('Invoice not found');
@@ -282,7 +285,7 @@ export class InvoicesService {
       },
     });
 
-    return { buffer, filename: `Invoice-${invoice.invoiceNumber}.pdf` };
+    return { buffer, filename: generateInvoiceFilename(invoice.invoiceNumber, invoice.sourceEstimateNumber ?? null) };
   }
 
   /**

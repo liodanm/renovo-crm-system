@@ -17,6 +17,7 @@ import { CreateServiceRequestDto } from './dto/service-request.dto';
 import { PortalChatDto } from './dto/portal-chat.dto';
 import { PdfService } from '../documents/services/pdf.service';
 import { CompanyContextService } from '../documents/services/company-context.service';
+import { generateEstimateFilename, generateInvoiceFilename } from '../common/utils/pdf-filename.util';
 import { logAutomationEvent } from '../common/utils/automation-event.util';
 
 @Controller('portal')
@@ -310,7 +311,7 @@ export class PortalController {
       },
       property: { addressLine1: estimate.property.addressLine1, city: estimate.property.city, state: estimate.property.state },
     });
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="Estimate-${estimate.estimateNumber}.pdf"` });
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${generateEstimateFilename(estimate.estimateNumber)}"` });
     res.send(buffer);
   }
 
@@ -364,7 +365,7 @@ export class PortalController {
       },
       property: { addressLine1: property?.addressLine1 ?? null, city: property?.city ?? null, state: property?.state ?? null },
     });
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="Invoice-${invoice.invoiceNumber}.pdf"` });
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${generateInvoiceFilename(invoice.invoiceNumber, invoice.estimate?.estimateNumber ?? null)}"` });
     res.send(buffer);
   }
 

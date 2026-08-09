@@ -135,6 +135,7 @@ export class PortalDataService {
         customer: true,
         property: true,
         job: { include: { property: true } },
+        estimate: { select: { estimateNumber: true } },
         payments: { where: { status: 'succeeded' }, select: { amount: true, processedAt: true, method: true } },
       },
     });

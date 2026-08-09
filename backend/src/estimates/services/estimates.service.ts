@@ -8,6 +8,7 @@ import { computeLineItemProfit, resolveLaborRate } from './estimate-profit.util'
 import { validateServiceDetails } from '../dto/service-details/validate-service-details';
 import { JobsService } from '../../jobs/services/jobs.service';
 import { PdfService } from '../../documents/services/pdf.service';
+import { generateEstimateFilename } from '../../common/utils/pdf-filename.util';
 import { EmailLogService } from '../../documents/services/email-log.service';
 import { CompanyContextService } from '../../documents/services/company-context.service';
 import { MailService } from '../../mail/mail.service';
@@ -431,7 +432,7 @@ export class EstimatesService {
       },
     });
 
-    return { buffer, filename: `Estimate-${estimate.estimateNumber}.pdf` };
+    return { buffer, filename: generateEstimateFilename(estimate.estimateNumber) };
   }
 
   /**

@@ -139,3 +139,47 @@ Only listing what's been confirmed working against real data, not just shipped:
 **Deployment:** confirmed directly against Railway's own documentation — multiple custom domains are supported per service, so `portal.renovocrm.com` can be added as a second custom domain on the existing frontend service. Not yet added; documented as the one remaining manual step before this can go live.
 
 **Explicitly deferred to Phase 2, per approved scope:** Estimates/Invoices/Payments/Photos/Service Requests/AI Chat UI. The backend for all of these already exists (see the original Customer Portal audit) — Phase 2 is UI-only work against an already-proven API.
+
+## Addendum — Consistent PDF & Email Filenames (shipped)
+
+**Four independent, hardcoded filename formats found and eliminated,**
+confirmed by direct search, not assumed: `EstimatesService.generatePdf()`,
+`InvoicesService.generatePdf()`, and two inline formats in
+`portal.controller.ts` (estimate view, invoice view). None matched the
+requested format, and critically none of the invoice paths ever checked
+for a source estimate at all — "created from an estimate" was a real,
+missing capability, not just an inconsistency.
+
+**One shared, pure helper:** `common/utils/pdf-filename.util.ts` —
+`generateEstimateFilename()` and `generateInvoiceFilename()`. No DB
+access, no company/tenant logic, deterministic. Every one of the four
+call sites (staff Estimate PDF, staff Invoice PDF, Portal Estimate PDF,
+Portal Invoice PDF) now calls this same helper — confirmed zero
+remaining hardcoded `Estimate-${...}`/`Invoice-${...}` formats anywhere
+in the backend by direct search.
+
+**Email attachments needed zero separate fix** — both `sendEmail()`
+methods already call the same `generatePdf()` internally and reuse its
+returned filename directly for the attachment. Fixing PDF generation
+correctly fixed email automatically, confirmed by reading the actual
+call sites, not assumed.
+
+**No new query introduced** — the source estimate's number is fetched
+by extending the two *existing* invoice queries (one additional LEFT
+JOIN column in the staff raw-SQL query, one additional `include` on the
+portal's Prisma query) rather than a second round-trip.
+
+**Verified against a real database**, not simulated: an invoice
+generated from an estimate correctly produced `EST-1025` as its source
+number via the exact fixed query; a standalone invoice (no estimate)
+correctly returned null. The actual filename helper was then run
+directly against both real cases plus a deliberate invalid-character
+edge case — all three matched the requested spec exactly:
+`Quote EST-1025.pdf`, `Quote EST-1025 - Invoice INV-1048.pdf`,
+`Invoice INV-1049.pdf`.
+
+**Frontend needed no changes at all** — confirmed by search that this
+app has zero independent filename-generation logic; both staff and
+portal downloads rely entirely on the browser respecting the backend's
+`Content-Disposition` header, meaning the four backend fixes are the
+complete, exhaustive fix.
