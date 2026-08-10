@@ -469,6 +469,75 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
     }
   }
 
+  /**
+   * The create-flow twin of handleSaveAndAccept above — same reasoning,
+   * same reused estimatesApi.acceptManually(), but calling
+   * estimatesApi.create() first instead of update(). Unlike the edit
+   * path, customerId/propertyId are NOT stripped from the payload here
+   * — create() requires them; only update() rejects them.
+   *
+   * No call to estimatesApi.send() exists anywhere in this function —
+   * not skipped by a conditional, structurally absent — so there is no
+   * path by which this can email the customer.
+   */
+  async function handleSaveAndAcceptNew() {
+    if (!validate()) return;
+
+    setIsSaving(true);
+    setSaveAction('accept');
+    try {
+      const payload = {
+        customerId,
+        propertyId,
+        lineItems: lineItems.map(({ key, quantity, unitPrice, serviceDetails, ...rest }) => ({
+          ...rest,
+          quantity: toNumber(quantity),
+          unitPrice: toNumber(unitPrice),
+          serviceDetails: normalizeServiceDetails(serviceDetails),
+        })),
+        discountType: discountType || undefined,
+        discountValue: discountType ? toNumber(discountValue) : undefined,
+        discountSource: discountType ? (isManualDiscount ? 'manual' : 'package') : undefined,
+        taxRatePercent: taxRatePercent ? toNumber(taxRatePercent) : undefined,
+        notes: notes || undefined,
+        internalNotes: internalNotes || undefined,
+        validUntil: validUntil || undefined,
+      };
+
+      const estimate = await estimatesApi.create(payload);
+
+      try {
+        await estimatesApi.acceptManually(estimate.id);
+      } catch (acceptErr) {
+        // The estimate genuinely exists now (the create above
+        // succeeded) — it's sitting as an ordinary draft, same as any
+        // other saved-but-not-yet-accepted estimate. Deliberately NOT
+        // navigating away here: this component's error state would be
+        // gone the instant the page changes, and the message ("saved,
+        // but not accepted") is exactly the thing the user most needs
+        // to actually see, not something to lose to a redirect.
+        clearDraft();
+        recordRecentCustomer(customerId);
+        setError(
+          acceptErr instanceof ApiError
+            ? `The estimate was saved as a draft, but could not be marked Accepted: ${acceptErr.message}. Find it in your Estimates list to accept it from there.`
+            : 'The estimate was saved as a draft, but could not be marked Accepted. Check your connection, then find it in your Estimates list to accept it from there.',
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      clearDraft();
+      recordRecentCustomer(customerId);
+      router.push(`/estimates/${estimate.id}`);
+    } catch (err) {
+      // Create itself failed — acceptManually is never reached, and
+      // nothing exists yet to leave in an ambiguous state.
+      setError(err instanceof ApiError ? err.message : 'Failed to create estimate. Check your connection and try again.');
+      setIsSaving(false);
+    }
+  }
+
   return (
     <AppShell>
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
@@ -764,6 +833,13 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               </button>
               <button onClick={() => handleSave(true)} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
                 {isSaving && saveAction === 'send' ? 'Saving…' : 'Save & Send'}
+              </button>
+              <button
+                onClick={handleSaveAndAcceptNew}
+                disabled={isSaving}
+                className="rounded-lg border border-[var(--color-brand)] px-4 py-2 text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-50"
+              >
+                {isSaving && saveAction === 'accept' ? 'Saving & Accepting…' : 'Save & Accept'}
               </button>
             </>
           )}
