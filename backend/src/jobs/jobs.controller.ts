@@ -4,7 +4,7 @@ import type { Response } from 'express';
 import { JobsService } from './services/jobs.service';
 import { JobFieldOpsService } from './services/job-field-ops.service';
 import { JobPhotosService } from './services/job-photos.service';
-import { UpdateJobDto, PauseJobDto, QueryJobsDto } from './dto/job.dto';
+import { UpdateJobDto, PauseJobDto, CancelJobDto, QueryJobsDto } from './dto/job.dto';
 import { StartJobDto, CompleteJobDetailsDto, CreateChemicalUsageDto, UpdateChemicalUsageDto, CreateEquipmentUsageDto, GpsCoordinatesDto } from './dto/field-ops.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -47,6 +47,12 @@ export class JobsController {
   @RequirePermissions('jobs.write')
   pause(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: PauseJobDto) {
     return this.jobsService.pause(user.companyId, id, user.userId, dto);
+  }
+
+  @Post(':id/cancel')
+  @RequirePermissions('jobs.write')
+  cancel(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: CancelJobDto) {
+    return this.jobsService.cancelJob(user.companyId, id, user.userId, dto);
   }
 
   @Post(':id/resume')

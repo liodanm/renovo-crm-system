@@ -46,6 +46,7 @@ export interface Job {
   title: string;
   description: string | null;
   status: string;
+  cancellationReason: string | null;
   priority: JobPriority;
   customerId: string;
   propertyId: string;
@@ -170,6 +171,7 @@ export const jobsApi = {
   start: (id: string, gps: GpsCoords) => apiFetch<Job>(`/jobs/${id}/start`, { method: 'POST', body: JSON.stringify(gps) }),
   pause: (id: string, note?: string) => apiFetch<Job>(`/jobs/${id}/pause`, { method: 'POST', body: JSON.stringify({ note }) }),
   resume: (id: string) => apiFetch<Job>(`/jobs/${id}/resume`, { method: 'POST' }),
+  cancel: (id: string, cancellationReason: string) => apiFetch<Job>(`/jobs/${id}/cancel`, { method: 'POST', body: JSON.stringify({ cancellationReason }) }),
   complete: (id: string, input: CompleteJobInput) => apiFetch<Job>(`/jobs/${id}/complete`, { method: 'POST', body: JSON.stringify(input) }),
   checkIn: (id: string, gps: GpsCoords) => apiFetch<{ success: boolean; latitude: number | null; longitude: number | null }>(`/jobs/${id}/checkin`, { method: 'POST', body: JSON.stringify(gps) }),
 

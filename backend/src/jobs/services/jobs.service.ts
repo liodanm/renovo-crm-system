@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { UpdateJobDto, PauseJobDto, QueryJobsDto } from '../dto/job.dto';
+import { UpdateJobDto, PauseJobDto, CancelJobDto, QueryJobsDto } from '../dto/job.dto';
 import { CompleteJobDetailsDto, GpsCoordinatesDto } from '../dto/field-ops.dto';
 import { assertValidTransition, calculateLaborHours } from './job-status.util';
 import { JobFieldOpsService } from './job-field-ops.service';
@@ -113,6 +113,7 @@ export class JobsService {
       const jobRows = await client.$queryRaw`
         SELECT j.*, j.job_number AS "jobNumber", j.customer_id AS "customerId", j.property_id AS "propertyId",
                j.estimate_id AS "estimateId", j.assigned_user_id AS "assignedUserId",
+               j.cancellation_reason AS "cancellationReason",
                j.internal_notes AS "internalNotes", j.calculated_labor_hours AS "calculatedLaborHours",
                j.billable_labor_hours AS "billableLaborHours", j.actual_start AS "actualStart", j.actual_end AS "actualEnd",
                j.scheduled_start AS "scheduledStart", j.scheduled_end AS "scheduledEnd",
@@ -178,6 +179,61 @@ export class JobsService {
       WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid
     `);
     return this.findOne(companyId, id);
+  }
+
+  /**
+   * Deliberately does NOT call SchedulingService.cancel() — that method
+   * cancels an appointment and, as a side effect, reverts its linked
+   * job to 'draft' (un-scheduling it). That's correct for "I decided
+   * not to schedule this yet" but wrong here: cancelling a Job needs
+   * the Job to end up 'cancelled' (preserving that it WAS scheduled),
+   * not reset to looking like it never was. So the appointment side is
+   * handled directly below — the same two statements
+   * SchedulingService.cancel() uses for its appointment update and
+   * history write, just without the job-reversion that doesn't apply
+   * to this operation. This is the one, single place a Job gets
+   * cancelled; nothing here is a second, competing cancellation path.
+   *
+   * scheduledStart/scheduledEnd are intentionally left untouched —
+   * that's what lets the cancelled job still show "Originally
+   * Scheduled: <date>" rather than looking like it was never planned.
+   */
+  async cancelJob(companyId: string, id: string, userId: string, dto: CancelJobDto) {
+    const job = await this.findOne(companyId, id);
+    assertValidTransition(job.status, 'cancelled', 'cancel');
+
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      await tx.$executeRaw`
+        UPDATE jobs SET status = 'cancelled', cancellation_reason = ${dto.cancellationReason}, updated_at = now()
+        WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid
+      `;
+      await tx.$executeRaw`
+        INSERT INTO job_status_history (company_id, job_id, from_status, to_status, changed_by_user_id, note)
+        VALUES (${companyId}::uuid, ${id}::uuid, ${job.status}, 'cancelled', ${userId}::uuid, ${dto.cancellationReason})
+      `;
+
+      const appointments: { id: string; status: string }[] = await tx.$queryRaw`
+        SELECT id, status FROM appointments WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid
+      `;
+      for (const appt of appointments) {
+        // Defensive: a draft/scheduled job's appointment should never
+        // already be completed/cancelled, but skip rather than error
+        // if it somehow is — this is a side effect of cancelling the
+        // job, not itself the primary action, and shouldn't block the
+        // job cancellation over a pre-existing data state.
+        if (['cancelled', 'completed'].includes(appt.status)) continue;
+        await tx.$executeRaw`
+          UPDATE appointments SET status = 'cancelled', cancellation_reason = ${dto.cancellationReason}, updated_at = now()
+          WHERE id = ${appt.id}::uuid AND company_id = ${companyId}::uuid
+        `;
+        await tx.$executeRaw`
+          INSERT INTO appointment_status_history (company_id, appointment_id, from_status, to_status, changed_by_user_id, note)
+          VALUES (${companyId}::uuid, ${appt.id}::uuid, ${appt.status}, 'cancelled', ${userId}::uuid, ${dto.cancellationReason})
+        `;
+      }
+
+      return this.findOne(companyId, id, tx);
+    });
   }
 
   async start(companyId: string, id: string, userId: string, gps: GpsCoordinatesDto) {

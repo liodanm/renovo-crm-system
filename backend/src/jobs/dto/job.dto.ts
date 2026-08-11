@@ -1,4 +1,4 @@
-import { IsIn, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class UpdateJobDto {
   @IsOptional()
@@ -44,6 +44,18 @@ export class PauseJobDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+}
+
+export class CancelJobDto {
+  // Required, not optional — the approved spec says the modal
+  // "requires" a reason. cancellation_reason itself stays the existing
+  // free-text column (confirmed already present, no schema change);
+  // the suggested options (Customer Cancelled, Weather, etc.) are a
+  // frontend-only convenience, not a new enum here.
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(500)
+  cancellationReason!: string;
 }
 
 export class QueryJobsDto {

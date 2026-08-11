@@ -27,6 +27,19 @@ describe('isValidTransition', () => {
     expect(isValidTransition('draft', 'paused')).toBe(false);
     expect(isValidTransition('scheduled', 'paused')).toBe(false);
   });
+
+  it('allows cancelling a job before work has started (Job Cancellation feature)', () => {
+    expect(isValidTransition('draft', 'cancelled')).toBe(true);
+    expect(isValidTransition('scheduled', 'cancelled')).toBe(true);
+  });
+
+  it('rejects cancelling a job once work has started, is finished, or is already cancelled/on hold', () => {
+    expect(isValidTransition('in_progress', 'cancelled')).toBe(false);
+    expect(isValidTransition('paused', 'cancelled')).toBe(false);
+    expect(isValidTransition('completed', 'cancelled')).toBe(false);
+    expect(isValidTransition('cancelled', 'cancelled')).toBe(false);
+    expect(isValidTransition('on_hold', 'cancelled')).toBe(false);
+  });
 });
 
 describe('assertValidTransition', () => {

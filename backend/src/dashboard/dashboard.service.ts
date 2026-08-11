@@ -69,6 +69,12 @@ export class DashboardService {
       where: {
         companyId,
         scheduledStart: { gte: startOfToday(), lt: endOfToday() },
+        // A cancelled job keeps its original scheduledStart on purpose
+        // (Job Cancellation feature — so it can still show "Originally
+        // Scheduled"), which means without this exclusion it would
+        // otherwise still show up here as if it's actively happening
+        // today.
+        status: { not: 'cancelled' },
       },
       orderBy: { scheduledStart: 'asc' },
       include: {
@@ -192,7 +198,7 @@ export class DashboardService {
 
   async getCalendar(companyId: string, start: Date, end: Date) {
     const jobs = await this.prisma.job.findMany({
-      where: { companyId, scheduledStart: { gte: start, lt: end } },
+      where: { companyId, scheduledStart: { gte: start, lt: end }, status: { not: 'cancelled' } },
       orderBy: { scheduledStart: 'asc' },
       include: {
         customer: { select: { firstName: true, lastName: true, businessName: true } },
@@ -306,7 +312,7 @@ export class DashboardService {
         where: { companyId, leadStatus: 'lead', deletedAt: null, updatedAt: { lt: sevenDaysAgo } },
       }),
       this.prisma.job.count({
-        where: { companyId, scheduledStart: { gte: startOfToday(), lt: endOfToday() } },
+        where: { companyId, scheduledStart: { gte: startOfToday(), lt: endOfToday() }, status: { not: 'cancelled' } },
       }),
       this.prisma.job.count({
         where: {

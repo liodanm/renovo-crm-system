@@ -6,9 +6,18 @@
 // building a Cancel action means deciding what happens to a
 // mid-progress job's line items, labor tracking, and any linked
 // invoice — real product decisions Phase 1 was never asked to make.
+//
+// Job Cancellation feature: cancelled is now a valid target from draft
+// and scheduled specifically — the two states where work genuinely
+// hasn't started yet. Deliberately NOT from in_progress/paused/
+// completed — a job already underway or finished being "cancelled" is
+// a materially different, messier scenario (partial work, possible
+// billing implications) that this feature was never asked to solve.
+// Job status is the source of truth here, not appointment confirmation
+// — a confirmed/assigned appointment does not by itself block this.
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  draft: ['in_progress'],
-  scheduled: ['in_progress'],
+  draft: ['in_progress', 'cancelled'],
+  scheduled: ['in_progress', 'cancelled'],
   in_progress: ['paused', 'completed'],
   paused: ['in_progress'],
   completed: [],

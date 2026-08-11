@@ -12,6 +12,7 @@ import { EquipmentSection } from '../../../components/jobs/EquipmentSection';
 import { CompletionFlow } from '../../../components/jobs/CompletionFlow';
 import { FieldActionBar } from '../../../components/jobs/FieldActionBar';
 import { ScheduleJobModal } from '../../../components/scheduling/ScheduleJobModal';
+import { CancelJobModal } from '../../../components/jobs/CancelJobModal';
 import { invoicesApi } from '../../../lib/api/invoices';
 import { useGeolocation } from '../../../lib/hooks/use-geolocation';
 import { ApiError } from '../../../lib/api/api-client';
@@ -41,6 +42,7 @@ export default function JobDetailPage() {
   const [isActing, setIsActing] = useState(false);
   const [showCompleteFlow, setShowCompleteFlow] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const { capture, isCapturing } = useGeolocation();
 
   async function handleStart() {
@@ -167,7 +169,7 @@ export default function JobDetailPage() {
                 Schedule This Job
               </button>
             )}
-            {job.scheduledStart && job.status !== 'draft' && (
+            {job.scheduledStart && job.status !== 'draft' && job.status !== 'cancelled' && (
               <p className="mt-2 text-sm text-slate-600">
                 Scheduled for {formatDateTime(job.scheduledStart)}
                 {job.status === 'scheduled' && (
@@ -178,8 +180,37 @@ export default function JobDetailPage() {
               </p>
             )}
 
+            {(job.status === 'draft' || job.status === 'scheduled') && (
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="mt-3 ml-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                Cancel Job
+              </button>
+            )}
+
+            {job.status === 'cancelled' && (
+              <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <p className="font-medium">This job was cancelled.</p>
+                {job.cancellationReason && <p className="mt-0.5">Reason: {job.cancellationReason}</p>}
+                {job.scheduledStart && <p className="mt-0.5">Originally scheduled: {formatDateTime(job.scheduledStart)}</p>}
+              </div>
+            )}
+
             {showScheduleModal && (
               <ScheduleJobModal jobId={job.id} onClose={() => setShowScheduleModal(false)} onScheduled={() => { setShowScheduleModal(false); mutate(); }} />
+            )}
+
+            {showCancelModal && (
+              <CancelJobModal
+                jobId={job.id}
+                customerName={customerName(job)}
+                propertyAddress={`${job.propertyAddressLine1}, ${job.propertyCity}`}
+                scheduledStart={job.scheduledStart}
+                jobTotal={job.price ? Number(job.price) : null}
+                onClose={() => setShowCancelModal(false)}
+                onCancelled={() => { setShowCancelModal(false); mutate(); }}
+              />
             )}
 
             {actionError && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>}
