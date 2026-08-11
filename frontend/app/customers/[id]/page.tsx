@@ -16,6 +16,7 @@ import { DocumentsTab } from '../../../components/customers/tabs/documents-tab';
 import { ActivityTab } from '../../../components/customers/tabs/activity-tab';
 import { AppShell } from '../../../components/layout/AppShell';
 import { RecordStandalonePayment } from '../../../components/customers/record-standalone-payment';
+import { DeleteCustomerModal } from '../../../components/customers/delete-customer-modal';
 
 const TABS = ['Overview', 'Properties', 'Service History', 'Notes', 'Photos', 'Documents', 'Activity'] as const;
 type Tab = (typeof TABS)[number];
@@ -42,12 +43,7 @@ export default function CustomerProfilePage() {
   // a second request just because the Intelligence card also needs it.
   const { data: serviceHistory, mutate: mutateServiceHistory } = useSWR([`service-history`, customerId], () => customersApi.getServiceHistory(customerId));
 
-  async function handleDelete() {
-    if (!customer) return;
-    if (!confirm(`Delete ${customer.businessName ?? customer.firstName}? This can be restored by support if needed.`)) return;
-    await customersApi.delete(customerId);
-    router.push('/customers');
-  }
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   return (
     <AppShell>
@@ -103,7 +99,7 @@ export default function CustomerProfilePage() {
                     Merge
                   </button>
                   <button
-                    onClick={handleDelete}
+                    onClick={() => setShowDeleteModal(true)}
                     className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                   >
                     Delete Customer
@@ -233,6 +229,18 @@ export default function CustomerProfilePage() {
           </>
         )}
       </main>
+
+      {showDeleteModal && customer && (
+        <DeleteCustomerModal
+          customerId={customerId}
+          customerName={customer.businessName?.trim() || `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim()}
+          jobsCount={serviceHistory?.jobs.length ?? 0}
+          estimatesCount={serviceHistory?.estimates.length ?? 0}
+          invoicesCount={serviceHistory?.invoices.length ?? 0}
+          onClose={() => setShowDeleteModal(false)}
+          onRemoved={() => router.push('/customers')}
+        />
+      )}
     </AppShell>
   );
 }
