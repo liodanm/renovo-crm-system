@@ -120,6 +120,8 @@ export interface BusinessLinks {
 export interface PaymentSettings {
   stripe: IntegrationStatus;
   enabledPaymentMethods: string[];
+  processingFeeEnabled: boolean;
+  processingFeePercent: number;
 }
 
 export interface EmailSettings {
@@ -166,7 +168,7 @@ export const settingsApi = {
     apiFetch<PackageDiscountSettings>('/settings/package-discounts', { method: 'PATCH', body: JSON.stringify(input) }),
 
   getPaymentSettings: () => apiFetch<PaymentSettings>('/settings/payments'),
-  updatePaymentSettings: (input: { enabledPaymentMethods: string[] }) => apiFetch<PaymentSettings>('/settings/payments', { method: 'PATCH', body: JSON.stringify(input) }),
+  updatePaymentSettings: (input: { enabledPaymentMethods?: string[]; processingFeeEnabled?: boolean; processingFeePercent?: number }) => apiFetch<PaymentSettings>('/settings/payments', { method: 'PATCH', body: JSON.stringify(input) }),
 
   getEmailSettings: () => apiFetch<EmailSettings>('/settings/email'),
   updateEmailSettings: (input: { replyToEmail?: string }) => apiFetch<EmailSettings>('/settings/email', { method: 'PATCH', body: JSON.stringify(input) }),

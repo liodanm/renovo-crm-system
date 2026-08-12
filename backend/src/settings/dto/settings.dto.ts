@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsEmail, IsIn, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, Matches, MaxLength, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEmail, IsIn, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
 // ---- Profile ----
 
@@ -272,6 +272,16 @@ export class UpdatePaymentSettingsDto {
   @IsArray()
   @IsIn(PAYMENT_METHODS, { each: true })
   enabledPaymentMethods?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  processingFeeEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  processingFeePercent?: number;
 }
 
 // ---- Email Settings ----

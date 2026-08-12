@@ -7,6 +7,8 @@ export interface Payment {
   propertyId: string | null;
   amount: string;
   tipAmount: string;
+  processingFeeAmount: string;
+  cardType: string | null;
   method: string;
   status: string;
   referenceNumber: string | null;
@@ -23,6 +25,8 @@ export interface Receipt {
   receiptNumber: string;
   amount: string;
   tipAmount: string;
+  processingFeeAmount: string;
+  cardType: string | null;
   method: string;
   status: string;
   referenceNumber: string | null;
@@ -52,6 +56,7 @@ export interface Receipt {
 export interface RecordPaymentInput {
   amount: number;
   method: string;
+  cardType?: 'credit' | 'debit';
   paymentDate?: string;
   tipAmount?: number;
   referenceNumber?: string;

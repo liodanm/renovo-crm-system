@@ -6,7 +6,8 @@ import { logAutomationEvent } from '../../common/utils/automation-event.util';
 
 const PAYMENT_SELECT = `
   p.id, p.invoice_id AS "invoiceId", p.customer_id AS "customerId", p.property_id AS "propertyId",
-  p.amount, p.tip_amount AS "tipAmount", p.method, p.status, p.reference_number AS "referenceNumber", p.notes,
+  p.amount, p.tip_amount AS "tipAmount", p.processing_fee_amount AS "processingFeeAmount", p.card_type AS "cardType",
+  p.method, p.status, p.reference_number AS "referenceNumber", p.notes,
   p.payment_date AS "paymentDate", p.processed_at AS "processedAt", p.refunded_amount AS "refundedAmount",
   p.receipt_number AS "receiptNumber", p.created_at AS "createdAt"
 `;
@@ -16,6 +17,32 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * The sole source of truth for the processing fee — the frontend may
+   * show a preview, but this is what actually gets stored, computed
+   * fresh from the company's current settings every time a payment is
+   * recorded. Reads the same companies.settings->'payments' JSONB key
+   * Settings already owns (jsonb_set-merge pattern, matching Branding),
+   * rather than importing the whole SettingsService — that service
+   * isn't exported from SettingsModule, and pulling its full dependency
+   * chain into PaymentsModule for one small read would be a bigger,
+   * riskier change than this one value warrants.
+   *
+   * Only ever called for method === 'card' && cardType === 'credit' —
+   * every other combination is $0 by construction, not by an extra
+   * check here.
+   */
+  private async calculateProcessingFee(tx: any, companyId: string, amount: number): Promise<number> {
+    const rows: { settings: any }[] = await tx.$queryRawUnsafe(
+      `SELECT settings FROM companies WHERE id = $1::uuid`,
+      companyId,
+    );
+    const settings = rows[0]?.settings?.payments ?? {};
+    if (!settings.processingFeeEnabled) return 0;
+    const percent = Number(settings.processingFeePercent ?? 3);
+    return Math.round(amount * percent) / 100;
+  }
 
   /**
    * The primary action. balance_due is read fresh from the database's
@@ -47,12 +74,18 @@ export class PaymentsService {
 
     return this.prisma.withTenantContext(companyId, async (tx) => {
       const receiptNumber = `RCPT-${Date.now().toString().slice(-6)}`;
-      // tip_amount is stored here and nowhere else touches it — the
-      // invoice/LTV updates below continue to read only dto.amount,
-      // exactly as before this field existed.
+      // Only credit card carries a fee, by construction — debit and
+      // every non-card method are $0 without a separate check, since
+      // the fee helper is simply never called for them.
+      const processingFeeAmount = dto.method === 'card' && dto.cardType === 'credit'
+        ? await this.calculateProcessingFee(tx, companyId, dto.amount)
+        : 0;
+      // tip_amount/processing_fee_amount are stored here and nowhere
+      // else touches them — the invoice/LTV updates below continue to
+      // read only dto.amount, exactly as before either field existed.
       const paymentRows = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
-        VALUES (${companyId}::uuid, ${invoiceId}::uuid, ${invoice.customerId}::uuid, ${invoice.propertyId}::uuid, ${dto.amount}, ${dto.tipAmount ?? 0}, ${dto.method}, 'succeeded',
+        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, processing_fee_amount, card_type, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
+        VALUES (${companyId}::uuid, ${invoiceId}::uuid, ${invoice.customerId}::uuid, ${invoice.propertyId}::uuid, ${dto.amount}, ${dto.tipAmount ?? 0}, ${processingFeeAmount}, ${dto.cardType ?? null}, ${dto.method}, 'succeeded',
                 ${dto.referenceNumber ?? null}, ${dto.notes ?? null}, ${dto.paymentDate ? new Date(dto.paymentDate) : new Date()}, now(), ${receiptNumber})
         RETURNING id
       `;
@@ -118,9 +151,12 @@ export class PaymentsService {
 
     return this.prisma.withTenantContext(companyId, async (tx) => {
       const receiptNumber = `RCPT-${Date.now().toString().slice(-6)}`;
+      const processingFeeAmount = dto.method === 'card' && dto.cardType === 'credit'
+        ? await this.calculateProcessingFee(tx, companyId, dto.amount)
+        : 0;
       const paymentRows = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
-        VALUES (${companyId}::uuid, NULL, ${customerId}::uuid, NULL, ${dto.amount}, ${dto.tipAmount ?? 0}, ${dto.method}, 'succeeded',
+        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, processing_fee_amount, card_type, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
+        VALUES (${companyId}::uuid, NULL, ${customerId}::uuid, NULL, ${dto.amount}, ${dto.tipAmount ?? 0}, ${processingFeeAmount}, ${dto.cardType ?? null}, ${dto.method}, 'succeeded',
                 ${dto.referenceNumber ?? null}, ${dto.notes ?? null}, ${dto.paymentDate ? new Date(dto.paymentDate) : new Date()}, now(), ${receiptNumber})
         RETURNING id
       `;
@@ -275,7 +311,7 @@ export class PaymentsService {
   async getReceipt(companyId: string, paymentId: string) {
     const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) =>
       tx.$queryRawUnsafe(
-        `SELECT p.id, p.receipt_number AS "receiptNumber", p.amount, p.tip_amount AS "tipAmount", p.method, p.status,
+        `SELECT p.id, p.receipt_number AS "receiptNumber", p.amount, p.tip_amount AS "tipAmount", p.processing_fee_amount AS "processingFeeAmount", p.card_type AS "cardType", p.method, p.status,
               p.reference_number AS "referenceNumber", p.payment_date AS "paymentDate", p.notes,
               i.invoice_number AS "invoiceNumber", i.total_amount AS "invoiceTotal", i.balance_due AS "invoiceBalanceDue",
               c.first_name AS "customerFirstName", c.last_name AS "customerLastName", c.business_name AS "customerBusinessName", c.email AS "customerEmail",

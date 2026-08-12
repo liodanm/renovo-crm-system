@@ -318,13 +318,18 @@ export class SettingsService {
   // deliberately doesn't repeat that field, just points to it.
 
   async getPaymentSettings(companyId: string) {
-    const rows: { enabledPaymentMethods: string[] }[] = await this.prisma.tenant.$queryRawUnsafe(
-      `SELECT enabled_payment_methods AS "enabledPaymentMethods" FROM companies WHERE id = $1::uuid`,
+    const rows: { enabledPaymentMethods: string[]; settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(
+      `SELECT enabled_payment_methods AS "enabledPaymentMethods", settings FROM companies WHERE id = $1::uuid`,
       companyId,
     );
+    const settings = rows[0]?.settings ?? {};
     return {
       stripe: this.integrationStatus.get('stripe'),
       enabledPaymentMethods: rows[0]?.enabledPaymentMethods ?? ['card', 'cash', 'check'],
+      // Same companies.settings JSONB Branding already uses, a new
+      // 'payments' key alongside it — not a new settings mechanism.
+      processingFeeEnabled: settings.payments?.processingFeeEnabled ?? false,
+      processingFeePercent: settings.payments?.processingFeePercent ?? 3,
     };
   }
 
@@ -334,6 +339,18 @@ export class SettingsService {
         `UPDATE companies SET enabled_payment_methods = $2, updated_at = now() WHERE id = $1::uuid`,
         companyId,
         dto.enabledPaymentMethods,
+      );
+    }
+    if (dto.processingFeeEnabled !== undefined || dto.processingFeePercent !== undefined) {
+      const existing = await this.getPaymentSettings(companyId);
+      const merged = {
+        processingFeeEnabled: dto.processingFeeEnabled ?? existing.processingFeeEnabled,
+        processingFeePercent: dto.processingFeePercent ?? existing.processingFeePercent,
+      };
+      await this.prisma.tenant.$executeRawUnsafe(
+        `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{payments}', $2::jsonb, true), updated_at = now() WHERE id = $1::uuid`,
+        companyId,
+        JSON.stringify(merged),
       );
     }
     return this.getPaymentSettings(companyId);

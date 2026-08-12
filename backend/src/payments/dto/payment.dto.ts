@@ -1,6 +1,7 @@
-import { IsIn, IsISO8601, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsISO8601, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
 const METHODS = ['card', 'ach', 'cash', 'check', 'zelle', 'other'] as const;
+const CARD_TYPES = ['credit', 'debit'] as const;
 
 export class RecordPaymentDto {
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -9,6 +10,16 @@ export class RecordPaymentDto {
 
   @IsIn(METHODS)
   method!: (typeof METHODS)[number];
+
+  // Required specifically when method is 'card' — no @IsOptional here,
+  // and @ValidateIf means this rule (and the implicit "must be
+  // present") only applies in that case, so a Cash/Check/Zelle/Other
+  // payment is entirely unaffected. Enforced here, not just in the
+  // frontend, per the explicit requirement that submitting a Card
+  // payment without a card type must not be possible.
+  @ValidateIf((o) => o.method === 'card')
+  @IsIn(CARD_TYPES)
+  cardType?: (typeof CARD_TYPES)[number];
 
   @IsOptional()
   @IsISO8601()

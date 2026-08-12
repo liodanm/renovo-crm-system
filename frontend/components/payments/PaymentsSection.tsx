@@ -24,12 +24,23 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
+  const [cardType, setCardType] = useState<'credit' | 'debit' | ''>('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [tipAmount, setTipAmount] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Preview only — the exact same math the backend uses, but the
+  // backend recomputes this itself from the company's live setting at
+  // save time and is the only thing that actually gets stored. This
+  // can never be sent as the fee; it exists purely so the person
+  // recording the payment sees the right number before clicking Save.
+  const feePercent = paymentSettings?.processingFeeEnabled ? Number(paymentSettings.processingFeePercent) : 0;
+  const previewFee = method === 'card' && cardType === 'credit' && amount
+    ? Math.round(Number(amount) * feePercent) / 100
+    : 0;
 
   async function handleRecord() {
     setIsSaving(true);
@@ -38,12 +49,15 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
       await paymentsApi.record(invoiceId, {
         amount: Number(amount),
         method,
+        cardType: method === 'card' ? (cardType as 'credit' | 'debit') : undefined,
         paymentDate,
         tipAmount: tipAmount ? Number(tipAmount) : undefined,
         referenceNumber: referenceNumber || undefined,
         notes: notes || undefined,
       });
       setAmount('');
+      setMethod('cash');
+      setCardType('');
       setPaymentDate(new Date().toISOString().slice(0, 10));
       setTipAmount('');
       setReferenceNumber('');
@@ -108,11 +122,26 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               inputMode="decimal"
               className="col-span-2 rounded-lg border border-slate-300 px-3 py-3 text-base sm:col-span-1 lg:py-2 lg:text-sm"
             />
-            <select value={method} onChange={(e) => setMethod(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm">
+            <select
+              value={method}
+              onChange={(e) => { setMethod(e.target.value); setCardType(''); }}
+              className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm"
+            >
               {availableMethods.map((m) => (
                 <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
               ))}
             </select>
+            {method === 'card' && (
+              <select
+                value={cardType}
+                onChange={(e) => setCardType(e.target.value as 'credit' | 'debit' | '')}
+                className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm"
+              >
+                <option value="" disabled>Credit or Debit?</option>
+                <option value="credit">Credit Card{feePercent > 0 ? ` — ${feePercent}% fee` : ''}</option>
+                <option value="debit">Debit Card — No fee</option>
+              </select>
+            )}
             <input
               type="date"
               value={paymentDate}
@@ -140,9 +169,22 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
             <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
+          {method === 'card' && cardType && (
+            <p className="mt-2 text-xs text-slate-500">
+              {cardType === 'credit' && feePercent > 0 ? (
+                <>
+                  Payment: {formatMoney(amount || '0')} · Processing Fee ({feePercent}%): {formatMoney(previewFee.toFixed(2))} · Customer Total: {formatMoney((Number(amount || 0) + previewFee).toFixed(2))}
+                </>
+              ) : cardType === 'credit' ? (
+                'Processing fee is currently disabled in Settings — no fee will be applied.'
+              ) : (
+                'Debit card selected — no processing fee applied.'
+              )}
+            </p>
+          )}
           <button
             onClick={handleRecord}
-            disabled={isSaving || !amount || Number(amount) <= 0}
+            disabled={isSaving || !amount || Number(amount) <= 0 || (method === 'card' && !cardType)}
             className="mt-2 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {isSaving ? 'Recording…' : 'Record Payment'}
@@ -162,6 +204,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
                 {p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : '—'}
                 {p.referenceNumber && ` · Ref: ${p.referenceNumber}`}
                 {Number(p.tipAmount) > 0 && ` · Tip: ${formatMoney(p.tipAmount)}`}
+                {Number(p.processingFeeAmount) > 0 && ` · Fee: ${formatMoney(p.processingFeeAmount)}`}
                 {Number(p.refundedAmount) > 0 && ` · Refunded: ${formatMoney(p.refundedAmount)}`}
               </p>
             </div>

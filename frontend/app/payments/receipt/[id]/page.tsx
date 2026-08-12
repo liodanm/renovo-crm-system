@@ -73,20 +73,28 @@ export default function ReceiptPage() {
             </div>
 
             <div className="mt-6 rounded-lg bg-emerald-50 p-4 text-center">
-              {Number(receipt.tipAmount) > 0 ? (
+              {Number(receipt.tipAmount) > 0 || Number(receipt.processingFeeAmount) > 0 ? (
                 <>
                   <div className="flex justify-between text-sm text-emerald-800">
                     <span>Payment</span>
                     <span className="font-medium">{formatMoney(receipt.amount)}</span>
                   </div>
-                  <div className="mt-1 flex justify-between text-sm text-emerald-800">
-                    <span>Tip</span>
-                    <span className="font-medium">{formatMoney(receipt.tipAmount)}</span>
-                  </div>
+                  {Number(receipt.tipAmount) > 0 && (
+                    <div className="mt-1 flex justify-between text-sm text-emerald-800">
+                      <span>Tip</span>
+                      <span className="font-medium">{formatMoney(receipt.tipAmount)}</span>
+                    </div>
+                  )}
+                  {Number(receipt.processingFeeAmount) > 0 && (
+                    <div className="mt-1 flex justify-between text-sm text-emerald-800">
+                      <span>Processing Fee</span>
+                      <span className="font-medium">{formatMoney(receipt.processingFeeAmount)}</span>
+                    </div>
+                  )}
                   <div className="mt-2 border-t border-emerald-200 pt-2">
                     <p className="text-xs font-medium text-emerald-700">Total Received</p>
                     <p className="mt-1 text-2xl font-bold text-emerald-800">
-                      {formatMoney((Number(receipt.amount) + Number(receipt.tipAmount)).toFixed(2))}
+                      {formatMoney((Number(receipt.amount) + Number(receipt.tipAmount) + Number(receipt.processingFeeAmount)).toFixed(2))}
                     </p>
                   </div>
                 </>

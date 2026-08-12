@@ -584,6 +584,14 @@ model Payment {
   // stay correct with zero changes. Same default-0, non-nullable
   // pattern as refundedAmount above, not a new modeling convention.
   tipAmount           Decimal   @default(0) @map("tip_amount") @db.Decimal(12, 2)
+  // Credit-card processing fee, a historical dollar snapshot at
+  // recording time — never recalculated if the company's configured
+  // percentage later changes. cardType records the staff member's
+  // explicit selection for a manually-recorded Card payment, since
+  // there's no real Stripe metadata available to determine this
+  // automatically for that path.
+  processingFeeAmount Decimal   @default(0) @map("processing_fee_amount") @db.Decimal(12, 2)
+  cardType            String?   @map("card_type")
   stripePaymentIntentId String? @map("stripe_payment_intent_id")
   stripeChargeId      String?   @map("stripe_charge_id")
   processedAt         DateTime? @map("processed_at")

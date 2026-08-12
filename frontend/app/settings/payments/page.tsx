@@ -20,6 +20,8 @@ const ALL_METHODS = [
 export default function PaymentSettingsPage() {
   const { data, mutate } = useSWR('settings-payments', () => settingsApi.getPaymentSettings());
   const [enabledMethods, setEnabledMethods] = useState<string[]>([]);
+  const [feeEnabled, setFeeEnabled] = useState(false);
+  const [feePercent, setFeePercent] = useState('3');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -27,6 +29,8 @@ export default function PaymentSettingsPage() {
   useEffect(() => {
     if (data) {
       setEnabledMethods(data.enabledPaymentMethods);
+      setFeeEnabled(data.processingFeeEnabled);
+      setFeePercent(String(data.processingFeePercent));
       setHasChanges(false);
     }
   }, [data]);
@@ -40,7 +44,11 @@ export default function PaymentSettingsPage() {
     setIsSaving(true);
     setError(null);
     try {
-      await settingsApi.updatePaymentSettings({ enabledPaymentMethods: enabledMethods });
+      await settingsApi.updatePaymentSettings({
+        enabledPaymentMethods: enabledMethods,
+        processingFeeEnabled: feeEnabled,
+        processingFeePercent: Number(feePercent),
+      });
       await mutate();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong.');
@@ -50,7 +58,11 @@ export default function PaymentSettingsPage() {
   }
 
   function handleCancel() {
-    if (data) setEnabledMethods(data.enabledPaymentMethods);
+    if (data) {
+      setEnabledMethods(data.enabledPaymentMethods);
+      setFeeEnabled(data.processingFeeEnabled);
+      setFeePercent(String(data.processingFeePercent));
+    }
     setHasChanges(false);
   }
 
@@ -72,6 +84,30 @@ export default function PaymentSettingsPage() {
                   {m.label}
                 </label>
               ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-700">Credit Card Processing Fee</h2>
+            <p className="mt-1 text-xs text-slate-500">Applied only to credit card payments — never to debit cards, cash, check, Zelle, or tips.</p>
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={feeEnabled}
+                onChange={(e) => { setFeeEnabled(e.target.checked); setHasChanges(true); }}
+                className="rounded border-slate-300"
+              />
+              Enable Credit Card Processing Fee
+            </label>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                value={feePercent}
+                onChange={(e) => { setFeePercent(e.target.value.replace(/[^0-9.]/g, '')); setHasChanges(true); }}
+                disabled={!feeEnabled}
+                inputMode="decimal"
+                className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50 disabled:opacity-60"
+              />
+              <span className="text-sm text-slate-600">%</span>
             </div>
           </div>
 
