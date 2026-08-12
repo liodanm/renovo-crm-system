@@ -1769,3 +1769,19 @@ deliberately-cleared selection are all correctly left alone.
 this session, both caught immediately via follow-up grep, not
 assumed fixed** — logged again here as a recurring pattern worth
 watching for specifically in this codebase.
+
+## 29. Standalone Payments, Save & Accept, Delete Customer Safety, Job Cancellation, Card Processing Fee (v0.1.0-rc.10 → rc.12)
+
+**Standalone customer payments (no invoice required):** `payments.invoice_id` made nullable — the key fact that made this small was confirming `customer_id` had always been required independently. `reverseAmountFromInvoice()` restructured to branch on whether an invoice exists, rather than assuming one always does. Two `INNER JOIN`s fixed to `LEFT JOIN`s in the payments list/receipt queries — proved this mattered with a direct before/after comparison on identical data (old query: count 0, silently excluding the payment; new query: correctly found it).
+
+**Save & Accept, both create and edit flows:** reuses the existing `acceptManually()` the staff Accept dialog already called — deliberately not a second acceptance path. One real bug caught before shipping: an early draft navigated away and set an error message in the same branch, which would have made the error invisible (component unmounts on navigation); fixed by staying on the page when acceptance fails after a successful save.
+
+**Delete Customer confirmation modal:** replaced the bare `confirm()` with a typed "Delete" confirmation, real record counts (Jobs/Estimates/Invoices from data already loaded by the page, Properties from the same SWR key the Properties tab already uses). Caught mid-implementation that this is a soft-delete (`deletedAt` only, nothing cascades) — corrected the modal's wording to say so accurately rather than claiming permanent, unrecoverable deletion.
+
+**Job Cancellation:** `cancelled` added as a valid job-status transition from `draft`/`scheduled` only. Deliberately does not call the existing `SchedulingService.cancel()` — that method reverts its job to `draft`, which would have erased the "Originally Scheduled" date this feature needed to preserve. Found and fixed three Dashboard queries that filtered jobs by date with no status exclusion, proven necessary (not precautionary) with a direct count comparison on identical data.
+
+**Credit card processing fee (manual payments only) + Zelle confirmed already working:** `processing_fee_amount`/`card_type` columns added, fee computed server-side only, snapshotted at recording time (proven by changing the company setting after a payment was recorded and confirming the stored fee didn't move). The Stripe/Customer Portal surcharge was deliberately NOT implemented — traced the actual code and found no Customer Portal payment page or Stripe Elements integration exists anywhere yet, meaning there's no safe point to detect credit vs. debit before a PaymentIntent is confirmed. Documented as a real, separate follow-up rather than shipping a shortcut that risked surcharging a debit card.
+
+**Global Search + Zelle consistency audit:** both turned out to already be fully built and correct from earlier work — verified rather than rebuilt, including a real tenant-isolation test (a same-named customer at a second company correctly never appeared in the first company's results).
+
+**Recurring infrastructure gap, addressed this session:** several production incidents this cycle traced back to a migration existing in code but never applied to Railway's live Postgres. Built and verified `scripts/run-migrations.sh` — tracks applied migrations in a real table, only runs new ones, wired up as a Railway Pre-Deploy Command so future migrations apply automatically before the app starts serving traffic, rather than relying on remembering to run SQL manually after every deploy.

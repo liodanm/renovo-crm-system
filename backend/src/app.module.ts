@@ -27,6 +27,7 @@ import { SettingsModule } from './settings/settings.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReportsModule } from './reports/reports.module';
+import { SearchModule } from './search/search.module';
 import { IntegrationsModule } from './common/integrations/integrations.module';
 import { SmsModule } from './sms/sms.module';
 
@@ -62,6 +63,7 @@ import { SmsModule } from './sms/sms.module';
     InvoicesModule,
     PaymentsModule,
     ReportsModule,
+    SearchModule,
     IntegrationsModule,
     SmsModule,
   ],
