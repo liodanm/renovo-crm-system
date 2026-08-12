@@ -8,6 +8,7 @@ import { PdfService } from '../../documents/services/pdf.service';
 import { EmailLogService } from '../../documents/services/email-log.service';
 import { CompanyContextService } from '../../documents/services/company-context.service';
 import { MailService } from '../../mail/mail.service';
+import { PortalAuthService } from '../../portal/services/portal-auth.service';
 
 @Injectable()
 export class InvoicesService {
@@ -17,6 +18,7 @@ export class InvoicesService {
     private readonly emailLogService: EmailLogService,
     private readonly companyContext: CompanyContextService,
     private readonly mailService: MailService,
+    private readonly portalAuthService: PortalAuthService,
     private readonly config: ConfigService,
   ) {}
 
@@ -244,7 +246,14 @@ export class InvoicesService {
   async generatePdf(companyId: string, id: string): Promise<{ buffer: Buffer; filename: string }> {
     const invoice = await this.findOne(companyId, id);
     const { company, branding } = await this.companyContext.getCompanyAndBranding(companyId);
-    const portalUrl = `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
+    // Was: `${this.config.get('auth.frontendUrl') ?? ''}/portal` — the
+    // STAFF app's host, same root cause as the email link below. Fixed to
+    // the correct portal host here too (not an auto-login magic link like
+    // the email gets — this URL is baked into the PDF itself, a document
+    // that can be saved/printed/reopened weeks later, well past any
+    // short-lived token's TTL, so a plain, durable portal URL is the
+    // correct choice for this specific context).
+    const portalUrl = this.config.get<string>('PORTAL_URL', 'https://portal.renovocrm.com');
 
     const buffer = await this.pdfService.generateInvoicePdf({
       invoiceNumber: invoice.invoiceNumber,
@@ -308,7 +317,19 @@ export class InvoicesService {
     const { buffer, filename } = await this.generatePdf(companyId, id);
     const { company } = await this.companyContext.getCompanyAndBranding(companyId);
     const replyTo = await this.companyContext.getReplyToEmail(companyId);
-    const portalUrl = `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
+    // Was: `${this.config.get('auth.frontendUrl') ?? ''}/portal` — the
+    // STAFF app's base URL with no auth token at all. A customer clicking
+    // that landed on the main host under /portal, which the middleware's
+    // host-based routing never recognizes as portal traffic (only
+    // portal.* hosts are), so it fell through to the staff-app branch and
+    // redirected to /login — the exact bug being fixed here. Now uses the
+    // same magic-link mechanism portal login already relies on (PORTAL_URL,
+    // a real one-time token), so the customer lands authenticated on the
+    // actual customer portal, not a login wall. Unlike the PDF's own URL
+    // above, this one is safe to make a short-lived magic link — this is
+    // a freshly-sent email, acted on promptly or not at all.
+    const portalUrl = await this.portalAuthService.generateInvoicePortalLink(companyId, existing.customerId)
+      ?? this.config.get<string>('PORTAL_URL', 'https://portal.renovocrm.com');
 
     const emailLogId = await this.emailLogService.create({
       companyId,
