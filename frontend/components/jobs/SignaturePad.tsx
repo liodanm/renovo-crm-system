@@ -15,7 +15,22 @@ export function SignaturePad({ onCapture }: SignaturePadProps) {
   function getPoint(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    // canvas.width/height are the element's internal drawing resolution
+    // (set via the width/height attributes below); rect.width/height are
+    // whatever size it actually renders at on screen (stretched by the
+    // w-full class to fit its container, which varies by where this
+    // component is used). Without this scale factor, a touch/click at
+    // the visual edge of the pad would draw using raw client-pixel
+    // coordinates as if they were internal canvas coordinates — correct
+    // only when the two happen to be equal, wrong (and increasingly so
+    // toward the edges) whenever the rendered size differs from the
+    // internal resolution, which is the normal case here, not an edge
+    // case. Reads canvas.width/height dynamically rather than assuming
+    // any fixed number, so this stays correct if those attributes ever
+    // change.
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
   }
 
   function start(e: React.PointerEvent<HTMLCanvasElement>) {

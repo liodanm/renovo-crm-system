@@ -248,6 +248,52 @@ export class PortalController {
     return this.data.getEstimates(customer.companyId, customer.customerId);
   }
 
+  /**
+   * The one new route this phase adds. Reuses getEstimateForPdf()
+   * unchanged — same Prisma query, same { id, companyId, customerId }
+   * ownership filter, same NotFoundException on any mismatch (never
+   * reveals whether a record exists for someone else). The shaping
+   * below mirrors exactly what viewEstimate() already does when it
+   * hands data to the PDF generator — customer.name/email/phone,
+   * property's address fields only — because that's the established
+   * "what's safe to show a customer" boundary in this file, not a new
+   * one invented for this route.
+   */
+  @UseGuards(PortalCustomerGuard)
+  @Get('estimates/:id')
+  async getEstimateDetail(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string) {
+    const estimate = await this.data.getEstimateForPdf(customer.companyId, customer.customerId, id);
+    return {
+      id: estimate.id,
+      estimateNumber: estimate.estimateNumber,
+      status: estimate.status,
+      createdAt: estimate.createdAt,
+      validUntil: estimate.validUntil,
+      notes: estimate.notes,
+      terms: estimate.terms,
+      subtotal: estimate.subtotal,
+      discountAmount: estimate.discountAmount,
+      taxRate: estimate.taxRate,
+      taxAmount: estimate.taxAmount,
+      totalAmount: estimate.totalAmount,
+      lineItems: estimate.lineItems.map((li) => ({
+        description: li.description,
+        quantity: li.quantity,
+        unitOfMeasure: li.unitOfMeasure,
+        unitPrice: li.unitPrice,
+        total: li.total,
+      })),
+      customer: {
+        name: estimate.customer.businessName ?? `${estimate.customer.firstName ?? ''} ${estimate.customer.lastName ?? ''}`.trim(),
+      },
+      property: {
+        addressLine1: estimate.property.addressLine1,
+        city: estimate.property.city,
+        state: estimate.property.state,
+      },
+    };
+  }
+
   @UseGuards(PortalCustomerGuard)
   @Post('estimates/:id/approve')
   approveEstimate(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string, @Body() dto: ApproveEstimateDto) {

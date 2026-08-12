@@ -1,6 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
+import Link from 'next/link';
 import { portalApiFetch } from '../../../lib/portal/portal-api-client';
 import { clearPortalToken, getPortalCompanySlug } from '../../../lib/portal/portal-token-storage';
 
@@ -122,12 +123,13 @@ export default function PortalDashboardPage() {
             destination pages. Not rendered as functional buttons yet
             since those routes don't exist to send anyone to. */}
         <div className="grid grid-cols-2 gap-3 pt-2">
-          {['Estimates', 'Invoices'].map((label) => (
-            <div key={label} className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400">
-              {label}
-              <span className="mt-1 block text-xs">Coming soon</span>
-            </div>
-          ))}
+          <Link href="/portal/estimates" className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm font-medium text-slate-700 shadow-sm active:bg-slate-50">
+            Estimates
+          </Link>
+          <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400">
+            Invoices
+            <span className="mt-1 block text-xs">Coming soon</span>
+          </div>
         </div>
       </div>
     </main>

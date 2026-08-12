@@ -42,6 +42,18 @@ export async function portalApiFetch<T>(path: string, options: RequestInit & { s
   return safeJson(response) as Promise<T>;
 }
 
+export async function portalFetchPdfObjectUrl(path: string): Promise<string> {
+  const token = getPortalToken();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    throw new PortalApiError(response.status, `Couldn't load the PDF (${response.status})`);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
 async function safeJson(response: Response) {
   try {
     return await response.json();
