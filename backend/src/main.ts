@@ -76,7 +76,7 @@ async function bootstrap() {
   // production backend (a real, deliberate part of this project's
   // workflow) needs both to work at once, not one or the other depending
   // on whether FRONTEND_URL happens to be configured.
-  const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL, process.env.PORTAL_URL].filter(
+  const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL, process.env.PORTAL_URL ?? 'https://portal.renovocrm.com'].filter(
     (origin): origin is string => Boolean(origin),
   );
   app.enableCors({
