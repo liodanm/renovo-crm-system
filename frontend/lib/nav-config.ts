@@ -7,7 +7,6 @@ import {
   Calendar,
   Receipt,
   CreditCard,
-  RefreshCw,
   Megaphone,
   BarChart3,
   Settings,
@@ -60,7 +59,6 @@ export const navGroups: NavGroup[] = [
   {
     label: 'Growth',
     items: [
-      { label: 'Recurring Services', href: '/recurring-services', icon: RefreshCw, comingSoon: true },
       { label: 'Marketing', href: '/marketing', icon: Megaphone, comingSoon: true },
     ],
   },
@@ -70,15 +68,16 @@ export const navGroups: NavGroup[] = [
       { label: 'Service Catalog', href: '/service-catalog', icon: BookOpen },
       { label: 'Reports', href: '/reports', icon: BarChart3 },
       { label: 'Settings', href: '/settings', icon: Settings },
+      { label: 'Support', href: '/support', icon: LifeBuoy, comingSoon: true },
     ],
   },
 ];
 
-// Deliberately separate from navGroups — sits pinned below the
-// scrollable nav, above the user profile block, never grouped under a
-// workflow label, since it's not part of the day's work. Settings moved
-// into the Operations group above (right after Reports) — Support is
-// the only item left here now.
-export const utilityNavItems: NavItem[] = [
-  { label: 'Support', href: '/support', icon: LifeBuoy, comingSoon: true },
-];
+// Deliberately kept as its own export (rather than removed) — both
+// Sidebar and MobileSidebar import and render it, and an empty array is
+// a safe, valid state for them (renders nothing, no layout gap). Every
+// item that used to live here (Settings, then Support) has since moved
+// into the Operations group above. If a genuinely global, ungrouped
+// utility item is ever needed again, it has a home to go back to
+// without touching either sidebar component.
+export const utilityNavItems: NavItem[] = [];
