@@ -41,7 +41,7 @@ curl http://localhost:4000/health
 Should return `{"status":"ok","checks":{"database":"ok","redis":"ok"}}`.
 
 **Log in with the seeded demo account** — `demo@example.com` /
-`DemoPassword123!` — a real, working login created by `init-scripts/007-seed.sql`
+`DemoPassword123!` — a real, working login created by `init-scripts/999-seed.sql`
 on first startup, along with a handful of demo customers/properties/a job/an
 estimate so there's real data to look at immediately, not an empty database.
 This isn't placeholder-looking data — the password hash was generated and
