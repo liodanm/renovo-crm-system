@@ -75,7 +75,7 @@ export function CancelJobModal({ jobId, customerName, propertyAddress, scheduled
           value={reasonOption}
           onChange={(e) => setReasonOption(e.target.value)}
           disabled={isSubmitting}
-          className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:bg-slate-50 dark:bg-slate-800 disabled:opacity-60"
+          className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:bg-slate-50 dark:bg-slate-900 disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
         >
           {REASON_OPTIONS.map((r) => (
             <option key={r} value={r}>{r}</option>
@@ -89,7 +89,7 @@ export function CancelJobModal({ jobId, customerName, propertyAddress, scheduled
             autoFocus
             placeholder="Describe the reason"
             maxLength={500}
-            className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:bg-slate-50 dark:bg-slate-800 disabled:opacity-60"
+            className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:bg-slate-50 dark:bg-slate-900 disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
           />
         )}
 

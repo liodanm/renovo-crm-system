@@ -184,7 +184,7 @@ export function CustomerForm({
         <select
           value={form.source}
           onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-          className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+          className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
         >
           <option value="">Not specified</option>
           {enabledSources.map((o) => (
@@ -212,7 +212,7 @@ export function CustomerForm({
             <select
               value={form.leadStatus}
               onChange={(e) => setForm((f) => ({ ...f, leadStatus: e.target.value }))}
-              className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+              className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             >
               <option value="lead">Lead</option>
               <option value="active">Active</option>
@@ -283,7 +283,7 @@ function Field({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+        className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
       />
     </label>
   );

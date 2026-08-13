@@ -105,7 +105,7 @@ export default function PaymentSettingsPage() {
                 onChange={(e) => { setFeePercent(e.target.value.replace(/[^0-9.]/g, '')); setHasChanges(true); }}
                 disabled={!feeEnabled}
                 inputMode="decimal"
-                className="w-20 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:bg-slate-50 dark:bg-slate-800 disabled:opacity-60"
+                className="w-20 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:bg-slate-50 dark:bg-slate-900 disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
               />
               <span className="text-sm text-slate-600 dark:text-slate-400">%</span>
             </div>

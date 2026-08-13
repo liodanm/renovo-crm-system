@@ -122,7 +122,7 @@ export default function AutomationSettingsPage() {
                           min={0}
                           value={draft[fields.timingKey] as number}
                           onChange={(e) => updateField(fields.timingKey!, Number(e.target.value) as any)}
-                          className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-2 text-base lg:py-1 lg:text-sm"
+                          className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-2 text-base lg:py-1 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
                         />
                         <span>{fields.timingSuffix}</span>
                       </div>
@@ -140,7 +140,7 @@ export default function AutomationSettingsPage() {
                             value={template.subject ?? ''}
                             onChange={(e) => updateTemplate(rule.key, { subject: e.target.value })}
                             placeholder="Leave blank to use the default"
-                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
                           />
                         </div>
                         <div>
@@ -150,7 +150,7 @@ export default function AutomationSettingsPage() {
                             onChange={(e) => updateTemplate(rule.key, { body: e.target.value })}
                             placeholder="Leave blank to use the default message"
                             rows={3}
-                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
                           />
                         </div>
                       </div>

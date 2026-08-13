@@ -121,14 +121,14 @@ export function PropertyFields({
         placeholder="Label (e.g. Main House)"
         value={values.label}
         onChange={(e) => onChange({ ...values, label: e.target.value })}
-        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
+        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
       />
       <input
         required={required}
         placeholder="Address"
         value={values.addressLine1}
         onChange={(e) => onChange({ ...values, addressLine1: e.target.value })}
-        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
+        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
       />
       <div className="grid grid-cols-3 gap-2">
         <input
@@ -136,21 +136,21 @@ export function PropertyFields({
           placeholder="City"
           value={values.city}
           onChange={(e) => onChange({ ...values, city: e.target.value })}
-          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
         <input
           required={required}
           placeholder="State"
           value={values.state}
           onChange={(e) => onChange({ ...values, state: e.target.value })}
-          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
         <input
           required={required}
           placeholder="ZIP"
           value={values.postalCode}
           onChange={(e) => onChange({ ...values, postalCode: e.target.value })}
-          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
       </div>
     </>

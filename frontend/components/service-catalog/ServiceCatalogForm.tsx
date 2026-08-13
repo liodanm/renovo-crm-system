@@ -32,7 +32,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm';
+const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500';
 
 export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
   const router = useRouter();
@@ -163,7 +163,7 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
           </Field>
         </div>
         <Field label="Estimated Duration (minutes)">
-          <input value={estimatedDurationMinutes} onChange={(e) => setEstimatedDurationMinutes(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className="w-40 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+          <input value={estimatedDurationMinutes} onChange={(e) => setEstimatedDurationMinutes(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className="w-40 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </Field>
       </Section>
 
@@ -171,9 +171,9 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
         {chemicals.map((c, i) => (
           <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-2">
             <input value={c.chemicalName} onChange={(e) => updateChemical(i, { chemicalName: e.target.value })} placeholder="Chemical name" className={inputClass} />
-            <input value={c.mixRatio ?? ''} onChange={(e) => updateChemical(i, { mixRatio: e.target.value })} placeholder="Mix ratio" className="w-24 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
-            <input value={c.quantity ?? ''} onChange={(e) => updateChemical(i, { quantity: Number(e.target.value.replace(/[^0-9.]/g, '')) })} placeholder="Qty" inputMode="decimal" className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
-            <select value={c.unit ?? 'oz'} onChange={(e) => updateChemical(i, { unit: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-1 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+            <input value={c.mixRatio ?? ''} onChange={(e) => updateChemical(i, { mixRatio: e.target.value })} placeholder="Mix ratio" className="w-24 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
+            <input value={c.quantity ?? ''} onChange={(e) => updateChemical(i, { quantity: Number(e.target.value.replace(/[^0-9.]/g, '')) })} placeholder="Qty" inputMode="decimal" className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
+            <select value={c.unit ?? 'oz'} onChange={(e) => updateChemical(i, { unit: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-1 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
               {CHEMICAL_UNITS.map((u) => (
                 <option key={u} value={u}>{u}</option>
               ))}

@@ -29,14 +29,14 @@ export function CustomerFilters({
           placeholder="Search by name, email, or phone…"
           value={filters.search ?? ''}
           onChange={(e) => onChange({ ...filters, search: e.target.value, page: 1 })}
-          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-9 pr-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:py-2 lg:text-sm"
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-9 pr-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
       </div>
 
       <select
         value={filters.leadStatus ?? ''}
         onChange={(e) => onChange({ ...filters, leadStatus: e.target.value || undefined, page: 1 })}
-        className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 dark:text-slate-300 focus:border-[var(--color-brand)] focus:outline-none"
+        className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 dark:text-slate-100 focus:border-[var(--color-brand)] focus:outline-none dark:bg-slate-900 dark:placeholder:text-slate-400"
       >
         <option value="">All statuses</option>
         <option value="lead">Lead</option>
@@ -49,7 +49,7 @@ export function CustomerFilters({
       <select
         value={filters.customerType ?? ''}
         onChange={(e) => onChange({ ...filters, customerType: e.target.value || undefined, page: 1 })}
-        className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 dark:text-slate-300 focus:border-[var(--color-brand)] focus:outline-none"
+        className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 dark:text-slate-100 focus:border-[var(--color-brand)] focus:outline-none dark:bg-slate-900 dark:placeholder:text-slate-400"
       >
         <option value="">Residential & Commercial</option>
         <option value="residential">Residential</option>
@@ -59,7 +59,7 @@ export function CustomerFilters({
       <select
         value={filters.sortBy ?? 'createdAt'}
         onChange={(e) => onChange({ ...filters, sortBy: e.target.value, page: 1 })}
-        className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 dark:text-slate-300 focus:border-[var(--color-brand)] focus:outline-none"
+        className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-3 pr-8 text-base lg:py-2 lg:text-sm text-slate-700 dark:text-slate-100 focus:border-[var(--color-brand)] focus:outline-none dark:bg-slate-900 dark:placeholder:text-slate-400"
       >
         <option value="createdAt">Newest first</option>
         <option value="updatedAt">Recently updated</option>

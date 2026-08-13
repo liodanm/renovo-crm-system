@@ -140,10 +140,10 @@ export default function SchedulingPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search customer or address"
-                className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-8 pr-3 text-base lg:py-2 lg:text-sm"
+                className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-8 pr-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
               <option value="">All statuses</option>
               {Object.entries(APPOINTMENT_STATUS_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>

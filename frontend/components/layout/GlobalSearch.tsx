@@ -126,7 +126,7 @@ export function GlobalSearch() {
           onFocus={() => query.trim() && setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search customers, estimates, invoices, jobs…"
-          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-9 pr-8 text-sm placeholder:text-slate-400 dark:text-slate-500 focus:border-[var(--color-brand)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]"
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-9 pr-8 text-sm placeholder:text-slate-400 dark:text-slate-100 focus:border-[var(--color-brand)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] dark:placeholder:text-slate-400"
         />
         {query && (
           <button

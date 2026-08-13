@@ -111,7 +111,7 @@ export default function LeadSourcesSettingsPage() {
                 <input
                   value={option.label}
                   onChange={(e) => rename(option.key, e.target.value)}
-                  className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-1.5 lg:text-sm"
+                  className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
                 />
                 <label className="flex shrink-0 items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <input type="checkbox" checked={option.enabled} onChange={() => toggleEnabled(option.key)} className="h-4 w-4 rounded border-slate-300 dark:border-slate-700" />
@@ -130,7 +130,7 @@ export default function LeadSourcesSettingsPage() {
               onChange={(e) => setNewLabel(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSource())}
               placeholder="Add a new source…"
-              className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-1.5 lg:text-sm"
+              className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
             <button type="button" onClick={addSource} className="flex items-center gap-1 rounded-lg bg-[var(--color-brand)] px-3 py-2 text-sm font-medium text-white">
               <Plus className="h-4 w-4" /> Add

@@ -36,3 +36,13 @@ html {
   --sidebar-width: 17rem;
   --sidebar-width-collapsed: 4.5rem;
 }
+
+/* Tells the browser to render its own native controls (select dropdown
+   popups, date/time picker icons, scrollbars) in a dark-appropriate
+   palette. Deliberately scoped to .dark only — this must never apply
+   when the app is in Light Mode, since color-scheme is a browser-level
+   hint, not a Tailwind utility, and setting it globally would force
+   native controls dark even on pages ThemeProvider hasn't touched. */
+.dark {
+  color-scheme: dark;
+}

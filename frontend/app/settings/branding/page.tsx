@@ -6,7 +6,7 @@ import { settingsApi } from '../../../lib/api/settings';
 import { SettingsSectionShell } from '../../../components/settings/SettingsSectionShell';
 import { ApiError } from '../../../lib/api/api-client';
 
-const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100';
+const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500';
 
 export default function BrandingSettingsPage() {
   const { data: branding, mutate } = useSWR('settings-branding', () => settingsApi.getBranding());
@@ -145,14 +145,14 @@ export default function BrandingSettingsPage() {
             <div>
               <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Primary Color</label>
               <div className="mt-1 flex items-center gap-2">
-                <input type="color" value={primaryColor} onChange={(e) => track(setPrimaryColor)(e.target.value)} className="h-9 w-12 rounded border border-slate-300 dark:border-slate-700" />
+                <input type="color" value={primaryColor} onChange={(e) => track(setPrimaryColor)(e.target.value)} className="h-9 w-12 rounded border border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
                 <input value={primaryColor} onChange={(e) => track(setPrimaryColor)(e.target.value)} className={inputClass} />
               </div>
             </div>
             <div>
               <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Secondary Color</label>
               <div className="mt-1 flex items-center gap-2">
-                <input type="color" value={secondaryColor} onChange={(e) => track(setSecondaryColor)(e.target.value)} className="h-9 w-12 rounded border border-slate-300 dark:border-slate-700" />
+                <input type="color" value={secondaryColor} onChange={(e) => track(setSecondaryColor)(e.target.value)} className="h-9 w-12 rounded border border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
                 <input value={secondaryColor} onChange={(e) => track(setSecondaryColor)(e.target.value)} className={inputClass} />
               </div>
             </div>

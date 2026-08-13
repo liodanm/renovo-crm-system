@@ -6,7 +6,7 @@ import { settingsApi, DAYS_OF_WEEK } from '../../../lib/api/settings';
 import { SettingsSectionShell } from '../../../components/settings/SettingsSectionShell';
 import { ApiError } from '../../../lib/api/api-client';
 
-const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100';
+const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500';
 type Hours = Record<string, { open?: string; close?: string; closed?: boolean }>;
 
 export default function CompanySettingsPage() {
@@ -105,9 +105,9 @@ export default function CompanySettingsPage() {
                   </label>
                   {!hours[day]?.closed && (
                     <>
-                      <input type="time" value={hours[day]?.open ?? '08:00'} onChange={(e) => setDayHours(day, { open: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1 text-xs dark:bg-slate-800 dark:text-slate-100" />
+                      <input type="time" value={hours[day]?.open ?? '08:00'} onChange={(e) => setDayHours(day, { open: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1 text-xs dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
                       <span className="text-slate-400 dark:text-slate-500">to</span>
-                      <input type="time" value={hours[day]?.close ?? '17:00'} onChange={(e) => setDayHours(day, { close: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1 text-xs dark:bg-slate-800 dark:text-slate-100" />
+                      <input type="time" value={hours[day]?.close ?? '17:00'} onChange={(e) => setDayHours(day, { close: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1 text-xs dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
                     </>
                   )}
                 </div>

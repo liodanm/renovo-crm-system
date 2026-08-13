@@ -347,11 +347,11 @@ export default function EstimateDetailPage() {
             onConfirm={async () => { await estimatesApi.declineManually(estimate.id, declineReason || undefined, declineComments || undefined); await mutate(); }}
           >
             <div className="space-y-2">
-              <select value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+              <select value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
                 <option value="">Select a reason…</option>
                 {DECLINE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-              <textarea value={declineComments} onChange={(e) => setDeclineComments(e.target.value)} placeholder="Optional comments…" rows={2} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+              <textarea value={declineComments} onChange={(e) => setDeclineComments(e.target.value)} placeholder="Optional comments…" rows={2} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
             </div>
           </ConfirmDialog>
         )}

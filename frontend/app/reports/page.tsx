@@ -74,9 +74,9 @@ export default function ReportsPage() {
             </div>
             {preset === 'Custom' && (
               <div className="flex items-center gap-1.5">
-                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-xs" />
+                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-xs dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
                 <span className="text-xs text-slate-400 dark:text-slate-500">to</span>
-                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-xs" />
+                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-xs dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
               </div>
             )}
           </div>

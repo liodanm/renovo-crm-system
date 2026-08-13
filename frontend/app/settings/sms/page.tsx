@@ -39,7 +39,7 @@ export default function SmsSettingsPage() {
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Uses the exact same Twilio path Automation's reminders use — not a separate check.</p>
             {message && <p className={`mt-2 text-xs ${message.type === 'error' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'}`}>{message.text}</p>}
             <div className="mt-3 flex gap-2">
-              <input value={toPhone} onChange={(e) => setToPhone(e.target.value)} placeholder="+1 555 123 4567" className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+              <input value={toPhone} onChange={(e) => setToPhone(e.target.value)} placeholder="+1 555 123 4567" className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
               <button onClick={handleSend} disabled={isSending || !toPhone} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
                 {isSending ? 'Sending…' : 'Send Test'}
               </button>

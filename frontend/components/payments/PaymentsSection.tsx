@@ -120,12 +120,12 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
               placeholder={`Amount (max ${formatMoney(balanceDue)})`}
               inputMode="decimal"
-              className="col-span-2 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base sm:col-span-1 lg:py-2 lg:text-sm"
+              className="col-span-2 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base sm:col-span-1 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
             <select
               value={method}
               onChange={(e) => { setMethod(e.target.value); setCardType(''); }}
-              className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             >
               {availableMethods.map((m) => (
                 <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
@@ -135,7 +135,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               <select
                 value={cardType}
                 onChange={(e) => setCardType(e.target.value as 'credit' | 'debit' | '')}
-                className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm"
+                className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
               >
                 <option value="" disabled>Credit or Debit?</option>
                 <option value="credit">Credit Card{feePercent > 0 ? ` — ${feePercent}% fee` : ''}</option>
@@ -153,7 +153,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               // just after midnight, or a deliberately post-dated check,
               // are both real, ordinary cases — not something worth a
               // hard validation error for a solo owner's own bookkeeping.
-              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
             <input
               value={tipAmount}
@@ -164,10 +164,10 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               // entered" at a glance, and blank correctly sends
               // undefined (stored as 0) rather than forcing every
               // ordinary cash payment to show a $0.00 tip value.
-              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
-            <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+            <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
           </div>
           {method === 'card' && cardType && (
             <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">

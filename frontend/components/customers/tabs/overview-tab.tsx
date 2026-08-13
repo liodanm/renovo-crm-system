@@ -114,7 +114,7 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
                 setIsEditingTags(false);
               }}
               placeholder="Add tag…"
-              className="w-24 rounded-full border border-slate-300 dark:border-slate-700 px-2.5 py-1.5 text-base focus:border-[var(--color-brand)] focus:outline-none lg:py-1 lg:text-xs"
+              className="w-24 rounded-full border border-slate-300 dark:border-slate-700 px-2.5 py-1.5 text-base focus:border-[var(--color-brand)] focus:outline-none lg:py-1 lg:text-xs dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
           ) : (
             <button

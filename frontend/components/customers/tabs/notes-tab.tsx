@@ -43,7 +43,7 @@ export function NotesTab({ customerId }: { customerId: string }) {
           onChange={(e) => setBody(e.target.value)}
           placeholder="Add a note about this customer…"
           rows={2}
-          className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none lg:py-2 lg:text-sm"
+          className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
         <button
           onClick={handleAdd}

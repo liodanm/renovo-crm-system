@@ -164,7 +164,7 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
             onChange={(e) => setCancelReason(e.target.value)}
             placeholder="Reason (optional) — e.g. weather, customer rescheduled…"
             rows={2}
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
           />
         </ConfirmDialog>
       )}

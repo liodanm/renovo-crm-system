@@ -149,7 +149,7 @@ export function FieldActionBar({ job, onStart, onPause, onResume, onOpenComplete
             onChange={(e) => setChemicalName(e.target.value)}
             placeholder="Chemical name"
             autoFocus
-            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
           />
           <input
             type="text"
@@ -157,9 +157,9 @@ export function FieldActionBar({ job, onStart, onPause, onResume, onOpenComplete
             value={chemicalQty}
             onChange={(e) => setChemicalQty(e.target.value.replace(/[^0-9.]/g, ''))}
             placeholder="Qty"
-            className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2.5 lg:text-sm"
+            className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
           />
-          <select value={chemicalUnit} onChange={(e) => setChemicalUnit(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-1 py-3 text-base lg:py-2.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+          <select value={chemicalUnit} onChange={(e) => setChemicalUnit(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-1 py-3 text-base lg:py-2.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             {CHEMICAL_UNITS.map((u) => (
               <option key={u} value={u}>{u}</option>
             ))}

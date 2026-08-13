@@ -52,7 +52,7 @@ export function EquipmentSection({ jobId }: { jobId: string }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Equipment name"
-          className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
+          className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
         <button
           onClick={handleAdd}

@@ -61,7 +61,7 @@ export default function EmailSettingsPage() {
                   value={replyToEmail}
                   onChange={(e) => { setReplyToEmail(e.target.value); setHasChanges(true); }}
                   placeholder="support@yourcompany.com"
-                  className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
+                  className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -101,7 +101,7 @@ function TestEmailCard() {
       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Goes through the exact same queue as every real email this app sends.</p>
       {message && <p className={`mt-2 text-xs ${message.type === 'error' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'}`}>{message.text}</p>}
       <div className="mt-3 flex gap-2">
-        <input value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder="you@example.com" className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+        <input value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder="you@example.com" className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         <button onClick={handleSend} disabled={isSending || !toEmail} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
           {isSending ? 'Sending…' : 'Send Test'}
         </button>

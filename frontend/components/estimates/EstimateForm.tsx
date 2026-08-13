@@ -605,7 +605,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               <select
                 value={propertyId}
                 onChange={(e) => { setPropertyId(e.target.value); setFieldErrors((f) => ({ ...f, property: '' })); }}
-                className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100 ${fieldErrors.property ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
+                className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${fieldErrors.property ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
               >
                 <option value="">Select a property…</option>
                 {properties?.map((p) => <option key={p.id} value={p.id}>{p.addressLine1}, {p.city}</option>)}
@@ -694,7 +694,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               type="date"
               value={validUntil}
               onChange={(e) => setValidUntil(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
           </div>
           <div>
@@ -718,7 +718,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                 // value to zero.
                 setIsManualDiscount(e.target.value !== '');
               }}
-              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             >
               <option value="">None</option>
               <option value="fixed">Fixed ($)</option>
@@ -757,14 +757,14 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               value={taxRatePercent}
               onChange={(e) => setTaxRatePercent(sanitizeNumericInput(e.target.value))}
               placeholder="0.00"
-              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
           </div>
         </div>
 
         <div className="mt-4">
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Notes (optional — visible to the customer)</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </div>
 
         <div className="mt-4">
@@ -916,7 +916,7 @@ function LineItemRow({
               onChange({ serviceType: e.target.value });
               requestAnimationFrame(() => descriptionRef.current?.focus());
             }}
-            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
+            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
           >
             {SERVICE_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
@@ -928,12 +928,12 @@ function LineItemRow({
             value={item.description}
             onChange={(e) => onChange({ description: e.target.value })}
             onKeyDown={focusOnEnter(quantityRef)}
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100 ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
           />
         </div>
         <div className="lg:col-span-2">
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Unit Type</label>
-          <select value={item.unitOfMeasure} onChange={(e) => onChange({ unitOfMeasure: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+          <select value={item.unitOfMeasure} onChange={(e) => onChange({ unitOfMeasure: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
         </div>
@@ -947,7 +947,7 @@ function LineItemRow({
             onChange={(e) => onChange({ quantity: sanitizeNumericInput(e.target.value) })}
             onKeyDown={focusOnEnter(unitPriceRef)}
             placeholder="0"
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100 ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
           />
         </div>
         <div className="lg:col-span-2">
@@ -959,7 +959,7 @@ function LineItemRow({
             value={item.unitPrice}
             onChange={(e) => onChange({ unitPrice: sanitizeNumericInput(e.target.value) })}
             placeholder="0.00"
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100 ${errors[`item-${index}-unitPrice`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-unitPrice`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
           />
         </div>
       </div>
@@ -985,22 +985,22 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-4">
         <label className="block">
           <RequiredLabel size="sm">Roof sq ft</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+          <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Roof type</RequiredLabel>
-          <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+          <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             <option value="">Roof type…</option>
             <option value="tile">Tile</option><option value="shingle">Shingle</option><option value="metal">Metal</option>
           </select>
         </label>
         <label className="block">
           <RequiredLabel size="sm">Stories</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </label>
         <label className="block">
           <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Pitch</span>
-          <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+          <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             <option value="">Pitch…</option>
             <option value="low">Low</option><option value="medium">Medium</option><option value="steep">Steep</option>
           </select>
@@ -1014,11 +1014,11 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-4">
         <label className="block">
           <RequiredLabel size="sm">Sq ft</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+          <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Surface</RequiredLabel>
-          <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+          <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             <option value="">Surface…</option>
             <option value="concrete">Concrete</option><option value="pavers">Pavers</option>
           </select>
@@ -1038,11 +1038,11 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-3">
         <label className="block">
           <RequiredLabel size="sm">Stories</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Exterior material</RequiredLabel>
-          <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
+          <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             <option value="">Exterior material…</option>
             <option value="vinyl">Vinyl</option><option value="brick">Brick</option><option value="stucco">Stucco</option>
             <option value="wood">Wood</option><option value="fiber_cement">Fiber cement</option><option value="other">Other</option>
