@@ -40,7 +40,7 @@ export function NotificationsCard() {
               {!n.readAt && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-brand)]" />}
               <div className={`min-w-0 ${n.readAt ? 'pl-3.5' : ''}`}>
                 <div className="truncate text-sm text-slate-800">{n.title}</div>
-                <div className="text-xs text-slate-400">{formatRelative(n.createdAt)}</div>
+                <div className="text-xs text-slate-400 dark:text-slate-500">{formatRelative(n.createdAt)}</div>
               </div>
             </li>
           ))}

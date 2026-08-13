@@ -66,17 +66,17 @@ export function SettingsSectionShell({
     <div>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">{title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
         </div>
         {showSuccess && (
-          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
             <Check className="h-3.5 w-3.5" /> {successMessage}
           </div>
         )}
       </div>
 
-      {error && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</div>}
 
       <div className="mt-6 space-y-4">{children}</div>
 
@@ -84,10 +84,10 @@ export function SettingsSectionShell({
           on, so an untouched page never nags, unless alwaysShowBar
           opts a caller out of that (Save disabled instead, not hidden). */}
       {(hasUnsavedChanges || alwaysShowBar) && (
-        <div className="sticky bottom-0 mt-6 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-          <p className="text-xs text-slate-500">{hasUnsavedChanges ? 'You have unsaved changes.' : 'No changes yet.'}</p>
+        <div className="sticky bottom-0 mt-6 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-xs text-slate-500 dark:text-slate-400">{hasUnsavedChanges ? 'You have unsaved changes.' : 'No changes yet.'}</p>
           <div className="flex gap-2">
-            <button onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-3 text-base font-medium text-slate-700 hover:bg-slate-50 lg:py-2 lg:text-sm">
+            <button onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-3 text-base font-medium text-slate-700 hover:bg-slate-50 lg:py-2 lg:text-sm dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
               Cancel
             </button>
             <button

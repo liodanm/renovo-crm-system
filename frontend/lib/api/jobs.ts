@@ -34,10 +34,10 @@ export const JOB_PRIORITY_LABELS: Record<JobPriority, string> = {
 // One shared mapping — badges, map pins, and any future priority UI all
 // read from this instead of each defining their own color logic.
 export const JOB_PRIORITY_COLORS: Record<JobPriority, { badge: string; dot: string }> = {
-  normal: { badge: 'bg-emerald-100 text-emerald-700', dot: '#10b981' },
-  follow_up: { badge: 'bg-amber-100 text-amber-700', dot: '#eab308' },
-  high: { badge: 'bg-orange-100 text-orange-700', dot: '#f97316' },
-  emergency: { badge: 'bg-red-100 text-red-700', dot: '#ef4444' },
+  normal: { badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300', dot: '#10b981' },
+  follow_up: { badge: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300', dot: '#eab308' },
+  high: { badge: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300', dot: '#f97316' },
+  emergency: { badge: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300', dot: '#ef4444' },
 };
 
 export interface Job {

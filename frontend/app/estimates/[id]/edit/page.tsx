@@ -14,7 +14,7 @@ export default function EditEstimatePage() {
     return (
       <AppShell>
         <main className="mx-auto max-w-4xl px-4 py-6">
-          <p className="text-sm text-slate-500">Loading…</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
         </main>
       </AppShell>
     );
@@ -24,7 +24,7 @@ export default function EditEstimatePage() {
     return (
       <AppShell>
         <main className="mx-auto max-w-4xl px-4 py-6">
-          <p className="text-sm text-red-600">Couldn't load this estimate.</p>
+          <p className="text-sm text-red-600 dark:text-red-400">Couldn't load this estimate.</p>
         </main>
       </AppShell>
     );
@@ -37,7 +37,7 @@ export default function EditEstimatePage() {
     return (
       <AppShell>
         <main className="mx-auto max-w-4xl px-4 py-6">
-          <p className="text-sm text-amber-700">
+          <p className="text-sm text-amber-700 dark:text-amber-300">
             This estimate is <strong>{estimate.status}</strong> and can no longer be edited directly.
             {estimate.status === 'accepted' && ' An Owner or Admin can reopen it from the estimate page first.'}
           </p>

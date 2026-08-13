@@ -14,12 +14,12 @@ export default function EditServiceCatalogItemPage() {
   return (
     <AppShell>
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
-        <Link href="/service-catalog" className="text-sm text-slate-500 hover:text-slate-800">← Back to Service Catalog</Link>
-        {isLoading && <p className="mt-4 text-sm text-slate-500">Loading…</p>}
-        {error && <p className="mt-4 text-sm text-red-600">Couldn't load this service.</p>}
+        <Link href="/service-catalog" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800">← Back to Service Catalog</Link>
+        {isLoading && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Loading…</p>}
+        {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">Couldn't load this service.</p>}
         {item && (
           <>
-            <h1 className="mt-2 text-xl font-semibold text-slate-900">{item.name}</h1>
+            <h1 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{item.name}</h1>
             <div className="mt-4">
               <ServiceCatalogForm existing={item} />
             </div>

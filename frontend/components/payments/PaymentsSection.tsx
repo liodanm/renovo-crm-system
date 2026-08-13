@@ -90,9 +90,9 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
   const canRecordPayment = Number(balanceDue) > 0 && !['draft', 'void'].includes(invoiceStatus);
 
   return (
-    <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+    <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-700">Payments</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Payments</h2>
         {canRecordPayment && (
           <button
             onClick={() => {
@@ -112,20 +112,20 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
       </div>
 
       {showForm && (
-        <div className="mt-3 rounded-lg bg-slate-50 p-3">
-          {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
+        <div className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
+          {error && <p className="mb-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
               placeholder={`Amount (max ${formatMoney(balanceDue)})`}
               inputMode="decimal"
-              className="col-span-2 rounded-lg border border-slate-300 px-3 py-3 text-base sm:col-span-1 lg:py-2 lg:text-sm"
+              className="col-span-2 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base sm:col-span-1 lg:py-2 lg:text-sm"
             />
             <select
               value={method}
               onChange={(e) => { setMethod(e.target.value); setCardType(''); }}
-              className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm"
             >
               {availableMethods.map((m) => (
                 <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
@@ -135,7 +135,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               <select
                 value={cardType}
                 onChange={(e) => setCardType(e.target.value as 'credit' | 'debit' | '')}
-                className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm"
+                className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm"
               >
                 <option value="" disabled>Credit or Debit?</option>
                 <option value="credit">Credit Card{feePercent > 0 ? ` — ${feePercent}% fee` : ''}</option>
@@ -153,7 +153,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               // just after midnight, or a deliberately post-dated check,
               // are both real, ordinary cases — not something worth a
               // hard validation error for a solo owner's own bookkeeping.
-              className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
             />
             <input
               value={tipAmount}
@@ -164,13 +164,13 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               // entered" at a glance, and blank correctly sends
               // undefined (stored as 0) rather than forcing every
               // ordinary cash payment to show a $0.00 tip value.
-              className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
             />
-            <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+            <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
           </div>
           {method === 'card' && cardType && (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
               {cardType === 'credit' && feePercent > 0 ? (
                 <>
                   Payment: {formatMoney(amount || '0')} · Processing Fee ({feePercent}%): {formatMoney(previewFee.toFixed(2))} · Customer Total: {formatMoney((Number(amount || 0) + previewFee).toFixed(2))}
@@ -193,14 +193,14 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
       )}
 
       <div className="mt-3 space-y-2">
-        {payments && payments.length === 0 && <p className="text-xs text-slate-400">No payments recorded yet.</p>}
+        {payments && payments.length === 0 && <p className="text-xs text-slate-400 dark:text-slate-500">No payments recorded yet.</p>}
         {payments?.map((p) => (
-          <div key={p.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
+          <div key={p.id} className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2.5">
             <div>
               <p className="text-sm font-medium text-slate-800">
-                {formatMoney(p.amount)} <span className="font-normal text-slate-500">via {PAYMENT_METHOD_LABELS[p.method] ?? p.method}</span>
+                {formatMoney(p.amount)} <span className="font-normal text-slate-500 dark:text-slate-400">via {PAYMENT_METHOD_LABELS[p.method] ?? p.method}</span>
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-slate-500">
                 {p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : '—'}
                 {p.referenceNumber && ` · Ref: ${p.referenceNumber}`}
                 {Number(p.tipAmount) > 0 && ` · Tip: ${formatMoney(p.tipAmount)}`}
@@ -209,17 +209,17 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', PAYMENT_STATUS_STYLES[p.status] ?? 'bg-slate-100 text-slate-700')}>
+              <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', PAYMENT_STATUS_STYLES[p.status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300')}>
                 {PAYMENT_STATUS_LABELS[p.status] ?? p.status}
               </span>
               {p.status === 'succeeded' && (
                 <>
                   <Link href={`/payments/receipt/${p.id}`} className="text-xs text-[var(--color-brand)]">Receipt</Link>
-                  <button onClick={() => handleRefund(p.id)} className="text-xs text-slate-500 hover:text-slate-800">Refund</button>
-                  <button onClick={() => handleVoid(p.id)} className="text-xs text-slate-500 hover:text-red-600">Void</button>
+                  <button onClick={() => handleRefund(p.id)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800">Refund</button>
+                  <button onClick={() => handleVoid(p.id)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-red-600 dark:text-red-400">Void</button>
                 </>
               )}
-              {p.status === 'partially_refunded' && <button onClick={() => handleRefund(p.id)} className="text-xs text-slate-500 hover:text-slate-800">Refund more</button>}
+              {p.status === 'partially_refunded' && <button onClick={() => handleRefund(p.id)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800">Refund more</button>}
             </div>
           </div>
         ))}

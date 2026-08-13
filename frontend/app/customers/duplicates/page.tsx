@@ -35,16 +35,16 @@ export default function DuplicatesPage() {
   return (
     <AppShell>
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
-        <Link href="/customers" className="text-sm font-medium text-slate-500 hover:text-slate-800">
+        <Link href="/customers" className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800">
           ← Customers
         </Link>
-        <h1 className="text-xl font-semibold text-slate-900">Possible Duplicate Customers</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Possible Duplicate Customers</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Found by matching exact email, exact phone, or similar names across your customer list. Merging is permanent — the
           customer you keep absorbs all jobs, invoices, notes, and files from the one you merge away.
         </p>
 
-        {mergeError && <div className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{mergeError}</div>}
+        {mergeError && <div className="mt-4 rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-600 dark:text-red-400">{mergeError}</div>}
 
         <div className="mt-6 space-y-4">
           {isLoading && <CardSkeleton lines={6} />}
@@ -56,18 +56,18 @@ export default function DuplicatesPage() {
           {!isLoading &&
             !error &&
             data?.map((cluster, i) => (
-              <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="mb-3 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+              <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+                <div className="mb-3 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
                   {REASON_LABELS[cluster.reason]}
                 </div>
                 <div className="space-y-2">
                   {cluster.customers.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2">
+                    <div key={c.id} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800 px-3 py-2">
                       <div>
-                        <Link href={`/customers/${c.id}`} className="text-sm font-medium text-slate-900 hover:text-[var(--color-brand)]">
+                        <Link href={`/customers/${c.id}`} className="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-[var(--color-brand)]">
                           {c.displayName}
                         </Link>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs text-slate-400 dark:text-slate-500">
                           {c.email ?? '—'} {c.phone ? `· ${c.phone}` : ''}
                         </div>
                       </div>
@@ -79,7 +79,7 @@ export default function DuplicatesPage() {
                               key={other.id}
                               disabled={mergingKey === `${c.id}-${other.id}`}
                               onClick={() => handleMerge(c.id, other.id)}
-                              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                              className="rounded-md border border-slate-300 dark:border-slate-700 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50"
                               title={`Keep "${c.displayName}" and merge "${other.displayName}" into it`}
                             >
                               {mergingKey === `${c.id}-${other.id}` ? 'Merging…' : `Keep this, merge other in`}

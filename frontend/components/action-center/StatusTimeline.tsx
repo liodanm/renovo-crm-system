@@ -27,7 +27,7 @@ const SOURCE_LABELS: Record<string, string> = {
  */
 export function StatusTimeline({ entries }: { entries: TimelineEntry[] }) {
   if (entries.length === 0) {
-    return <p className="text-sm text-slate-400">No status changes recorded yet.</p>;
+    return <p className="text-sm text-slate-400 dark:text-slate-500">No status changes recorded yet.</p>;
   }
 
   return (
@@ -40,13 +40,13 @@ export function StatusTimeline({ entries }: { entries: TimelineEntry[] }) {
           </div>
           <div className="pb-4">
             <p className="text-sm font-medium capitalize text-slate-800">{entry.toStatus.replace(/_/g, ' ')}</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {new Date(entry.changedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
               {' · '}
               {entry.userFirstName ? `${entry.userFirstName} ${entry.userLastName ?? ''}`.trim() : SOURCE_LABELS[entry.source] ?? entry.source}
               {entry.userFirstName && ` (${SOURCE_LABELS[entry.source] ?? entry.source})`}
             </p>
-            {entry.note && <p className="mt-0.5 text-xs text-slate-400">{entry.note}</p>}
+            {entry.note && <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{entry.note}</p>}
           </div>
         </li>
       ))}

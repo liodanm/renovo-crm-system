@@ -6,7 +6,7 @@ import { settingsApi, DAYS_OF_WEEK } from '../../../lib/api/settings';
 import { SettingsSectionShell } from '../../../components/settings/SettingsSectionShell';
 import { ApiError } from '../../../lib/api/api-client';
 
-const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm';
+const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100';
 type Hours = Record<string, { open?: string; close?: string; closed?: boolean }>;
 
 export default function CompanySettingsPage() {
@@ -67,11 +67,11 @@ export default function CompanySettingsPage() {
   return (
     <SettingsSectionShell title="Company" description="Your business identity and contact information." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
       {!company ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (
         <>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Business Identity</h2>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Business Identity</h2>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <LabeledInput label="Business Name" value={fields.name} onChange={(v) => setField('name', v)} />
               <LabeledInput label="DBA (Doing Business As)" value={fields.dba} onChange={(v) => setField('dba', v)} />
@@ -80,8 +80,8 @@ export default function CompanySettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Contact & Address</h2>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Contact & Address</h2>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <LabeledInput label="Address" value={fields.addressLine1} onChange={(v) => setField('addressLine1', v)} />
               <LabeledInput label="City" value={fields.city} onChange={(v) => setField('city', v)} />
@@ -93,21 +93,21 @@ export default function CompanySettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Business Hours</h2>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Business Hours</h2>
             <div className="mt-3 space-y-1.5">
               {DAYS_OF_WEEK.map((day) => (
                 <div key={day} className="flex items-center gap-3">
-                  <span className="w-24 text-sm capitalize text-slate-600">{day}</span>
-                  <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <input type="checkbox" checked={!hours[day]?.closed} onChange={(e) => setDayHours(day, { closed: !e.target.checked })} className="rounded border-slate-300" />
+                  <span className="w-24 text-sm capitalize text-slate-600 dark:text-slate-400">{day}</span>
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <input type="checkbox" checked={!hours[day]?.closed} onChange={(e) => setDayHours(day, { closed: !e.target.checked })} className="rounded border-slate-300 dark:border-slate-700" />
                     Open
                   </label>
                   {!hours[day]?.closed && (
                     <>
-                      <input type="time" value={hours[day]?.open ?? '08:00'} onChange={(e) => setDayHours(day, { open: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-1 text-xs" />
-                      <span className="text-slate-400">to</span>
-                      <input type="time" value={hours[day]?.close ?? '17:00'} onChange={(e) => setDayHours(day, { close: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-1 text-xs" />
+                      <input type="time" value={hours[day]?.open ?? '08:00'} onChange={(e) => setDayHours(day, { open: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1 text-xs dark:bg-slate-800 dark:text-slate-100" />
+                      <span className="text-slate-400 dark:text-slate-500">to</span>
+                      <input type="time" value={hours[day]?.close ?? '17:00'} onChange={(e) => setDayHours(day, { close: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1 text-xs dark:bg-slate-800 dark:text-slate-100" />
                     </>
                   )}
                 </div>
@@ -123,7 +123,7 @@ export default function CompanySettingsPage() {
 function LabeledInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="text-xs font-medium text-slate-500">{label}</label>
+      <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>
       <input value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} mt-1`} />
     </div>
   );

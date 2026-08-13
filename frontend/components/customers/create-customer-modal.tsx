@@ -107,13 +107,13 @@ export function CreateCustomerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-lg rounded-xl bg-white dark:bg-slate-900 p-6 shadow-xl">
         {createdCustomer ? (
           <>
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Customer created successfully.</h2>
-              <p className="mt-1 text-sm text-amber-700">We couldn't save the property.</p>
-              {propertyError && <p className="mt-1 text-xs text-red-600">{propertyError}</p>}
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Customer created successfully.</h2>
+              <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">We couldn't save the property.</p>
+              {propertyError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{propertyError}</p>}
             </div>
             <div className="space-y-3">
               <PropertyFields values={propertyForm} onChange={setPropertyForm} required={false} />
@@ -122,7 +122,7 @@ export function CreateCustomerModal({
               <button
                 type="button"
                 onClick={handleSkip}
-                className="rounded-lg px-4 py-3 text-base font-medium text-slate-600 hover:bg-slate-100 lg:py-2 lg:text-sm"
+                className="rounded-lg px-4 py-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 lg:py-2 lg:text-sm"
               >
                 Skip for Now
               </button>
@@ -140,13 +140,13 @@ export function CreateCustomerModal({
         ) : (
           <>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">New Customer</h2>
-              <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">New Customer</h2>
+              <button onClick={onClose} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
                 ✕
               </button>
             </div>
 
-            {includeProperty && <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Customer Information</p>}
+            {includeProperty && <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Customer Information</p>}
 
             <CustomerForm
               mode="create"
@@ -157,9 +157,9 @@ export function CreateCustomerModal({
               submittingLabel="Creating…"
             >
               {includeProperty && (
-                <div className="space-y-3 border-t border-slate-200 pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Property <span className="font-normal normal-case tracking-normal text-slate-400">(optional)</span>
+                <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    Property <span className="font-normal normal-case tracking-normal text-slate-400 dark:text-slate-500">(optional)</span>
                   </p>
                   <PropertyFields values={propertyForm} onChange={setPropertyForm} required={false} />
                 </div>

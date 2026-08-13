@@ -59,14 +59,14 @@ export default function ReportsPage() {
     <AppShell>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Reports</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
+            <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
               {DATE_PRESETS.map((p) => (
                 <button
                   key={p}
                   onClick={() => setPreset(p)}
-                  className={cn('rounded-md px-2.5 py-1.5 text-xs font-medium', preset === p ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
+                  className={cn('rounded-md px-2.5 py-1.5 text-xs font-medium', preset === p ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400')}
                 >
                   {p}
                 </button>
@@ -74,9 +74,9 @@ export default function ReportsPage() {
             </div>
             {preset === 'Custom' && (
               <div className="flex items-center gap-1.5">
-                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
-                <span className="text-xs text-slate-400">to</span>
-                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
+                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-xs" />
+                <span className="text-xs text-slate-400 dark:text-slate-500">to</span>
+                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-1.5 text-xs" />
               </div>
             )}
           </div>
@@ -204,10 +204,10 @@ export default function ReportsPage() {
           {pipeline && pipeline.length > 0 ? (
             <div className="flex flex-wrap gap-3">
               {pipeline.map((stage) => (
-                <div key={stage.status} className="flex-1 min-w-[120px] rounded-lg bg-slate-50 p-3">
-                  <p className="text-xs font-medium capitalize text-slate-500">{stage.status}</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">{stage.count}</p>
-                  <p className="text-xs text-slate-400">{money(stage.totalValue)}</p>
+                <div key={stage.status} className="flex-1 min-w-[120px] rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
+                  <p className="text-xs font-medium capitalize text-slate-500 dark:text-slate-400">{stage.status}</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{stage.count}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{money(stage.totalValue)}</p>
                 </div>
               ))}
             </div>
@@ -313,23 +313,23 @@ export default function ReportsPage() {
 }
 
 function KpiCard({ label, value, sublabel, tone }: { label: string; value: React.ReactNode; sublabel?: string; tone?: 'warning' | 'danger' | 'success' }) {
-  const toneClass = tone === 'danger' ? 'text-red-600' : tone === 'warning' ? 'text-amber-600' : tone === 'success' ? 'text-emerald-600' : 'text-slate-900';
+  const toneClass = tone === 'danger' ? 'text-red-600 dark:text-red-400' : tone === 'warning' ? 'text-amber-600 dark:text-amber-400' : tone === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100';
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
       <p className={cn('mt-1 text-lg font-semibold', toneClass)}>{value}</p>
-      {sublabel && <p className="text-xs text-slate-400">{sublabel}</p>}
+      {sublabel && <p className="text-xs text-slate-400 dark:text-slate-500">{sublabel}</p>}
     </div>
   );
 }
 
 function ChartCard({ title, children, className, onExport }: { title: string; children: React.ReactNode; className?: string; onExport?: () => void }) {
   return (
-    <div className={cn('rounded-xl border border-slate-200 bg-white p-4', className)}>
+    <div className={cn('rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4', className)}>
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{title}</h2>
         {onExport && (
-          <button onClick={onExport} className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700">
+          <button onClick={onExport} className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300">
             <Download className="h-3.5 w-3.5" /> CSV
           </button>
         )}
@@ -340,10 +340,10 @@ function ChartCard({ title, children, className, onExport }: { title: string; ch
 }
 
 function AgingBucket({ label, value, tone }: { label: string; value: string; tone?: 'warning' | 'danger' }) {
-  const toneClass = tone === 'danger' ? 'text-red-600' : tone === 'warning' ? 'text-amber-600' : 'text-slate-900';
+  const toneClass = tone === 'danger' ? 'text-red-600 dark:text-red-400' : tone === 'warning' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100';
   return (
-    <div className="rounded-lg bg-slate-50 p-3 text-center">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
+    <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-3 text-center">
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
       <p className={cn('mt-1 text-base font-semibold', toneClass)}>{value}</p>
     </div>
   );
@@ -351,14 +351,14 @@ function AgingBucket({ label, value, tone }: { label: string; value: string; ton
 
 function TableCard({ title, subtitle, rows, columns, onExport }: { title: string; subtitle?: string; rows: any[] | undefined; columns: { key: string; label: string; format?: (v: any) => string; render?: (row: any) => string }[]; onExport?: () => void }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
-          {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{title}</h2>
+          {subtitle && <p className="text-xs text-slate-400 dark:text-slate-500">{subtitle}</p>}
         </div>
         {onExport && (
-          <button onClick={onExport} className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700">
+          <button onClick={onExport} className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300">
             <Download className="h-3.5 w-3.5" /> CSV
           </button>
         )}
@@ -368,14 +368,14 @@ function TableCard({ title, subtitle, rows, columns, onExport }: { title: string
           <EmptyChart />
         ) : (
           <table className="w-full text-xs">
-            <thead className="text-slate-400">
+            <thead className="text-slate-400 dark:text-slate-500">
               <tr>{columns.map((c) => <th key={c.key} className="pb-1.5 text-left font-medium">{c.label}</th>)}</tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.slice(0, 8).map((row, i) => (
                 <tr key={i}>
                   {columns.map((c) => (
-                    <td key={c.key} className="py-1.5 text-slate-700">
+                    <td key={c.key} className="py-1.5 text-slate-700 dark:text-slate-300">
                       {c.render ? c.render(row) : c.format ? c.format(row[c.key]) : row[c.key]}
                     </td>
                   ))}
@@ -390,5 +390,5 @@ function TableCard({ title, subtitle, rows, columns, onExport }: { title: string
 }
 
 function EmptyChart() {
-  return <div className="flex h-[180px] items-center justify-center text-sm text-slate-400">No data for this period yet.</div>;
+  return <div className="flex h-[180px] items-center justify-center text-sm text-slate-400 dark:text-slate-500">No data for this period yet.</div>;
 }

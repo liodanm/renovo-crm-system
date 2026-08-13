@@ -45,8 +45,8 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
   }
 
   return (
-    <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-700">Complete This Job</h2>
+    <div className="mt-4 space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Complete This Job</h2>
 
       {/* Photos, Chemicals, and Equipment — the exact same sections that
           live further down this job's page, rendered inline here instead
@@ -72,14 +72,14 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
           <button
             type="button"
             onClick={() => setSignatureMode('sign')}
-            className={cn('flex-1 rounded-lg px-3 py-2.5 text-sm font-medium', signatureMode === 'sign' ? 'bg-[var(--color-brand)] text-white' : 'bg-slate-100 text-slate-600')}
+            className={cn('flex-1 rounded-lg px-3 py-2.5 text-sm font-medium', signatureMode === 'sign' ? 'bg-[var(--color-brand)] text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400')}
           >
             Get Signature
           </button>
           <button
             type="button"
             onClick={() => setSignatureMode('unavailable')}
-            className={cn('flex-1 rounded-lg px-3 py-2.5 text-sm font-medium', signatureMode === 'unavailable' ? 'bg-[var(--color-brand)] text-white' : 'bg-slate-100 text-slate-600')}
+            className={cn('flex-1 rounded-lg px-3 py-2.5 text-sm font-medium', signatureMode === 'unavailable' ? 'bg-[var(--color-brand)] text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400')}
           >
             Signature Unavailable
           </button>
@@ -96,7 +96,7 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
                 key={key}
                 type="button"
                 onClick={() => setReason(key)}
-                className={cn('rounded-lg px-3 py-2.5 text-sm font-medium', reason === key ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600')}
+                className={cn('rounded-lg px-3 py-2.5 text-sm font-medium', reason === key ? 'bg-slate-800 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400')}
               >
                 {SIGNATURE_UNAVAILABLE_LABELS[key]}
               </button>
@@ -107,19 +107,19 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
 
       {/* Completion notes */}
       <div>
-        <label className="text-xs font-medium text-slate-500">Completion Notes</label>
+        <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Completion Notes</label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="What was done, anything the customer should know…"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
+          className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
         />
       </div>
 
       {/* Recommended future services — reuses the same Estimate service types */}
       <div>
-        <label className="text-xs font-medium text-slate-500">Recommend for a Future Estimate</label>
+        <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Recommend for a Future Estimate</label>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {Object.entries(RECOMMENDABLE_SERVICE_LABELS).map(([key, label]) => (
             <button
@@ -128,7 +128,7 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
               onClick={() => toggleRecommended(key)}
               className={cn(
                 'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                recommended.includes(key) ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                recommended.includes(key) ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200',
               )}
             >
               {label}
@@ -139,14 +139,14 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
 
       {/* Billable hours override */}
       <div>
-        <label className="text-xs font-medium text-slate-500">Billable Labor Hours (optional override)</label>
+        <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Billable Labor Hours (optional override)</label>
         <input
           type="text"
           inputMode="decimal"
           value={billableOverride}
           onChange={(e) => setBillableOverride(e.target.value.replace(/[^0-9.]/g, ''))}
           placeholder="Leave blank to use calculated time"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
+          className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
         />
       </div>
 
@@ -158,7 +158,7 @@ export function CompletionFlow({ jobId, onSubmit, onCancel, isSubmitting }: Comp
         >
           {isSubmitting ? 'Completing…' : 'Confirm Complete'}
         </button>
-        <button onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700">
+        <button onClick={onCancel} className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">
           Cancel
         </button>
       </div>
@@ -173,7 +173,7 @@ function FieldOpsToggle({ label, isOpen, onToggle }: { label: string; isOpen: bo
       onClick={onToggle}
       className={cn(
         'flex w-full items-center justify-between rounded-lg px-3.5 py-3 text-sm font-medium transition-colors',
-        isOpen ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+        isOpen ? 'bg-slate-800 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200',
       )}
     >
       <span>{label}</span>

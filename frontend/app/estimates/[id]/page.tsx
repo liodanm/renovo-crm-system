@@ -51,10 +51,10 @@ export default function EstimateDetailPage() {
   const [flashEmailSection, setFlashEmailSection] = useState(false);
 
   if (isLoading) {
-    return <AppShell><main className="mx-auto max-w-5xl px-4 py-6"><p className="text-sm text-slate-500">Loading…</p></main></AppShell>;
+    return <AppShell><main className="mx-auto max-w-5xl px-4 py-6"><p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p></main></AppShell>;
   }
   if (error || !estimate) {
-    return <AppShell><main className="mx-auto max-w-5xl px-4 py-6"><p className="text-sm text-red-600">Couldn't load this estimate.</p></main></AppShell>;
+    return <AppShell><main className="mx-auto max-w-5xl px-4 py-6"><p className="text-sm text-red-600 dark:text-red-400">Couldn't load this estimate.</p></main></AppShell>;
   }
 
   const hasBeenConverted = statusHistory?.some((h) => h.note?.toLowerCase().includes('convert')) ?? false;
@@ -149,12 +149,12 @@ export default function EstimateDetailPage() {
   return (
     <AppShell>
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
-        <Link href="/estimates" className="text-sm text-slate-500 hover:text-slate-800">← Back to Estimates</Link>
+        <Link href="/estimates" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800">← Back to Estimates</Link>
 
         <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">{estimate.estimateNumber}</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{estimate.estimateNumber}</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {customerName(estimate.customer)} · {estimate.property.addressLine1}, {estimate.property.city}
               {estimate.validUntil && ` · Valid until ${new Date(estimate.validUntil).toLocaleDateString('en-US', { dateStyle: 'medium' })}`}
             </p>
@@ -162,7 +162,7 @@ export default function EstimateDetailPage() {
           <StatusBadge status={displayStatus} colorMap={ESTIMATE_STATUS_COLORS} />
         </div>
 
-        {actionError && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>}
+        {actionError && <div className="mt-4 rounded-lg bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300">{actionError}</div>}
 
         <div className="mt-4">
           <ActionBar primary={primary} secondary={secondary} danger={danger} />
@@ -170,22 +170,22 @@ export default function EstimateDetailPage() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
               {/* Mobile: one card per service, no sideways scrolling needed */}
               <div className="divide-y divide-slate-100 lg:hidden">
                 {estimate.lineItems.map((item) => (
                   <div key={item.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <span className="font-medium text-slate-900">{serviceLabel(item.serviceType)}</span>
-                      <span className="shrink-0 font-medium text-slate-900">{formatMoney(item.total)}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{serviceLabel(item.serviceType)}</span>
+                      <span className="shrink-0 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">{item.description}</p>
-                    <div className="mt-2 flex items-center justify-between text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.description}</p>
+                    <div className="mt-2 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
                       <span>{item.quantity} {item.unitOfMeasure.replace('_', ' ')} × {formatMoney(item.unitPrice)}</span>
                     </div>
                     <PermissionGate permissions={['estimates.profitability']}>
-                      <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
-                        <span className={Number(item.estimatedProfit) < 0 ? 'text-red-600' : 'text-emerald-600'}>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
+                        <span className={Number(item.estimatedProfit) < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}>
                           Profit: {item.estimatedProfit !== undefined ? formatMoney(item.estimatedProfit) : '—'}
                         </span>
                         <span>Margin: {item.profitMarginPercent !== undefined ? `${Number(item.profitMarginPercent).toFixed(1)}%` : '—'}</span>
@@ -197,7 +197,7 @@ export default function EstimateDetailPage() {
 
               {/* Desktop: full table */}
               <table className="hidden w-full text-sm lg:table">
-                <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3">Service</th>
                     <th className="px-4 py-3">Description</th>
@@ -213,16 +213,16 @@ export default function EstimateDetailPage() {
                 <tbody className="divide-y divide-slate-100">
                   {estimate.lineItems.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-4 py-3 text-slate-700">{serviceLabel(item.serviceType)}</td>
-                      <td className="px-4 py-3 text-slate-500">{item.description}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{item.quantity} {item.unitOfMeasure.replace('_', ' ')}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatMoney(item.unitPrice)}</td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatMoney(item.total)}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{serviceLabel(item.serviceType)}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{item.description}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{item.quantity} {item.unitOfMeasure.replace('_', ' ')}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{formatMoney(item.unitPrice)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</td>
                       <PermissionGate permissions={['estimates.profitability']}>
-                        <td className={`px-4 py-3 text-right font-medium ${Number(item.estimatedProfit) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        <td className={`px-4 py-3 text-right font-medium ${Number(item.estimatedProfit) < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                           {item.estimatedProfit !== undefined ? formatMoney(item.estimatedProfit) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-500">
+                        <td className="px-4 py-3 text-right text-slate-500 dark:text-slate-400">
                           {item.profitMarginPercent !== undefined ? `${Number(item.profitMarginPercent).toFixed(1)}%` : '—'}
                         </td>
                       </PermissionGate>
@@ -231,34 +231,34 @@ export default function EstimateDetailPage() {
                 </tbody>
               </table>
 
-              <div className="border-t border-slate-200 px-4 py-4">
+              <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-4">
                 <div className="ml-auto max-w-xs space-y-1 text-sm">
-                  <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatMoney(estimate.subtotal)}</span></div>
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400"><span>Subtotal</span><span>{formatMoney(estimate.subtotal)}</span></div>
                   {Number(estimate.discountAmount) > 0 && (
-                    <div className="flex justify-between text-slate-600">
+                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
                       <span>Discount {estimate.discountType === 'percentage' ? '(%)' : '(flat)'}</span>
                       <span>−{formatMoney(estimate.discountAmount)}</span>
                     </div>
                   )}
                   {Number(estimate.taxAmount) > 0 && (
-                    <div className="flex justify-between text-slate-600">
+                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
                       <span>Tax ({(Number(estimate.taxRate) * 100).toFixed(2)}%)</span>
                       <span>{formatMoney(estimate.taxAmount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-slate-900">
+                  <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
                     <span>Total</span><span>{formatMoney(estimate.totalAmount)}</span>
                   </div>
                 </div>
 
                 <PermissionGate permissions={['estimates.profitability']}>
                   {estimate.totalEstimatedProfit !== undefined && (
-                    <div className="ml-auto mt-3 max-w-xs rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                      <div className="flex justify-between font-medium text-slate-700">
+                    <div className="ml-auto mt-3 max-w-xs rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm">
+                      <div className="flex justify-between font-medium text-slate-700 dark:text-slate-300">
                         <span>Est. Profit</span>
-                        <span className={estimate.totalEstimatedProfit < 0 ? 'text-red-600' : 'text-emerald-600'}>{formatMoney(estimate.totalEstimatedProfit)}</span>
+                        <span className={estimate.totalEstimatedProfit < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}>{formatMoney(estimate.totalEstimatedProfit)}</span>
                       </div>
-                      <div className="flex justify-between text-slate-500">
+                      <div className="flex justify-between text-slate-500 dark:text-slate-400">
                         <span>Margin</span><span>{estimate.overallProfitMarginPercent?.toFixed(1)}%</span>
                       </div>
                     </div>
@@ -269,15 +269,15 @@ export default function EstimateDetailPage() {
 
             {estimate.notes && (
               <div>
-                <h2 className="text-sm font-medium text-slate-700">Notes</h2>
-                <p className="mt-1 text-sm text-slate-600">{estimate.notes}</p>
+                <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">Notes</h2>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{estimate.notes}</p>
               </div>
             )}
 
             {estimate.declineReason && (
-              <div className="rounded-lg bg-red-50 px-4 py-3">
+              <div className="rounded-lg bg-red-50 dark:bg-red-950 px-4 py-3">
                 <p className="text-sm font-medium text-red-800">Decline reason: {estimate.declineReason}</p>
-                {estimate.declineComments && <p className="mt-1 text-sm text-red-700">{estimate.declineComments}</p>}
+                {estimate.declineComments && <p className="mt-1 text-sm text-red-700 dark:text-red-300">{estimate.declineComments}</p>}
               </div>
             )}
 
@@ -291,8 +291,8 @@ export default function EstimateDetailPage() {
             )}
 
             {estimate.internalNotes && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Internal Notes — staff only, never shown to the customer</p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Internal Notes — staff only, never shown to the customer</p>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-amber-900">{estimate.internalNotes}</p>
               </div>
             )}
@@ -311,15 +311,15 @@ export default function EstimateDetailPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h2 className="text-sm font-semibold text-slate-700">Timeline</h2>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Timeline</h2>
               <div className="mt-3">
                 <StatusTimeline entries={statusHistory ?? []} />
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h2 className="text-sm font-semibold text-slate-700">Customer Activity</h2>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Customer Activity</h2>
               <div className="mt-3">
                 <CustomerActivity statusHistory={statusHistory ?? []} emailHistory={emailHistory ?? []} />
               </div>
@@ -347,11 +347,11 @@ export default function EstimateDetailPage() {
             onConfirm={async () => { await estimatesApi.declineManually(estimate.id, declineReason || undefined, declineComments || undefined); await mutate(); }}
           >
             <div className="space-y-2">
-              <select value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm">
+              <select value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
                 <option value="">Select a reason…</option>
                 {DECLINE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-              <textarea value={declineComments} onChange={(e) => setDeclineComments(e.target.value)} placeholder="Optional comments…" rows={2} className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+              <textarea value={declineComments} onChange={(e) => setDeclineComments(e.target.value)} placeholder="Optional comments…" rows={2} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
             </div>
           </ConfirmDialog>
         )}

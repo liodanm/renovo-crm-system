@@ -180,11 +180,11 @@ export function CustomerForm({
       </div>
 
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-slate-600">How did they find you?</span>
+        <span className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">How did they find you?</span>
         <select
           value={form.source}
           onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-          className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm"
+          className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
         >
           <option value="">Not specified</option>
           {enabledSources.map((o) => (
@@ -208,11 +208,11 @@ export function CustomerForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Secondary phone" value={form.secondaryPhone} onChange={(v) => setForm((f) => ({ ...f, secondaryPhone: v }))} />
           <div>
-            <span className="mb-1 block text-xs font-medium text-slate-600">Lead status</span>
+            <span className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Lead status</span>
             <select
               value={form.leadStatus}
               onChange={(e) => setForm((f) => ({ ...f, leadStatus: e.target.value }))}
-              className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm"
+              className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
             >
               <option value="lead">Lead</option>
               <option value="active">Active</option>
@@ -227,11 +227,11 @@ export function CustomerForm({
       {children}
 
       {duplicates.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950 p-3">
           <div className="text-xs font-semibold text-amber-800">Possible duplicate{duplicates.length > 1 ? 's' : ''} found</div>
           <ul className="mt-1.5 space-y-1">
             {duplicates.slice(0, 3).map((d) => (
-              <li key={d.id} className="text-xs text-amber-700">
+              <li key={d.id} className="text-xs text-amber-700 dark:text-amber-300">
                 <span className="font-medium">{d.displayName}</span> — {MATCH_LABELS[d.matchReason]}
                 {d.email ? ` (${d.email})` : d.phone ? ` (${d.phone})` : ''}
               </li>
@@ -244,11 +244,11 @@ export function CustomerForm({
         </div>
       )}
 
-      {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+      {error && <div className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-600 dark:text-red-400">{error}</div>}
 
       {!hideActions && (
         <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={onCancel} className="rounded-lg px-4 py-3 text-base font-medium text-slate-600 hover:bg-slate-100 lg:py-2 lg:text-sm">
+          <button type="button" onClick={onCancel} className="rounded-lg px-4 py-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 lg:py-2 lg:text-sm">
             Cancel
           </button>
           <button
@@ -278,12 +278,12 @@ function Field({
 }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm"
+        className="w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20 lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
       />
     </label>
   );

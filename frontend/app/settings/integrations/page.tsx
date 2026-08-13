@@ -101,10 +101,10 @@ export default function IntegrationsSettingsPage() {
       {health && <SystemHealthGrid health={health} />}
 
       {!cards ? (
-        <p className="text-sm text-slate-500">Loading integrations…</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading integrations…</p>
       ) : (
         <>
-          <h2 className="pt-2 text-sm font-semibold text-slate-700">Connected Providers</h2>
+          <h2 className="pt-2 text-sm font-semibold text-slate-700 dark:text-slate-300">Connected Providers</h2>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {stripe && (
               <IntegrationProviderCard
@@ -132,7 +132,7 @@ export default function IntegrationsSettingsPage() {
                 testLabel="Send Test Email"
                 testDisabled={!testEmail}
                 testInput={
-                  <input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="you@example.com" className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs" />
+                  <input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="you@example.com" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs" />
                 }
               />
             )}
@@ -152,7 +152,7 @@ export default function IntegrationsSettingsPage() {
                 testLabel="Send Test SMS"
                 testDisabled={!testPhone}
                 testInput={
-                  <input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="+1 555 123 4567" className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs" />
+                  <input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="+1 555 123 4567" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs" />
                 }
               />
             )}
@@ -189,31 +189,31 @@ export default function IntegrationsSettingsPage() {
         </>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-slate-700">Business Links</h2>
-        <p className="mt-1 text-xs text-slate-500">Public links used on customer-facing pages and automation messages — not credentials, safe to store.</p>
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Business Links</h2>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Public links used on customer-facing pages and automation messages — not credentials, safe to store.</p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="text-xs font-medium text-slate-500">Google Review URL</label>
-            <input value={form.googleReviewUrl} onChange={(e) => updateField('googleReviewUrl', e.target.value)} placeholder="https://g.page/r/..." className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Google Review URL</label>
+            <input value={form.googleReviewUrl} onChange={(e) => updateField('googleReviewUrl', e.target.value)} placeholder="https://g.page/r/..." className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500">Website</label>
-            <input value={form.website} onChange={(e) => updateField('website', e.target.value)} placeholder="https://yourcompany.com" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Website</label>
+            <input value={form.website} onChange={(e) => updateField('website', e.target.value)} placeholder="https://yourcompany.com" className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500">Facebook</label>
-            <input value={form.facebook} onChange={(e) => updateField('facebook', e.target.value)} placeholder="https://facebook.com/yourcompany" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Facebook</label>
+            <input value={form.facebook} onChange={(e) => updateField('facebook', e.target.value)} placeholder="https://facebook.com/yourcompany" className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500">Instagram</label>
-            <input value={form.instagram} onChange={(e) => updateField('instagram', e.target.value)} placeholder="https://instagram.com/yourcompany" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Instagram</label>
+            <input value={form.instagram} onChange={(e) => updateField('instagram', e.target.value)} placeholder="https://instagram.com/yourcompany" className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm" />
           </div>
         </div>
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-slate-700">Coming Soon</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Coming Soon</h2>
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {COMING_SOON.map((c) => (
             <ComingSoonIntegrationCard key={c.key} name={c.name} description={c.description} logoInitial={c.logoInitial} />

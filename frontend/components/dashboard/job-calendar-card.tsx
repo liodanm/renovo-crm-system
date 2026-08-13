@@ -43,18 +43,18 @@ export function JobCalendarCard() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setWeekStart(addDays(weekStart, -7))}
-            className="rounded-md px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"
+            className="rounded-md px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800"
             aria-label="Previous week"
           >
             ←
           </button>
-          <span className="px-1 text-xs font-medium text-slate-600">
+          <span className="px-1 text-xs font-medium text-slate-600 dark:text-slate-400">
             {weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
             {addDays(weekStart, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
           <button
             onClick={() => setWeekStart(addDays(weekStart, 7))}
-            className="rounded-md px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"
+            className="rounded-md px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800"
             aria-label="Next week"
           >
             →
@@ -80,7 +80,7 @@ export function JobCalendarCard() {
             const isToday = date.getTime() === today.getTime();
             return (
               <div key={date.toISOString()} className="min-h-[140px] p-2">
-                <div className={`mb-1.5 text-center text-xs font-medium ${isToday ? 'text-[var(--color-brand)]' : 'text-slate-400'}`}>
+                <div className={`mb-1.5 text-center text-xs font-medium ${isToday ? 'text-[var(--color-brand)]' : 'text-slate-400 dark:text-slate-500'}`}>
                   <div>{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
                   <div
                     className={`mx-auto mt-0.5 flex h-5 w-5 items-center justify-center rounded-full ${
@@ -94,7 +94,7 @@ export function JobCalendarCard() {
                   {jobs.map((job) => (
                     <div
                       key={job.id}
-                      className="truncate rounded bg-slate-50 px-1.5 py-1 text-[11px] text-slate-700"
+                      className="truncate rounded bg-slate-50 dark:bg-slate-800 px-1.5 py-1 text-[11px] text-slate-700 dark:text-slate-300"
                       title={`${job.title} · ${job.customerName}`}
                     >
                       <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[job.status] ?? 'bg-slate-400'}`} />

@@ -19,60 +19,60 @@ export default function ReceiptPage() {
     <AppShell>
       <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:py-8 print:px-0 print:py-0">
         <div className="flex items-center justify-between print:hidden">
-          <Link href="/invoices" className="text-sm text-slate-500 hover:text-slate-800">← Back</Link>
+          <Link href="/invoices" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800">← Back</Link>
           {receipt && (
-            <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
               <Printer className="h-4 w-4" /> Print
             </button>
           )}
         </div>
 
-        {isLoading && <p className="mt-6 text-sm text-slate-500">Loading…</p>}
-        {error && <p className="mt-6 text-sm text-red-600">Couldn't load this receipt.</p>}
+        {isLoading && <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">Loading…</p>}
+        {error && <p className="mt-6 text-sm text-red-600 dark:text-red-400">Couldn't load this receipt.</p>}
 
         {receipt && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-8 print:border-0 print:p-0">
+          <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 print:border-0 print:p-0">
             {/* Branding rendered dynamically from Settings at view time — never a stored copy on the payment itself */}
-            <div className="flex items-start justify-between border-b border-slate-200 pb-6">
+            <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-6">
               <div>
                 {receipt.branding.logoUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={receipt.branding.logoUrl} alt={receipt.companyName} className="h-10" />
                 )}
-                <h1 className="mt-2 text-lg font-semibold text-slate-900">{receipt.companyDba ?? receipt.companyName}</h1>
-                <p className="text-xs text-slate-500">{receipt.companyAddressLine1}, {receipt.companyCity}, {receipt.companyState}</p>
-                <p className="text-xs text-slate-500">{receipt.companyPhone} · {receipt.companyEmail}</p>
+                <h1 className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{receipt.companyDba ?? receipt.companyName}</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{receipt.companyAddressLine1}, {receipt.companyCity}, {receipt.companyState}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{receipt.companyPhone} · {receipt.companyEmail}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-semibold text-emerald-700">Payment Receipt</p>
-                <p className="text-xs text-slate-400">{receipt.receiptNumber}</p>
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Payment Receipt</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{receipt.receiptNumber}</p>
               </div>
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-xs font-medium text-slate-500">Received From</p>
-                <p className="mt-0.5 text-slate-900">{invoiceCustomerNameFromReceipt(receipt)}</p>
-                {receipt.propertyAddressLine1 && <p className="text-xs text-slate-500">{receipt.propertyAddressLine1}, {receipt.propertyCity}</p>}
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Received From</p>
+                <p className="mt-0.5 text-slate-900 dark:text-slate-100">{invoiceCustomerNameFromReceipt(receipt)}</p>
+                {receipt.propertyAddressLine1 && <p className="text-xs text-slate-500 dark:text-slate-400">{receipt.propertyAddressLine1}, {receipt.propertyCity}</p>}
               </div>
               <div className="text-right">
-                <p className="text-xs font-medium text-slate-500">For Invoice</p>
-                <p className={`mt-0.5 ${receipt.invoiceNumber ? 'text-slate-900' : 'italic text-slate-400'}`}>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">For Invoice</p>
+                <p className={`mt-0.5 ${receipt.invoiceNumber ? 'text-slate-900 dark:text-slate-100' : 'italic text-slate-400 dark:text-slate-500'}`}>
                   {receipt.invoiceNumber ?? 'No invoice'}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-500">Payment Method</p>
-                <p className="mt-0.5 text-slate-900">{PAYMENT_METHOD_LABELS[receipt.method] ?? receipt.method}</p>
-                {receipt.referenceNumber && <p className="text-xs text-slate-500">Ref: {receipt.referenceNumber}</p>}
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Payment Method</p>
+                <p className="mt-0.5 text-slate-900 dark:text-slate-100">{PAYMENT_METHOD_LABELS[receipt.method] ?? receipt.method}</p>
+                {receipt.referenceNumber && <p className="text-xs text-slate-500 dark:text-slate-400">Ref: {receipt.referenceNumber}</p>}
               </div>
               <div className="text-right">
-                <p className="text-xs font-medium text-slate-500">Date</p>
-                <p className="mt-0.5 text-slate-900">{receipt.paymentDate ? new Date(receipt.paymentDate).toLocaleDateString() : '—'}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Date</p>
+                <p className="mt-0.5 text-slate-900 dark:text-slate-100">{receipt.paymentDate ? new Date(receipt.paymentDate).toLocaleDateString() : '—'}</p>
               </div>
             </div>
 
-            <div className="mt-6 rounded-lg bg-emerald-50 p-4 text-center">
+            <div className="mt-6 rounded-lg bg-emerald-50 dark:bg-emerald-950 p-4 text-center">
               {Number(receipt.tipAmount) > 0 || Number(receipt.processingFeeAmount) > 0 ? (
                 <>
                   <div className="flex justify-between text-sm text-emerald-800">
@@ -92,7 +92,7 @@ export default function ReceiptPage() {
                     </div>
                   )}
                   <div className="mt-2 border-t border-emerald-200 pt-2">
-                    <p className="text-xs font-medium text-emerald-700">Total Received</p>
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Total Received</p>
                     <p className="mt-1 text-2xl font-bold text-emerald-800">
                       {formatMoney((Number(receipt.amount) + Number(receipt.tipAmount) + Number(receipt.processingFeeAmount)).toFixed(2))}
                     </p>
@@ -100,12 +100,12 @@ export default function ReceiptPage() {
                 </>
               ) : (
                 <>
-                  <p className="text-xs font-medium text-emerald-700">Amount Paid</p>
+                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Amount Paid</p>
                   <p className="mt-1 text-2xl font-bold text-emerald-800">{formatMoney(receipt.amount)}</p>
                 </>
               )}
               {receipt.invoiceBalanceDue && Number(receipt.invoiceBalanceDue) > 0 && (
-                <p className="mt-1 text-xs text-emerald-700">Remaining balance on invoice: {formatMoney(receipt.invoiceBalanceDue)}</p>
+                <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">Remaining balance on invoice: {formatMoney(receipt.invoiceBalanceDue)}</p>
               )}
             </div>
 
@@ -117,7 +117,7 @@ export default function ReceiptPage() {
               </div>
             )}
 
-            {receipt.branding.footerMessage && <p className="mt-6 text-center text-xs text-slate-400">{receipt.branding.footerMessage}</p>}
+            {receipt.branding.footerMessage && <p className="mt-6 text-center text-xs text-slate-400 dark:text-slate-500">{receipt.branding.footerMessage}</p>}
           </div>
         )}
       </main>

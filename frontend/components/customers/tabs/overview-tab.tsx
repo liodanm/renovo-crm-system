@@ -50,7 +50,7 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
       {/* Money at a glance — the whole reason this card exists is so a call
           coming in doesn't require a separate trip to Invoices/Estimates
           just to answer "does this person owe me anything." */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm lg:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-slate-800">Money at a Glance</h3>
           <Link
@@ -62,21 +62,21 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3">
           <div>
-            <p className="text-xs text-slate-400">Balance Due</p>
-            <p className={`mt-0.5 text-lg font-semibold ${hasBalance ? 'text-red-600' : 'text-slate-900'}`}>{formatMoney(customer.balanceDue)}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Balance Due</p>
+            <p className={`mt-0.5 text-lg font-semibold ${hasBalance ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'}`}>{formatMoney(customer.balanceDue)}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">Open Estimates</p>
-            <p className="mt-0.5 text-lg font-semibold text-slate-900">{customer.openEstimatesCount}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Open Estimates</p>
+            <p className="mt-0.5 text-lg font-semibold text-slate-900 dark:text-slate-100">{customer.openEstimatesCount}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">Open Invoices</p>
-            <p className="mt-0.5 text-lg font-semibold text-slate-900">{customer.openInvoicesCount}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Open Invoices</p>
+            <p className="mt-0.5 text-lg font-semibold text-slate-900 dark:text-slate-100">{customer.openInvoicesCount}</p>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-800">Contact Information</h3>
         <dl className="mt-3 space-y-2 text-sm">
           <PhoneRow label="Phone" value={customer.phone} />
@@ -87,13 +87,13 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
         </dl>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-800">Tags</h3>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {tags.map((tag) => (
-            <span key={tag} className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+            <span key={tag} className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-700 dark:text-slate-300">
               {tag}
-              <button onClick={() => removeTag(tag)} disabled={savingTags} className="text-slate-400 hover:text-slate-700">
+              <button onClick={() => removeTag(tag)} disabled={savingTags} className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300">
                 ×
               </button>
             </span>
@@ -114,12 +114,12 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
                 setIsEditingTags(false);
               }}
               placeholder="Add tag…"
-              className="w-24 rounded-full border border-slate-300 px-2.5 py-1.5 text-base focus:border-[var(--color-brand)] focus:outline-none lg:py-1 lg:text-xs"
+              className="w-24 rounded-full border border-slate-300 dark:border-slate-700 px-2.5 py-1.5 text-base focus:border-[var(--color-brand)] focus:outline-none lg:py-1 lg:text-xs"
             />
           ) : (
             <button
               onClick={() => setIsEditingTags(true)}
-              className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs text-slate-500 hover:border-slate-400"
+              className="rounded-full border border-dashed border-slate-300 dark:border-slate-700 px-2.5 py-1 text-xs text-slate-500 dark:text-slate-400 hover:border-slate-400"
             >
               + Add tag
             </button>
@@ -128,13 +128,13 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
       </div>
 
       {customer.notesText && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm lg:col-span-2">
           <h3 className="text-sm font-semibold text-slate-800">General Notes</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{customer.notesText}</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600 dark:text-slate-400">{customer.notesText}</p>
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm lg:col-span-2">
         <h3 className="text-sm font-semibold text-slate-800">Custom Fields</h3>
         {isLoading && (
           <div className="mt-3">
@@ -142,7 +142,7 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
           </div>
         )}
         {!isLoading && customFields && customFields.length === 0 && (
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
             No custom fields defined yet. Custom fields are configured in Settings and let you track things specific to your
             business, like gate codes or preferred contact times.
           </p>
@@ -151,8 +151,8 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
           <dl className="mt-3 grid grid-cols-2 gap-3">
             {customFields.map((f) => (
               <div key={f.fieldKey}>
-                <dt className="text-xs text-slate-400">{f.label}</dt>
-                <dd className="text-sm text-slate-700">{String(f.value ?? '—')}</dd>
+                <dt className="text-xs text-slate-400 dark:text-slate-500">{f.label}</dt>
+                <dd className="text-sm text-slate-700 dark:text-slate-300">{String(f.value ?? '—')}</dd>
               </div>
             ))}
           </dl>
@@ -165,8 +165,8 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
 function Row({ label, value, capitalize }: { label: string; value: string | null; capitalize?: boolean }) {
   return (
     <div className="flex justify-between">
-      <dt className="text-slate-400">{label}</dt>
-      <dd className={`text-slate-700 ${capitalize ? 'capitalize' : ''}`}>{value || '—'}</dd>
+      <dt className="text-slate-400 dark:text-slate-500">{label}</dt>
+      <dd className={`text-slate-700 dark:text-slate-300 ${capitalize ? 'capitalize' : ''}`}>{value || '—'}</dd>
     </div>
   );
 }
@@ -174,14 +174,14 @@ function Row({ label, value, capitalize }: { label: string; value: string | null
 function PhoneRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex justify-between">
-      <dt className="text-slate-400">{label}</dt>
+      <dt className="text-slate-400 dark:text-slate-500">{label}</dt>
       <dd>
         {value ? (
           <a href={`tel:${value}`} className="font-medium text-[var(--color-brand)]">
             {value}
           </a>
         ) : (
-          <span className="text-slate-700">—</span>
+          <span className="text-slate-700 dark:text-slate-300">—</span>
         )}
       </dd>
     </div>

@@ -50,16 +50,16 @@ export function DocumentsTab({ customerId }: { customerId: string }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-800">Documents</h3>
-        <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">
+        <label className="cursor-pointer rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800">
           {isUploading ? 'Uploading…' : '+ Upload Document'}
           <input ref={fileInputRef} type="file" onChange={handleFileSelected} disabled={isUploading} className="hidden" />
         </label>
       </div>
 
-      {uploadError && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{uploadError}</div>}
+      {uploadError && <div className="mb-3 rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-600 dark:text-red-400">{uploadError}</div>}
 
       {isLoading && <CardSkeleton lines={3} />}
       {error && <CardError />}
@@ -69,12 +69,12 @@ export function DocumentsTab({ customerId }: { customerId: string }) {
         <ul className="divide-y divide-slate-100">
           {documents.map((d) => (
             <li key={d.id} className="flex items-center justify-between py-2.5">
-              <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-700 hover:text-[var(--color-brand)]">
+              <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 hover:text-[var(--color-brand)]">
                 <FileIcon />
                 <span className="truncate">{d.fileName}</span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] capitalize text-slate-500">{d.documentType.replace('_', ' ')}</span>
+                <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] capitalize text-slate-500 dark:text-slate-400">{d.documentType.replace('_', ' ')}</span>
               </a>
-              <button onClick={() => handleDelete(d.id)} className="text-xs text-slate-400 hover:text-red-600">
+              <button onClick={() => handleDelete(d.id)} className="text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 dark:text-red-400">
                 Delete
               </button>
             </li>
@@ -87,7 +87,7 @@ export function DocumentsTab({ customerId }: { customerId: string }) {
 
 function FileIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden className="shrink-0 text-slate-400">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden className="shrink-0 text-slate-400 dark:text-slate-500">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <path d="M14 2v6h6" />
     </svg>

@@ -52,27 +52,27 @@ export function WeatherCard() {
       {data && (
         <div>
           <div className="flex items-center gap-4">
-            <div className="text-3xl font-semibold text-slate-900">{data.current.temperatureF}°</div>
-            <div className="text-sm text-slate-600">
+            <div className="text-3xl font-semibold text-slate-900 dark:text-slate-100">{data.current.temperatureF}°</div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">
               <div>{data.current.condition}</div>
-              <div className="text-xs text-slate-400">Wind {data.current.windSpeedMph} mph</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500">Wind {data.current.windSpeedMph} mph</div>
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-5 gap-1 border-t border-slate-100 pt-3">
+          <div className="mt-3 grid grid-cols-5 gap-1 border-t border-slate-100 dark:border-slate-800 pt-3">
             {data.daily.map((d) => (
               <div key={d.date} className="text-center">
-                <div className="text-[11px] text-slate-400">
+                <div className="text-[11px] text-slate-400 dark:text-slate-500">
                   {new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
-                <div className="mt-1 text-xs font-medium text-slate-700">{d.highF}°</div>
-                <div className="text-[11px] text-slate-400">{d.lowF}°</div>
+                <div className="mt-1 text-xs font-medium text-slate-700 dark:text-slate-300">{d.highF}°</div>
+                <div className="text-[11px] text-slate-400 dark:text-slate-500">{d.lowF}°</div>
               </div>
             ))}
           </div>
 
           {data.workAdvisory.isRisky && (
-            <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <div className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-950 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
               ⚠ {data.workAdvisory.reason}
             </div>
           )}

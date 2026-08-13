@@ -6,7 +6,7 @@ import { settingsApi } from '../../../lib/api/settings';
 import { SettingsSectionShell } from '../../../components/settings/SettingsSectionShell';
 import { ApiError } from '../../../lib/api/api-client';
 
-const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm';
+const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100';
 
 export default function BrandingSettingsPage() {
   const { data: branding, mutate } = useSWR('settings-branding', () => settingsApi.getBranding());
@@ -111,62 +111,62 @@ export default function BrandingSettingsPage() {
       onCancel={handleCancel}
     >
       {!branding ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
           <div>
-            <label className="text-xs font-medium text-slate-500">Logo</label>
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Logo</label>
             <div className="mt-1 flex items-center gap-3">
               {logoUrl ? (
-                <img src={logoUrl} alt="Company logo" className="h-14 w-auto rounded border border-slate-200 bg-white object-contain p-1" />
+                <img src={logoUrl} alt="Company logo" className="h-14 w-auto rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 object-contain p-1" />
               ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded border border-dashed border-slate-300 text-[10px] text-slate-400">No logo</div>
+                <div className="flex h-14 w-14 items-center justify-center rounded border border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-400 dark:text-slate-500">No logo</div>
               )}
               <div className="flex flex-col gap-1">
                 <button
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
                   disabled={isUploadingLogo}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50"
                 >
                   {isUploadingLogo ? 'Uploading…' : logoUrl ? 'Replace logo' : 'Upload logo'}
                 </button>
                 {logoUrl && (
-                  <button type="button" onClick={handleRemoveLogo} className="text-xs text-red-600 hover:underline">
+                  <button type="button" onClick={handleRemoveLogo} className="text-xs text-red-600 dark:text-red-400 hover:underline">
                     Remove
                   </button>
                 )}
               </div>
               <input ref={logoInputRef} type="file" accept="image/png,image/jpeg" onChange={handleLogoSelected} className="hidden" />
             </div>
-            {logoError && <p className="mt-1 text-xs text-red-600">{logoError}</p>}
+            {logoError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{logoError}</p>}
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs font-medium text-slate-500">Primary Color</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Primary Color</label>
               <div className="mt-1 flex items-center gap-2">
-                <input type="color" value={primaryColor} onChange={(e) => track(setPrimaryColor)(e.target.value)} className="h-9 w-12 rounded border border-slate-300" />
+                <input type="color" value={primaryColor} onChange={(e) => track(setPrimaryColor)(e.target.value)} className="h-9 w-12 rounded border border-slate-300 dark:border-slate-700" />
                 <input value={primaryColor} onChange={(e) => track(setPrimaryColor)(e.target.value)} className={inputClass} />
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-500">Secondary Color</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Secondary Color</label>
               <div className="mt-1 flex items-center gap-2">
-                <input type="color" value={secondaryColor} onChange={(e) => track(setSecondaryColor)(e.target.value)} className="h-9 w-12 rounded border border-slate-300" />
+                <input type="color" value={secondaryColor} onChange={(e) => track(setSecondaryColor)(e.target.value)} className="h-9 w-12 rounded border border-slate-300 dark:border-slate-700" />
                 <input value={secondaryColor} onChange={(e) => track(setSecondaryColor)(e.target.value)} className={inputClass} />
               </div>
             </div>
           </div>
           <div className="mt-3">
-            <label className="text-xs font-medium text-slate-500">Estimate Header</label>
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Estimate Header</label>
             <input value={estimateHeader} onChange={(e) => track(setEstimateHeader)(e.target.value)} placeholder="e.g. Thank you for the opportunity to quote your project" className={`${inputClass} mt-1`} />
           </div>
           <div className="mt-3">
-            <label className="text-xs font-medium text-slate-500">Invoice Header</label>
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Invoice Header</label>
             <input value={invoiceHeader} onChange={(e) => track(setInvoiceHeader)(e.target.value)} className={`${inputClass} mt-1`} />
           </div>
           <div className="mt-3">
-            <label className="text-xs font-medium text-slate-500">Footer Message</label>
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Footer Message</label>
             <textarea value={footerMessage} onChange={(e) => track(setFooterMessage)(e.target.value)} rows={2} className={`${inputClass} mt-1`} />
           </div>
         </div>

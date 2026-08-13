@@ -115,8 +115,8 @@ export default function CustomersPage() {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Customers</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Customers</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {data ? `${data.pagination.total.toLocaleString()} total` : 'Loading…'}
             </p>
           </div>
@@ -124,21 +124,21 @@ export default function CustomersPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/customers/duplicates"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800"
             >
               Review Duplicates
             </Link>
             <button
               onClick={handleExport}
               disabled={isExporting}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50"
             >
               {isExporting ? 'Exporting…' : 'Export CSV'}
             </button>
             <PermissionGate permissions={['customers.write']}>
               <button
                 onClick={() => setShowImport(true)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800"
               >
                 Import CSV
               </button>
@@ -148,7 +148,7 @@ export default function CustomersPage() {
                   list does. */}
               <button
                 onClick={() => setMobileSelectionMode((v) => !v)}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-slate-600 hover:bg-slate-100 lg:hidden lg:py-2 lg:text-sm"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 lg:hidden lg:py-2 lg:text-sm"
               >
                 {mobileSelectionMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
                 {mobileSelectionMode ? 'Cancel' : 'Select'}
@@ -163,11 +163,11 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
           <CustomerFilters filters={filters} onChange={setFilters} />
         </div>
 
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           {isLoading && (
             <div className="p-4">
               <CardSkeleton lines={6} />
@@ -189,22 +189,22 @@ export default function CustomersPage() {
           )}
 
           {data && data.pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
-              <span className="text-xs text-slate-500">
+            <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-4 py-3">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 Page {data.pagination.page} of {data.pagination.totalPages}
               </span>
               <div className="flex gap-2">
                 <button
                   disabled={data.pagination.page <= 1}
                   onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) - 1 }))}
-                  className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 disabled:opacity-40"
+                  className="rounded-md border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 disabled:opacity-40"
                 >
                   Previous
                 </button>
                 <button
                   disabled={data.pagination.page >= data.pagination.totalPages}
                   onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) + 1 }))}
-                  className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 disabled:opacity-40"
+                  className="rounded-md border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -216,8 +216,8 @@ export default function CustomersPage() {
 
       {selectedIds.size > 0 && (
         <div className="sticky bottom-0 z-10 mx-auto max-w-7xl px-4 pb-4 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-            <span className="px-2 text-sm font-medium text-slate-700">{selectedIds.size} selected (this page)</span>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-lg">
+            <span className="px-2 text-sm font-medium text-slate-700 dark:text-slate-300">{selectedIds.size} selected (this page)</span>
             <ActionBar primary={actionBarPrimary} secondary={actionBarSecondary} danger={actionBarDanger} />
           </div>
         </div>
@@ -256,7 +256,7 @@ export default function CustomersPage() {
       )}
 
       {bulkDeleteError && (
-        <div className="fixed bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg">
+        <div className="fixed bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300 shadow-lg">
           {bulkDeleteError}
           <button onClick={() => setBulkDeleteError(null)} className="ml-3 font-medium underline">Dismiss</button>
         </div>

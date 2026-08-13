@@ -24,11 +24,11 @@ type Tab = (typeof TABS)[number];
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 const LEAD_STATUS_STYLES: Record<string, string> = {
-  lead: 'bg-amber-100 text-amber-700',
-  active: 'bg-emerald-100 text-emerald-700',
-  inactive: 'bg-slate-100 text-slate-600',
-  archived: 'bg-violet-100 text-violet-700',
-  churned: 'bg-red-100 text-red-700',
+  lead: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  inactive: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+  archived: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  churned: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
 };
 
 export default function CustomerProfilePage() {
@@ -48,7 +48,7 @@ export default function CustomerProfilePage() {
   return (
     <AppShell>
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
-        <Link href="/customers" className="text-sm font-medium text-slate-500 hover:text-slate-800">
+        <Link href="/customers" className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800">
           ← Customers
         </Link>
 
@@ -57,26 +57,26 @@ export default function CustomerProfilePage() {
 
         {customer && (
           <>
-            <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
               <div>
-                <h1 className="text-xl font-semibold text-slate-900">
+                <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                   {customer.businessName || `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || 'Unnamed customer'}
                 </h1>
                 <div className="mt-1.5 flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-slate-400">Relationship:</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[customer.leadStatus] ?? 'bg-slate-100'}`}>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">Relationship:</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[customer.leadStatus] ?? 'bg-slate-100 dark:bg-slate-800'}`}>
                       {customer.leadStatus}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-slate-400">Journey:</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    <span className="text-xs text-slate-400 dark:text-slate-500">Journey:</span>
+                    <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">
                       {JOURNEY_STAGE_LABELS[customer.journeyStage]}
                     </span>
                   </div>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
                   {customer.phone && <span>{customer.phone}</span>}
                   {customer.email && <span>{customer.email}</span>}
                   <span className="capitalize">{customer.customerType}</span>
@@ -94,13 +94,13 @@ export default function CustomerProfilePage() {
                   <button
                     disabled
                     title="Merge already works on the backend — this button is a placeholder until the merge picker UI is built"
-                    className="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-400"
+                    className="cursor-not-allowed rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs font-medium text-slate-400 dark:text-slate-500"
                   >
                     Merge
                   </button>
                   <button
                     onClick={() => setShowDeleteModal(true)}
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-950"
                   >
                     Delete Customer
                   </button>
@@ -114,19 +114,19 @@ export default function CustomerProfilePage() {
             </div>
 
             {serviceHistory && (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                <h2 className="text-sm font-semibold text-slate-700">Customer Intelligence</h2>
+              <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Customer Intelligence</h2>
                 <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
                   <div>
-                    <dt className="text-xs text-slate-400">Customer Since</dt>
+                    <dt className="text-xs text-slate-400 dark:text-slate-500">Customer Since</dt>
                     <dd className="text-slate-800">{new Date(customer.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-slate-400">Journey Stage</dt>
+                    <dt className="text-xs text-slate-400 dark:text-slate-500">Journey Stage</dt>
                     <dd className="text-slate-800">{JOURNEY_STAGE_LABELS[customer.journeyStage]}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-slate-400">Last Service</dt>
+                    <dt className="text-xs text-slate-400 dark:text-slate-500">Last Service</dt>
                     <dd className="text-slate-800">
                       {serviceHistory.intelligence.lastServiceDate
                         ? new Date(serviceHistory.intelligence.lastServiceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -134,55 +134,55 @@ export default function CustomerProfilePage() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-slate-400">Lifetime Value</dt>
+                    <dt className="text-xs text-slate-400 dark:text-slate-500">Lifetime Value</dt>
                     <dd className="text-slate-800">{currency.format(customer.lifetimeValue)}</dd>
                   </div>
                   {customer.balanceDue && Number(customer.balanceDue) > 0 && (
                     <div>
-                      <dt className="text-xs text-slate-400">Balance Due</dt>
-                      <dd className="font-medium text-red-600">{currency.format(Number(customer.balanceDue))}</dd>
+                      <dt className="text-xs text-slate-400 dark:text-slate-500">Balance Due</dt>
+                      <dd className="font-medium text-red-600 dark:text-red-400">{currency.format(Number(customer.balanceDue))}</dd>
                     </div>
                   )}
                   {customer.openEstimatesCount > 0 && (
                     <div>
-                      <dt className="text-xs text-slate-400">Open Estimates</dt>
+                      <dt className="text-xs text-slate-400 dark:text-slate-500">Open Estimates</dt>
                       <dd className="text-slate-800">{customer.openEstimatesCount}</dd>
                     </div>
                   )}
                   {customer.openInvoicesCount > 0 && (
                     <div>
-                      <dt className="text-xs text-slate-400">Open Invoices</dt>
+                      <dt className="text-xs text-slate-400 dark:text-slate-500">Open Invoices</dt>
                       <dd className="text-slate-800">{customer.openInvoicesCount}</dd>
                     </div>
                   )}
                   <div>
-                    <dt className="text-xs text-slate-400">Jobs Completed</dt>
+                    <dt className="text-xs text-slate-400 dark:text-slate-500">Jobs Completed</dt>
                     <dd className="text-slate-800">{serviceHistory.intelligence.jobsCompleted}</dd>
                   </div>
                   {serviceHistory.intelligence.jobsCompleted > 0 && (
                     <div>
-                      <dt className="text-xs text-slate-400">Average Job Value</dt>
+                      <dt className="text-xs text-slate-400 dark:text-slate-500">Average Job Value</dt>
                       <dd className="text-slate-800">{currency.format(serviceHistory.intelligence.averageJobValue)}</dd>
                     </div>
                   )}
                   {serviceHistory.intelligence.recommendedUpsell && (
                     <div>
-                      <dt className="text-xs text-slate-400">Recommended Upsell</dt>
+                      <dt className="text-xs text-slate-400 dark:text-slate-500">Recommended Upsell</dt>
                       <dd className="text-slate-800">{serviceHistory.intelligence.recommendedUpsell.name}</dd>
                     </div>
                   )}
                   {serviceHistory.intelligence.overdueForCleaning && (
                     <div>
-                      <dt className="text-xs text-slate-400">Status</dt>
-                      <dd className="font-medium text-amber-600">Overdue for cleaning</dd>
+                      <dt className="text-xs text-slate-400 dark:text-slate-500">Status</dt>
+                      <dd className="font-medium text-amber-600 dark:text-amber-400">Overdue for cleaning</dd>
                     </div>
                   )}
                   <div>
-                    <dt className="text-xs text-slate-400">Review Status</dt>
+                    <dt className="text-xs text-slate-400 dark:text-slate-500">Review Status</dt>
                     <dd className="text-slate-800">
-                      {serviceHistory.intelligence.reviewStatus === 'received' && <span className="font-medium text-emerald-600">⭐ Review Received</span>}
+                      {serviceHistory.intelligence.reviewStatus === 'received' && <span className="font-medium text-emerald-600 dark:text-emerald-400">⭐ Review Received</span>}
                       {serviceHistory.intelligence.reviewStatus === 'sent' && 'Request Sent'}
-                      {serviceHistory.intelligence.reviewStatus === 'failed' && <span className="text-red-600">Request Failed</span>}
+                      {serviceHistory.intelligence.reviewStatus === 'failed' && <span className="text-red-600 dark:text-red-400">Request Failed</span>}
                       {serviceHistory.intelligence.reviewStatus === 'never_requested' && 'Never Requested'}
                       {serviceHistory.intelligence.reviewStatus !== 'received' && (
                         <button
@@ -201,7 +201,7 @@ export default function CustomerProfilePage() {
               </div>
             )}
 
-            <div className="mt-4 flex gap-1 overflow-x-auto border-b border-slate-200">
+            <div className="mt-4 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800">
               {TABS.map((tab) => (
                 <button
                   key={tab}
@@ -209,7 +209,7 @@ export default function CustomerProfilePage() {
                   className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition ${
                     activeTab === tab
                       ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
-                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800'
                   }`}
                 >
                   {tab}

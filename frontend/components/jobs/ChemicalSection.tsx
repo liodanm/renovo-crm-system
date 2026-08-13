@@ -37,22 +37,22 @@ export function ChemicalSection({ jobId }: { jobId: string }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-700">Chemical Usage</h2>
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Chemical Usage</h2>
 
       <div className="mt-3 space-y-2">
         {(usage ?? []).map((item) => (
-          <div key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
+          <div key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2.5">
             <div>
               <p className="text-sm font-medium text-slate-800">{item.chemicalName}</p>
-              <p className="text-xs text-slate-500">{item.quantity} {item.unit}{item.notes ? ` · ${item.notes}` : ''}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{item.quantity} {item.unit}{item.notes ? ` · ${item.notes}` : ''}</p>
             </div>
-            <button onClick={() => handleRemove(item.id)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Remove ${item.chemicalName}`}>
+            <button onClick={() => handleRemove(item.id)} className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:bg-red-950 hover:text-red-600 dark:text-red-400" aria-label={`Remove ${item.chemicalName}`}>
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
         ))}
-        {usage && usage.length === 0 && <p className="text-xs text-slate-400">No chemicals logged yet.</p>}
+        {usage && usage.length === 0 && <p className="text-xs text-slate-400 dark:text-slate-500">No chemicals logged yet.</p>}
       </div>
 
       {/* Quick-add — big touch targets, minimal fields */}
@@ -61,7 +61,7 @@ export function ChemicalSection({ jobId }: { jobId: string }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Chemical name"
-          className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
         />
         <input
           type="text"
@@ -69,9 +69,9 @@ export function ChemicalSection({ jobId }: { jobId: string }) {
           value={quantity}
           onChange={(e) => setQuantity(e.target.value.replace(/[^0-9.]/g, ''))}
           placeholder="Qty"
-          className="w-20 rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
+          className="w-20 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
         />
-        <select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2.5 lg:text-sm">
+        <select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
           {UNITS.map((u) => (
             <option key={u} value={u}>{u}</option>
           ))}

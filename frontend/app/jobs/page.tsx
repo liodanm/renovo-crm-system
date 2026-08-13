@@ -8,13 +8,13 @@ import { AppShell } from '../../components/layout/AppShell';
 import { MobileListCard } from '../../components/ui/mobile-list-card';
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-slate-100 text-slate-700',
-  scheduled: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-amber-100 text-amber-700',
-  paused: 'bg-orange-100 text-orange-700',
-  completed: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-red-100 text-red-700',
-  on_hold: 'bg-slate-100 text-slate-500',
+  draft: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
+  scheduled: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  in_progress: 'bg-amber-100 text-amber-700 dark:text-amber-300',
+  paused: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
+  completed: 'bg-emerald-100 text-emerald-700 dark:text-emerald-300',
+  cancelled: 'bg-red-100 text-red-700 dark:text-red-300',
+  on_hold: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
 };
 
 type RangeFilter = 'today' | 'week' | 'all';
@@ -66,12 +66,12 @@ export default function JobsPage() {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Jobs</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Jobs</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {jobs ? `${jobs.length} ${range === 'all' ? 'total' : 'shown'}` : 'Loading…'}
             </p>
           </div>
-          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+          <div className="flex gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
             {([
               { key: 'today', label: 'Today' },
               { key: 'week', label: 'This Week' },
@@ -80,7 +80,7 @@ export default function JobsPage() {
               <button
                 key={opt.key}
                 onClick={() => setRange(opt.key)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${range === opt.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${range === opt.key ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
               >
                 {opt.label}
               </button>
@@ -88,11 +88,11 @@ export default function JobsPage() {
           </div>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
-          {error && <div className="p-8 text-center text-sm text-red-600">Couldn't load jobs. Try refreshing.</div>}
+        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          {isLoading && <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</div>}
+          {error && <div className="p-8 text-center text-sm text-red-600 dark:text-red-400">Couldn't load jobs. Try refreshing.</div>}
           {jobs && jobs.length === 0 && (
-            <div className="p-8 text-center text-sm text-slate-500">
+            <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
               {range === 'today' ? (
                 <>Nothing scheduled today. <button onClick={() => setRange('all')} className="text-[var(--color-brand)]">View all jobs</button></>
               ) : (
@@ -107,7 +107,7 @@ export default function JobsPage() {
             <>
               {/* Desktop: existing table, byte-for-byte unchanged, just wrapped. */}
               <table className="hidden w-full text-sm lg:table">
-                <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3">Job #</th>
                     <th className="px-4 py-3">Scheduled</th>
@@ -119,7 +119,7 @@ export default function JobsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {jobs.map((job) => (
-                    <tr key={job.id} className="hover:bg-slate-50">
+                    <tr key={job.id} className="hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           {job.priority !== 'normal' && (
@@ -134,19 +134,19 @@ export default function JobsPage() {
                           </Link>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-500">
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                         {job.scheduledStart
                           ? new Date(job.scheduledStart).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
                           : '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">{customerName(job)}</td>
-                      <td className="px-4 py-3 text-slate-500">{job.propertyAddressLine1}, {job.propertyCity}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{customerName(job)}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{job.propertyAddressLine1}, {job.propertyCity}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[job.status] ?? 'bg-slate-100 text-slate-700'}`}>
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[job.status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
                           {JOB_STATUS_LABELS[job.status] ?? job.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatMoney(job.price)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-slate-100">{formatMoney(job.price)}</td>
                     </tr>
                   ))}
                 </tbody>

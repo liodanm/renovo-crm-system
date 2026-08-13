@@ -36,14 +36,14 @@ export function NotesTab({ customerId }: { customerId: string }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
       <div className="flex gap-2">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Add a note about this customer…"
           rows={2}
-          className="flex-1 rounded-lg border border-slate-300 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none lg:py-2 lg:text-sm"
+          className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base focus:border-[var(--color-brand)] focus:outline-none lg:py-2 lg:text-sm"
         />
         <button
           onClick={handleAdd}
@@ -61,25 +61,25 @@ export function NotesTab({ customerId }: { customerId: string }) {
         {!isLoading &&
           !error &&
           notes?.map((n) => (
-            <div key={n.id} className={`rounded-lg border p-3 ${n.isPinned ? 'border-amber-200 bg-amber-50/50' : 'border-slate-100'}`}>
+            <div key={n.id} className={`rounded-lg border p-3 ${n.isPinned ? 'border-amber-200 bg-amber-50 dark:bg-amber-950/50' : 'border-slate-100 dark:border-slate-800'}`}>
               <div className="flex items-start justify-between gap-2">
-                <p className="whitespace-pre-wrap text-sm text-slate-700">{n.body}</p>
+                <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{n.body}</p>
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => togglePin(n.id, n.isPinned)}
-                    className="text-xs text-slate-400 hover:text-amber-600"
+                    className="text-xs text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:text-amber-400"
                     title={n.isPinned ? 'Unpin' : 'Pin'}
                   >
                     {n.isPinned ? '★' : '☆'}
                   </button>
                   {n.authorUserId === user?.userId && (
-                    <button onClick={() => handleDelete(n.id)} className="text-xs text-slate-400 hover:text-red-600">
+                    <button onClick={() => handleDelete(n.id)} className="text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 dark:text-red-400">
                       ✕
                     </button>
                   )}
                 </div>
               </div>
-              <div className="mt-1 text-xs text-slate-400">{new Date(n.createdAt).toLocaleString()}</div>
+              <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">{new Date(n.createdAt).toLocaleString()}</div>
             </div>
           ))}
       </div>

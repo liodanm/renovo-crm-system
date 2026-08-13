@@ -32,7 +32,7 @@ export function ActionBar({
   const visibleDanger = danger.filter((a) => !a.hidden);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
       {visiblePrimary.map((a) => (
         <button
           key={a.key}
@@ -51,7 +51,7 @@ export function ActionBar({
           key={a.key}
           onClick={a.onClick}
           disabled={a.disabled || a.loading}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50"
         >
           {a.icon}
           {a.loading ? 'Working…' : a.label}
@@ -69,7 +69,7 @@ export function ActionBar({
                 disabled={a.disabled || a.loading}
                 className={cn(
                   'flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium disabled:opacity-50',
-                  'border-red-200 text-red-600 hover:bg-red-50',
+                  'border-red-200 text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-950',
                 )}
               >
                 {a.icon}

@@ -21,7 +21,7 @@ import { cn } from '../../lib/utils';
 // same way the dashboard's customer map already handles this.
 const ScheduleMapInner = dynamic(() => import('../../components/scheduling/ScheduleMapInner').then((m) => m.ScheduleMapInner), {
   ssr: false,
-  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading map…</div>,
+  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">Loading map…</div>,
 });
 
 type ViewMode = 'day' | 'week' | 'month' | 'map';
@@ -106,13 +106,13 @@ export default function SchedulingPage() {
     <AppShell>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-slate-900">Schedule</h1>
-          <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1">
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Schedule</h1>
+          <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
             {(['day', 'week', 'month', 'map'] as ViewMode[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={cn('shrink-0 rounded-md px-3 py-1.5 text-sm font-medium capitalize', view === v ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
+                className={cn('shrink-0 rounded-md px-3 py-1.5 text-sm font-medium capitalize', view === v ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400')}
               >
                 {v}
               </button>
@@ -122,28 +122,28 @@ export default function SchedulingPage() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate(-1)} className="rounded-lg border border-slate-300 p-2 hover:bg-slate-50" aria-label="Previous">
+            <button onClick={() => navigate(-1)} className="rounded-lg border border-slate-300 dark:border-slate-700 p-2 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800" aria-label="Previous">
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[180px] text-sm font-medium text-slate-700">{rangeLabel}</span>
-            <button onClick={() => navigate(1)} className="rounded-lg border border-slate-300 p-2 hover:bg-slate-50" aria-label="Next">
+            <span className="min-w-[180px] text-sm font-medium text-slate-700 dark:text-slate-300">{rangeLabel}</span>
+            <button onClick={() => navigate(1)} className="rounded-lg border border-slate-300 dark:border-slate-700 p-2 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800" aria-label="Next">
               <ChevronRight className="h-4 w-4" />
             </button>
-            <button onClick={() => setAnchor(new Date())} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <button onClick={() => setAnchor(new Date())} className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
               Today
             </button>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search customer or address"
-                className="rounded-lg border border-slate-300 py-3 pl-8 pr-3 text-base lg:py-2 lg:text-sm"
+                className="rounded-lg border border-slate-300 dark:border-slate-700 py-3 pl-8 pr-3 text-base lg:py-2 lg:text-sm"
               />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
               <option value="">All statuses</option>
               {Object.entries(APPOINTMENT_STATUS_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
@@ -152,14 +152,14 @@ export default function SchedulingPage() {
           </div>
         </div>
 
-        {isLoading && <div className="mt-8 text-center text-sm text-slate-500">Loading…</div>}
-        {error && <div className="mt-8 text-center text-sm text-red-600">Couldn't load the calendar.</div>}
+        {isLoading && <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</div>}
+        {error && <div className="mt-8 text-center text-sm text-red-600 dark:text-red-400">Couldn't load the calendar.</div>}
 
         {appointments && view === 'day' && <TimeGridView appointments={appointments} days={[anchor]} onSelect={setSelected} onRescheduled={refreshAfterChange} />}
         {appointments && view === 'week' && <TimeGridView appointments={appointments} days={Array.from({ length: 7 }, (_, i) => addDays(start, i))} onSelect={setSelected} onRescheduled={refreshAfterChange} />}
         {appointments && view === 'month' && <MonthView appointments={appointments} gridStart={start} monthAnchor={anchor} onSelect={setSelected} />}
         {appointments && view === 'map' && (
-          <div className="mt-4 h-[600px] overflow-hidden rounded-xl border border-slate-200">
+          <div className="mt-4 h-[600px] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
             <ScheduleMapInner appointments={appointments} onSelect={setSelected} />
           </div>
         )}
@@ -183,7 +183,7 @@ function AppointmentChip({ appointment, onSelect, compact }: { appointment: Cale
   return (
     <button onClick={() => onSelect(appointment)} className="flex w-full items-center gap-1.5 truncate rounded-md px-1.5 py-1 text-left text-xs hover:opacity-90">
       <span className={cn('h-2 w-2 shrink-0 rounded-full', APPOINTMENT_STATUS_COLORS[appointment.status] ?? 'bg-slate-400')} />
-      {!compact && <span className="shrink-0 text-slate-500">{time}</span>}
+      {!compact && <span className="shrink-0 text-slate-500 dark:text-slate-400">{time}</span>}
       <span className="truncate font-medium text-slate-800">{appointmentCustomerName(appointment)}</span>
     </button>
   );
@@ -196,19 +196,19 @@ function MonthView({ appointments, gridStart, monthAnchor, onSelect }: { appoint
   return (
     <div className="mt-4 grid grid-cols-7 gap-1.5">
       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-        <div key={d} className="px-1 text-xs font-medium text-slate-400">{d}</div>
+        <div key={d} className="px-1 text-xs font-medium text-slate-400 dark:text-slate-500">{d}</div>
       ))}
       {days.map((day) => {
         const dayAppointments = appointments.filter((a) => startOfDay(new Date(a.startsAt)).getTime() === startOfDay(day).getTime());
         const inMonth = day.getMonth() === currentMonth;
         return (
-          <div key={day.toISOString()} className={cn('min-h-[90px] rounded-lg border border-slate-200 p-1.5', !inMonth && 'bg-slate-50')}>
-            <p className={cn('text-xs', inMonth ? 'text-slate-700' : 'text-slate-300')}>{day.getDate()}</p>
+          <div key={day.toISOString()} className={cn('min-h-[90px] rounded-lg border border-slate-200 dark:border-slate-800 p-1.5', !inMonth && 'bg-slate-50 dark:bg-slate-800')}>
+            <p className={cn('text-xs', inMonth ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600')}>{day.getDate()}</p>
             <div className="mt-1 space-y-0.5">
               {dayAppointments.slice(0, 3).map((a) => (
                 <AppointmentChip key={a.id} appointment={a} onSelect={onSelect} compact />
               ))}
-              {dayAppointments.length > 3 && <p className="pl-1.5 text-[10px] text-slate-400">+{dayAppointments.length - 3} more</p>}
+              {dayAppointments.length > 3 && <p className="pl-1.5 text-[10px] text-slate-400 dark:text-slate-500">+{dayAppointments.length - 3} more</p>}
             </div>
           </div>
         );

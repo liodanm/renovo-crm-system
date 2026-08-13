@@ -84,33 +84,33 @@ export default function ServiceCatalogPage() {
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Service Catalog</h1>
-            <p className="mt-1 text-sm text-slate-500">The single source of truth for every service you offer.</p>
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Service Catalog</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">The single source of truth for every service you offer.</p>
           </div>
           <Link href="/service-catalog/new" className="flex items-center gap-1.5 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90">
             <Plus className="h-4 w-4" /> New Service
           </Link>
         </div>
 
-        <label className="mt-4 flex w-fit items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="rounded border-slate-300" />
+        <label className="mt-4 flex w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="rounded border-slate-300 dark:border-slate-700" />
           Show inactive services
         </label>
 
-        {reorderError && <p className="mt-2 text-sm text-red-600">{reorderError}</p>}
+        {reorderError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{reorderError}</p>}
 
-        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {isLoading && <div className="p-8 text-center text-sm text-slate-500">Loading…</div>}
-          {error && <div className="p-8 text-center text-sm text-red-600">Couldn't load the catalog.</div>}
+        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          {isLoading && <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</div>}
+          {error && <div className="p-8 text-center text-sm text-red-600 dark:text-red-400">Couldn't load the catalog.</div>}
           {items.length === 0 && !isLoading && !error && (
-            <div className="p-8 text-center text-sm text-slate-500">
+            <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
               No services yet. <Link href="/service-catalog/new" className="text-[var(--color-brand)]">Add your first one</Link>.
             </div>
           )}
           {items.length > 0 && (
             <>
               <table className="hidden w-full text-sm lg:table">
-                <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="w-8 px-2 py-3" />
                     <th className="px-4 py-3">Name</th>
@@ -142,24 +142,24 @@ export default function ServiceCatalogPage() {
                         draggedId === item.id ? 'opacity-40' : ''
                       } ${dragOverId === item.id && draggedId !== item.id ? 'bg-[var(--color-brand)]/5 border-t-2 border-t-[var(--color-brand)]' : ''}`}
                     >
-                      <td className="cursor-grab px-2 py-3 text-slate-300 hover:text-slate-500 active:cursor-grabbing">
+                      <td className="cursor-grab px-2 py-3 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:text-slate-400 active:cursor-grabbing">
                         <GripVertical className="h-4 w-4" />
                       </td>
                       <td className="px-4 py-3">
                         <Link href={`/service-catalog/${item.id}`} className="font-medium text-[var(--color-brand)]">
                           {item.name}
                         </Link>
-                        <p className="text-xs text-slate-400">{SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">{SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType}</p>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{item.category ?? '—'}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.category ?? '—'}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
                         {formatMoney(item.defaultUnitPrice)}
-                        {item.defaultUnitOfMeasure && <span className="text-slate-400"> /{item.defaultUnitOfMeasure.replace('_', ' ')}</span>}
+                        {item.defaultUnitOfMeasure && <span className="text-slate-400 dark:text-slate-500"> /{item.defaultUnitOfMeasure.replace('_', ' ')}</span>}
                       </td>
-                      <td className="px-4 py-3 text-right text-slate-700">{item.defaultLaborHours ?? '—'}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{item.defaultLaborHours ?? '—'}</td>
                       <td className="px-4 py-3 text-right">
                         {item.isActive && (
-                          <button onClick={() => handleArchive(item.id, item.name)} className="text-xs text-slate-400 hover:text-red-600">
+                          <button onClick={() => handleArchive(item.id, item.name)} className="text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 dark:text-red-400">
                             Archive
                           </button>
                         )}

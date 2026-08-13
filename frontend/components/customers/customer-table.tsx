@@ -6,11 +6,11 @@ import { CustomerSummary, JOURNEY_STAGE_LABELS } from '../../lib/api/customers';
 import { MobileListCard } from '../ui/mobile-list-card';
 
 const LEAD_STATUS_STYLES: Record<string, string> = {
-  lead: 'bg-amber-100 text-amber-700',
-  active: 'bg-emerald-100 text-emerald-700',
-  inactive: 'bg-slate-100 text-slate-600',
-  archived: 'bg-violet-100 text-violet-700',
-  churned: 'bg-red-100 text-red-700',
+  lead: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  inactive: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+  archived: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  churned: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
 };
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -36,8 +36,8 @@ export function CustomerTable({ customers, selectedIds, onToggleOne, onToggleAll
   if (customers.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-sm font-medium text-slate-600">No customers match your filters.</p>
-        <p className="mt-1 text-xs text-slate-400">Try adjusting your search or filters.</p>
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">No customers match your filters.</p>
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Try adjusting your search or filters.</p>
       </div>
     );
   }
@@ -60,7 +60,7 @@ export function CustomerTable({ customers, selectedIds, onToggleOne, onToggleAll
       <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+            <tr className="border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
               {selectedIds && (
                 <th className="w-10 py-2.5 pl-4 pr-1">
                   <input
@@ -68,7 +68,7 @@ export function CustomerTable({ customers, selectedIds, onToggleOne, onToggleAll
                     checked={allOnPageSelected}
                     ref={(el) => { if (el) el.indeterminate = someOnPageSelected && !allOnPageSelected; }}
                     onChange={(e) => onToggleAll?.(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
+                    className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
                     aria-label="Select all on this page"
                     title="Selects only the customers on this page, not everyone matching your filters"
                   />
@@ -86,7 +86,7 @@ export function CustomerTable({ customers, selectedIds, onToggleOne, onToggleAll
           </thead>
           <tbody className="divide-y divide-slate-100">
             {customers.map((c) => (
-              <tr key={c.id} className={`hover:bg-slate-50 ${selectedIds?.has(c.id) ? 'bg-[var(--color-brand)]/5' : ''}`}>
+              <tr key={c.id} className={`hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 ${selectedIds?.has(c.id) ? 'bg-[var(--color-brand)]/5' : ''}`}>
                 {selectedIds && (
                   <td className="py-3 pl-4 pr-1">
                     <input
@@ -94,44 +94,44 @@ export function CustomerTable({ customers, selectedIds, onToggleOne, onToggleAll
                       checked={selectedIds.has(c.id)}
                       onClick={(e) => handleRowCheckboxClick(c.id, e)}
                       onChange={() => {}}
-                      className="h-4 w-4 rounded border-slate-300 text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
+                      className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
                       aria-label={`Select ${c.displayName || 'customer'}`}
                     />
                   </td>
                 )}
                 <td className="py-3 pl-4 pr-3">
-                  <Link href={`/customers/${c.id}`} className="font-medium text-slate-900 hover:text-[var(--color-brand)]">
+                  <Link href={`/customers/${c.id}`} className="font-medium text-slate-900 dark:text-slate-100 hover:text-[var(--color-brand)]">
                     {c.displayName || 'Unnamed customer'}
                   </Link>
-                  <div className="text-xs text-slate-400 capitalize">{c.customerType}</div>
+                  <div className="text-xs text-slate-400 dark:text-slate-500 capitalize">{c.customerType}</div>
                 </td>
-                <td className="px-3 py-3 text-slate-600">
+                <td className="px-3 py-3 text-slate-600 dark:text-slate-400">
                   {c.email && <div className="truncate">{c.email}</div>}
-                  {c.phone && <div className="text-xs text-slate-400">{c.phone}</div>}
-                  {!c.email && !c.phone && <span className="text-slate-300">—</span>}
+                  {c.phone && <div className="text-xs text-slate-400 dark:text-slate-500">{c.phone}</div>}
+                  {!c.email && !c.phone && <span className="text-slate-300 dark:text-slate-600">—</span>}
                 </td>
                 <td className="px-3 py-3">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[c.leadStatus] ?? 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[c.leadStatus] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                     {c.leadStatus}
                   </span>
-                  <div className="mt-1 text-xs text-slate-400">{JOURNEY_STAGE_LABELS[c.journeyStage]}</div>
+                  <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">{JOURNEY_STAGE_LABELS[c.journeyStage]}</div>
                 </td>
-                <td className="px-3 py-3 text-slate-500">{c.primaryLocation ?? '—'}</td>
+                <td className="px-3 py-3 text-slate-500 dark:text-slate-400">{c.primaryLocation ?? '—'}</td>
                 <td className="px-3 py-3">
                   <div className="flex flex-wrap gap-1">
                     {c.tags.slice(0, 2).map((tag) => (
-                      <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                      <span key={tag} className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-400">
                         {tag}
                       </span>
                     ))}
-                    {c.tags.length > 2 && <span className="text-[11px] text-slate-400">+{c.tags.length - 2}</span>}
+                    {c.tags.length > 2 && <span className="text-[11px] text-slate-400 dark:text-slate-500">+{c.tags.length - 2}</span>}
                   </div>
                 </td>
-                <td className="px-3 py-3 text-right font-medium text-slate-700">{currency.format(c.lifetimeValue)}</td>
-                <td className={`px-3 py-3 text-right font-medium ${Number(c.balanceDue) > 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                <td className="px-3 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{currency.format(c.lifetimeValue)}</td>
+                <td className={`px-3 py-3 text-right font-medium ${Number(c.balanceDue) > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400 dark:text-slate-500'}`}>
                   {Number(c.balanceDue) > 0 ? currency.format(Number(c.balanceDue)) : '—'}
                 </td>
-                <td className="px-3 py-3 text-slate-500">
+                <td className="px-3 py-3 text-slate-500 dark:text-slate-400">
                   {c.lastServiceDate ? new Date(c.lastServiceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                 </td>
               </tr>

@@ -38,8 +38,8 @@ export function ScheduleMapInner({ appointments, onSelect }: { appointments: Cal
             <Popup>
               <div className="text-sm">
                 <div className="font-medium">{appointmentCustomerName(a)}</div>
-                <div className="text-slate-500">{a.propertyAddressLine1}, {a.propertyCity}</div>
-                <div className="text-slate-500">{new Date(a.startsAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                <div className="text-slate-500 dark:text-slate-400">{a.propertyAddressLine1}, {a.propertyCity}</div>
+                <div className="text-slate-500 dark:text-slate-400">{new Date(a.startsAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
               </div>
             </Popup>
           </CircleMarker>

@@ -72,10 +72,10 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
   return (
     <>
     <div className="fixed inset-0 z-30 flex justify-end bg-black/30" onClick={onClose}>
-      <div className="h-full w-full max-w-md overflow-y-auto bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">{appointment.jobNumber ?? appointment.title}</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+      <div className="h-full w-full max-w-md overflow-y-auto bg-white dark:bg-slate-900 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{appointment.jobNumber ?? appointment.title}</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -84,22 +84,22 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
           {/* Quick actions — large, thumb-friendly, at the top */}
           <div className="grid grid-cols-3 gap-2">
             {appointment.jobId && (
-              <Link href={`/jobs/${appointment.jobId}`} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 px-2 py-3 text-xs font-medium text-slate-700 hover:bg-slate-200">
+              <Link href={`/jobs/${appointment.jobId}`} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200">
                 <ExternalLink className="h-4 w-4" /> View Job
               </Link>
             )}
             {appointment.estimateId && (
-              <Link href={`/estimates/${appointment.estimateId}`} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 px-2 py-3 text-xs font-medium text-slate-700 hover:bg-slate-200">
+              <Link href={`/estimates/${appointment.estimateId}`} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200">
                 <ExternalLink className="h-4 w-4" /> View Estimate
               </Link>
             )}
             {appointment.customerPhone && (
-              <a href={`tel:${appointment.customerPhone}`} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 px-2 py-3 text-xs font-medium text-slate-700 hover:bg-slate-200">
+              <a href={`tel:${appointment.customerPhone}`} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200">
                 <Phone className="h-4 w-4" /> Call
               </a>
             )}
             {navigateUrl && (
-              <a href={navigateUrl} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 px-2 py-3 text-xs font-medium text-slate-700 hover:bg-slate-200">
+              <a href={navigateUrl} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200">
                 <Navigation className="h-4 w-4" /> Navigate
               </a>
             )}
@@ -108,11 +108,11 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
                 <Play className="h-4 w-4" /> {isActing ? 'Starting…' : 'Start Job'}
               </button>
             )}
-            <button onClick={onOpenReschedule} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 px-2 py-3 text-xs font-medium text-slate-700 hover:bg-slate-200">
+            <button onClick={onOpenReschedule} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200">
               <CalendarClock className="h-4 w-4" /> Reschedule
             </button>
             {!['cancelled', 'completed'].includes(appointment.status) && appointment.jobStatus !== 'completed' && (
-              <button onClick={() => setShowCancelDialog(true)} className="flex flex-col items-center gap-1 rounded-xl bg-red-50 px-2 py-3 text-xs font-medium text-red-700 hover:bg-red-100">
+              <button onClick={() => setShowCancelDialog(true)} className="flex flex-col items-center gap-1 rounded-xl bg-red-50 dark:bg-red-950 px-2 py-3 text-xs font-medium text-red-700 dark:text-red-300 hover:bg-red-100">
                 <CalendarX className="h-4 w-4" /> Cancel
               </button>
             )}
@@ -164,7 +164,7 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
             onChange={(e) => setCancelReason(e.target.value)}
             placeholder="Reason (optional) — e.g. weather, customer rescheduled…"
             rows={2}
-            className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
           />
         </ConfirmDialog>
       )}
@@ -174,9 +174,9 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
 
 function Row({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-slate-100 pb-2">
-      <dt className="text-xs font-medium text-slate-500">{label}</dt>
-      <dd className={muted ? 'text-right text-xs text-slate-400' : 'text-right font-medium text-slate-900'}>{value}</dd>
+    <div className="flex items-baseline justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-2">
+      <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className={muted ? 'text-right text-xs text-slate-400 dark:text-slate-500' : 'text-right font-medium text-slate-900 dark:text-slate-100'}>{value}</dd>
     </div>
   );
 }

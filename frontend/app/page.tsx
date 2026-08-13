@@ -43,17 +43,17 @@ export default function DashboardPage() {
   }, [isLoading, user, router]);
 
   if (isLoading || !user) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Loading…</div>;
+    return <div className="flex min-h-screen items-center justify-center text-sm text-slate-500 dark:text-slate-400">Loading…</div>;
   }
 
   return (
     <AppShell>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-        <h1 className="text-xl font-semibold text-slate-900">
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
           Good {timeOfDayGreeting()}
           {user.email ? `, ${user.email.split('@')[0]}` : ''}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">Here&apos;s what&apos;s happening across your business today.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Here&apos;s what&apos;s happening across your business today.</p>
 
         <div className="mt-6 space-y-4">
           <SummaryStats />

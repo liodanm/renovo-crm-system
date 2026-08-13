@@ -4,9 +4,9 @@ import { useDashboardAiSuggestions } from '../../lib/hooks/use-dashboard';
 import { DashboardCard, CardSkeleton, CardError } from './dashboard-card';
 
 const PRIORITY_STYLES: Record<string, string> = {
-  high: 'border-l-red-400 bg-red-50/60',
-  medium: 'border-l-amber-400 bg-amber-50/60',
-  low: 'border-l-slate-300 bg-slate-50',
+  high: 'border-l-red-400 bg-red-50 dark:bg-red-950/60',
+  medium: 'border-l-amber-400 bg-amber-50 dark:bg-amber-950/60',
+  low: 'border-l-slate-300 bg-slate-50 dark:bg-slate-800',
 };
 
 export function AiSuggestionsCard() {
@@ -20,8 +20,8 @@ export function AiSuggestionsCard() {
         <ul className="space-y-2">
           {data.map((s) => (
             <li key={s.id} className={`rounded-lg border-l-4 px-3 py-2 ${PRIORITY_STYLES[s.priority]}`}>
-              <div className="text-sm font-medium text-slate-900">{s.title}</div>
-              <div className="mt-0.5 text-xs text-slate-600">{s.detail}</div>
+              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{s.title}</div>
+              <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{s.detail}</div>
               {s.actionHref && s.actionLabel && (
                 <a href={s.actionHref} className="mt-1.5 inline-block text-xs font-medium text-[var(--color-brand)] hover:underline">
                   {s.actionLabel} →

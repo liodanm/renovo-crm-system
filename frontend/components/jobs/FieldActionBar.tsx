@@ -100,7 +100,7 @@ export function FieldActionBar({ job, onStart, onPause, onResume, onOpenComplete
   if (isDone) return null;
 
   return (
-    <div className="sticky top-0 z-10 -mx-4 mb-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+    <div className="sticky top-0 z-10 -mx-4 mb-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
       {toast && (
         <div className="mb-2 rounded-lg bg-slate-800 px-3 py-2 text-center text-xs font-medium text-white">{toast}</div>
       )}
@@ -143,13 +143,13 @@ export function FieldActionBar({ job, onStart, onPause, onResume, onOpenComplete
 
       {/* Inline quick-add — expands in place, never requires scrolling to the full Chemical Usage section below */}
       {showChemicalForm && (
-        <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-2 rounded-lg bg-slate-50 p-2.5">
+        <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-2 rounded-lg bg-slate-50 dark:bg-slate-800 p-2.5">
           <input
             value={chemicalName}
             onChange={(e) => setChemicalName(e.target.value)}
             placeholder="Chemical name"
             autoFocus
-            className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2.5 lg:text-sm"
           />
           <input
             type="text"
@@ -157,9 +157,9 @@ export function FieldActionBar({ job, onStart, onPause, onResume, onOpenComplete
             value={chemicalQty}
             onChange={(e) => setChemicalQty(e.target.value.replace(/[^0-9.]/g, ''))}
             placeholder="Qty"
-            className="w-16 rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2.5 lg:text-sm"
+            className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2.5 lg:text-sm"
           />
-          <select value={chemicalUnit} onChange={(e) => setChemicalUnit(e.target.value)} className="rounded-lg border border-slate-300 px-1 py-3 text-base lg:py-2.5 lg:text-sm">
+          <select value={chemicalUnit} onChange={(e) => setChemicalUnit(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-1 py-3 text-base lg:py-2.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
             {CHEMICAL_UNITS.map((u) => (
               <option key={u} value={u}>{u}</option>
             ))}
@@ -200,7 +200,7 @@ function FieldButton({
       disabled={disabled}
       className={cn(
         'flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3.5 text-xs font-semibold active:scale-[0.98] disabled:opacity-50',
-        tone === 'success' ? 'bg-emerald-600 text-white' : tone === 'neutral' ? 'border border-slate-300 bg-white text-slate-700' : 'bg-slate-100 text-slate-700',
+        tone === 'success' ? 'bg-emerald-600 text-white' : tone === 'neutral' ? 'border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
         active && 'ring-2 ring-[var(--color-brand)]',
         className,
       )}

@@ -69,7 +69,7 @@ export const settingsNavGroups: SettingsNavGroup[] = [
       { key: 'notifications', label: 'Notifications', description: 'Email and SMS notification preferences', comingSoon: true },
       { key: 'integrations', label: 'Integrations', description: 'Provider status, system health, and business links' },
       { key: 'reports', label: 'Reports', description: 'Custom reports and dashboards', comingSoon: true },
-      { key: 'appearance', label: 'Appearance', description: 'App theme and display preferences', comingSoon: true },
+      { key: 'appearance', label: 'Appearance', description: 'App theme and display preferences' },
     ],
   },
   {

@@ -63,10 +63,10 @@ export function ServiceHistoryTab({ customerId, lifetimeValue }: { customerId: s
 }
 
 function Stat({ label, value, accent = 'default' }: { label: string; value: string; accent?: 'default' | 'success' | 'warning' }) {
-  const color = { default: 'text-slate-900', success: 'text-emerald-600', warning: 'text-amber-600' }[accent];
+  const color = { default: 'text-slate-900 dark:text-slate-100', success: 'text-emerald-600 dark:text-emerald-400', warning: 'text-amber-600 dark:text-amber-400' }[accent];
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="text-xs text-slate-400">{label}</div>
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+      <div className="text-xs text-slate-400 dark:text-slate-500">{label}</div>
       <div className={`mt-1 text-lg font-semibold ${color}`}>{value}</div>
     </div>
   );
@@ -74,7 +74,7 @@ function Stat({ label, value, accent = 'default' }: { label: string; value: stri
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
       <h3 className="mb-2 text-sm font-semibold text-slate-800">{title}</h3>
       <div className="divide-y divide-slate-100">{children}</div>
     </div>
@@ -98,12 +98,12 @@ function Row({
     <div className="flex items-center justify-between py-2 text-sm first:pt-0 last:pb-0">
       <div>
         <div className="font-medium text-slate-800">{left}</div>
-        {mid && <div className="text-xs text-slate-500">{mid}</div>}
-        {date && <div className="text-xs text-slate-400">{new Date(date).toLocaleDateString()}</div>}
+        {mid && <div className="text-xs text-slate-500 dark:text-slate-400">{mid}</div>}
+        {date && <div className="text-xs text-slate-400 dark:text-slate-500">{new Date(date).toLocaleDateString()}</div>}
       </div>
       <div className="flex items-center gap-2">
-        {status && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-600">{status}</span>}
-        {right && <span className="text-sm font-medium text-slate-700">{right}</span>}
+        {status && <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs capitalize text-slate-600 dark:text-slate-400">{status}</span>}
+        {right && <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{right}</span>}
       </div>
     </div>
   );

@@ -119,19 +119,19 @@ export function GlobalSearch() {
   return (
     <div ref={containerRef} className="relative w-full max-w-md">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
         <input
           value={query}
           onChange={(e) => { setQuery(e.target.value); setIsOpen(true); setActiveIndex(-1); }}
           onFocus={() => query.trim() && setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search customers, estimates, invoices, jobs…"
-          className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-8 text-sm placeholder:text-slate-400 focus:border-[var(--color-brand)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]"
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-9 pr-8 text-sm placeholder:text-slate-400 dark:text-slate-500 focus:border-[var(--color-brand)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]"
         />
         {query && (
           <button
             onClick={() => { setQuery(''); setDebouncedQuery(''); setIsOpen(false); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400"
             aria-label="Clear search"
           >
             <X className="h-4 w-4" />
@@ -140,15 +140,15 @@ export function GlobalSearch() {
       </div>
 
       {isOpen && debouncedQuery && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-96 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg">
           {isLoading ? (
-            <p className="px-4 py-6 text-center text-sm text-slate-500">Searching…</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">Searching…</p>
           ) : results.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-slate-500">No results for &ldquo;{debouncedQuery}&rdquo;</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">No results for &ldquo;{debouncedQuery}&rdquo;</p>
           ) : (
             grouped.map((group) => (
               <div key={group.kind}>
-                <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{KIND_LABELS[group.kind]}</p>
+                <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{KIND_LABELS[group.kind]}</p>
                 {group.items.map((item) => {
                   const flatIndex = results.indexOf(item);
                   return (
@@ -156,10 +156,10 @@ export function GlobalSearch() {
                       key={item.id}
                       onClick={() => selectResult(item)}
                       onMouseEnter={() => setActiveIndex(flatIndex)}
-                      className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm ${flatIndex === activeIndex ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
+                      className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm ${flatIndex === activeIndex ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800'}`}
                     >
-                      <span className="font-medium text-slate-900">{item.label}</span>
-                      <span className="ml-2 truncate text-xs text-slate-500">{item.sublabel}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{item.label}</span>
+                      <span className="ml-2 truncate text-xs text-slate-500 dark:text-slate-400">{item.sublabel}</span>
                     </button>
                   );
                 })}

@@ -56,29 +56,29 @@ export function DeleteCustomerModal({ customerId, customerName, jobsCount, estim
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={isSubmitting ? undefined : onClose}>
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-xl bg-white dark:bg-slate-900 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xl">⚠️</div>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Remove Customer</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Remove Customer</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               This will remove <strong>{customerName}</strong> from your active customer list. Their properties, estimates, jobs, and invoices are kept and can be restored if needed.
             </p>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3">
+        <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
           {counts.map((c) => (
             <div key={c.label} className="text-sm">
-              <span className="text-slate-500">{c.label}: </span>
+              <span className="text-slate-500 dark:text-slate-400">{c.label}: </span>
               <span className="font-medium text-slate-800">{c.value === null ? '…' : c.value}</span>
             </div>
           ))}
         </div>
 
-        <p className="mt-4 text-sm font-medium text-amber-700">This action removes the customer from the active list.</p>
+        <p className="mt-4 text-sm font-medium text-amber-700 dark:text-amber-300">This action removes the customer from the active list.</p>
 
-        <label className="mt-4 block text-sm font-medium text-slate-700">
+        <label className="mt-4 block text-sm font-medium text-slate-700 dark:text-slate-300">
           Type <span className="font-mono font-semibold">Delete</span> to confirm
         </label>
         <input
@@ -86,17 +86,17 @@ export function DeleteCustomerModal({ customerId, customerName, jobsCount, estim
           onChange={(e) => setConfirmText(e.target.value)}
           disabled={isSubmitting}
           autoFocus
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50 disabled:opacity-60"
+          className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:bg-slate-50 dark:bg-slate-800 disabled:opacity-60"
           placeholder="Delete"
         />
 
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
         <div className="mt-5 flex justify-end gap-2">
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50"
           >
             Cancel
           </button>

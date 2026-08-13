@@ -60,12 +60,12 @@ export function TimeGridView({ appointments, days, onSelect, onRescheduled }: Ti
   }
 
   return (
-    <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
       <div className="flex min-w-[600px]">
         {/* Hour labels column */}
-        <div className="w-14 shrink-0 border-r border-slate-100 pt-8">
+        <div className="w-14 shrink-0 border-r border-slate-100 dark:border-slate-800 pt-8">
           {hours.map((h) => (
-            <div key={h} style={{ height: HOUR_HEIGHT_PX }} className="pr-2 text-right text-[11px] text-slate-400">
+            <div key={h} style={{ height: HOUR_HEIGHT_PX }} className="pr-2 text-right text-[11px] text-slate-400 dark:text-slate-500">
               {h % 12 === 0 ? 12 : h % 12}{h < 12 ? 'am' : 'pm'}
             </div>
           ))}
@@ -78,8 +78,8 @@ export function TimeGridView({ appointments, days, onSelect, onRescheduled }: Ti
           const primaryProperty = dayAppointments.find((a) => a.propertyLatitude);
 
           return (
-            <div key={dayKey} className="relative flex-1 border-r border-slate-100 last:border-r-0">
-              <div className={cn('flex h-8 items-center justify-center gap-1.5 border-b border-slate-100 text-xs font-medium', isToday ? 'text-[var(--color-brand)]' : 'text-slate-600')}>
+            <div key={dayKey} className="relative flex-1 border-r border-slate-100 dark:border-slate-800 last:border-r-0">
+              <div className={cn('flex h-8 items-center justify-center gap-1.5 border-b border-slate-100 dark:border-slate-800 text-xs font-medium', isToday ? 'text-[var(--color-brand)]' : 'text-slate-600 dark:text-slate-400')}>
                 <span>{day.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}</span>
                 {primaryProperty && <WeatherDayBadge latitude={Number(primaryProperty.propertyLatitude)} longitude={Number(primaryProperty.propertyLongitude)} />}
               </div>

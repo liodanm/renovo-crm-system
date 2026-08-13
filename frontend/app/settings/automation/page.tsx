@@ -77,20 +77,20 @@ export default function AutomationSettingsPage() {
   return (
     <SettingsSectionShell title="Automation" description="Automatic follow-ups, reminders, and thank-yous — configured here, no code required." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
       {!draft ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (
         <>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-slate-700">Runs automatically, once a day</h2>
-                <p className="mt-1 text-xs text-slate-500">Every rule below runs on its own daily schedule — nothing to trigger manually. Use this only to test a change right now instead of waiting.</p>
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Runs automatically, once a day</h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Every rule below runs on its own daily schedule — nothing to trigger manually. Use this only to test a change right now instead of waiting.</p>
               </div>
-              <button onClick={handleRunNow} className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              <button onClick={handleRunNow} className="flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
                 <Zap className="h-3.5 w-3.5" /> Run Now
               </button>
             </div>
-            {runNowResult && <p className="mt-2 text-xs text-slate-500">{runNowResult}</p>}
+            {runNowResult && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{runNowResult}</p>}
           </div>
 
           {AUTOMATION_RULES.map((rule) => {
@@ -100,29 +100,29 @@ export default function AutomationSettingsPage() {
             const isExpanded = expandedTemplate === rule.key;
 
             return (
-              <div key={rule.key} className="rounded-xl border border-slate-200 bg-white p-4">
+              <div key={rule.key} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-800">{rule.label}</h3>
-                    <p className="mt-0.5 text-xs text-slate-500">{rule.description}</p>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{rule.description}</p>
                   </div>
                   <label className="relative inline-flex shrink-0 cursor-pointer items-center">
                     <input type="checkbox" checked={enabled} onChange={(e) => updateField(fields.enabledKey, e.target.checked as any)} className="peer sr-only" />
-                    <div className="h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-[var(--color-brand)] peer-focus:outline-none after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:after:translate-x-5" />
+                    <div className="h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-[var(--color-brand)] peer-focus:outline-none after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white dark:bg-slate-900 after:transition-all peer-checked:after:translate-x-5" />
                   </label>
                 </div>
 
                 {enabled && (
-                  <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                  <div className="mt-3 space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                     {fields.timingKey && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                         <span>{fields.timingLabel}</span>
                         <input
                           type="number"
                           min={0}
                           value={draft[fields.timingKey] as number}
                           onChange={(e) => updateField(fields.timingKey!, Number(e.target.value) as any)}
-                          className="w-16 rounded-lg border border-slate-300 px-2 py-2 text-base lg:py-1 lg:text-sm"
+                          className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-2 text-base lg:py-1 lg:text-sm"
                         />
                         <span>{fields.timingSuffix}</span>
                       </div>
@@ -133,24 +133,24 @@ export default function AutomationSettingsPage() {
                     </button>
 
                     {isExpanded && (
-                      <div className="space-y-2 rounded-lg bg-slate-50 p-3">
+                      <div className="space-y-2 rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
                         <div>
-                          <label className="text-xs font-medium text-slate-500">Subject (email only)</label>
+                          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Subject (email only)</label>
                           <input
                             value={template.subject ?? ''}
                             onChange={(e) => updateTemplate(rule.key, { subject: e.target.value })}
                             placeholder="Leave blank to use the default"
-                            className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-1.5 lg:text-sm"
+                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-slate-500">Message</label>
+                          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Message</label>
                           <textarea
                             value={template.body ?? ''}
                             onChange={(e) => updateTemplate(rule.key, { body: e.target.value })}
                             placeholder="Leave blank to use the default message"
                             rows={3}
-                            className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-1.5 lg:text-sm"
+                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
                           />
                         </div>
                       </div>

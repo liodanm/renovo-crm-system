@@ -39,12 +39,12 @@ export function RecentPaymentsCard() {
           {data.recentPayments.map((p) => (
             <li key={p.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-slate-900">{p.customerName}</div>
-                <div className="text-xs text-slate-500">
+                <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{p.customerName}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
                   {METHOD_LABELS[p.method] ?? p.method} · {formatRelative(p.processedAt)}
                 </div>
               </div>
-              <div className="shrink-0 text-sm font-semibold text-emerald-600">{currency.format(p.amount)}</div>
+              <div className="shrink-0 text-sm font-semibold text-emerald-600 dark:text-emerald-400">{currency.format(p.amount)}</div>
             </li>
           ))}
         </ul>

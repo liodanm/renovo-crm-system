@@ -81,39 +81,39 @@ export function MobileListCard({
               checked={selected}
               onChange={onToggleSelected}
               onClick={(e) => e.stopPropagation()}
-              className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
+              className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-[var(--color-brand)] focus:ring-[var(--color-brand)] dark:border-slate-600"
               aria-label={`Select ${typeof title === 'string' ? title : 'item'}`}
             />
           )}
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-slate-900">{title}</p>
-            {subtitle && <p className="mt-0.5 truncate text-sm text-slate-500">{subtitle}</p>}
+            <p className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-100">{title}</p>
+            {subtitle && <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
           </div>
         </div>
-        {!selectionMode && <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" aria-hidden="true" />}
+        {!selectionMode && <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden="true" />}
       </div>
 
       {(statusLabel || amount) && (
         <div className="mt-3 flex items-center justify-between gap-3">
           {statusLabel && (
-            <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize', statusClassName ?? 'bg-slate-100 text-slate-700')}>
+            <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize', statusClassName ?? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300')}>
               {statusLabel}
             </span>
           )}
           {amount && (
             <div className="text-right">
-              {amountLabel && <p className="text-[11px] uppercase tracking-wide text-slate-400">{amountLabel}</p>}
-              <p className="text-base font-semibold text-slate-900">{amount}</p>
+              {amountLabel && <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">{amountLabel}</p>}
+              <p className="text-base font-semibold text-slate-900 dark:text-slate-100">{amount}</p>
             </div>
           )}
         </div>
       )}
 
       {meta && meta.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
           {meta.map((m, i) => (
             <span key={i}>
-              <span className="text-slate-400">{m.label}:</span> {m.value}
+              <span className="text-slate-400 dark:text-slate-500">{m.label}:</span> {m.value}
             </span>
           ))}
         </div>
@@ -123,7 +123,7 @@ export function MobileListCard({
 
   const className = cn(
     'block rounded-xl border p-4',
-    selected ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/5' : 'border-slate-200 bg-white active:bg-slate-50',
+    selected ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/5' : 'border-slate-200 bg-white active:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:active:bg-slate-800',
   );
 
   if (selectionMode) {
@@ -146,7 +146,7 @@ export function MobileListCard({
             onClick={onMoveUp}
             disabled={!canMoveUp}
             aria-label="Move up"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-30"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
           >
             <ChevronUp className="h-5 w-5" />
           </button>
@@ -155,7 +155,7 @@ export function MobileListCard({
             onClick={onMoveDown}
             disabled={!canMoveDown}
             aria-label="Move down"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-30"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
           >
             <ChevronDown className="h-5 w-5" />
           </button>

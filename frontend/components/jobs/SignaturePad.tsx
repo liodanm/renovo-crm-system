@@ -79,15 +79,15 @@ export function SignaturePad({ onCapture }: SignaturePadProps) {
         // touch-none is essential on mobile — without it, the browser
         // intercepts the touch as a page-scroll gesture instead of
         // handing pointer events to the canvas.
-        className="w-full touch-none rounded-lg border-2 border-dashed border-slate-300 bg-white"
+        className="w-full touch-none rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}
         onPointerLeave={end}
       />
       <div className="mt-2 flex items-center justify-between">
-        <p className="text-xs text-slate-500">Sign above</p>
-        <button type="button" onClick={clear} className="text-xs font-medium text-slate-500 underline hover:text-slate-800">
+        <p className="text-xs text-slate-500 dark:text-slate-400">Sign above</p>
+        <button type="button" onClick={clear} className="text-xs font-medium text-slate-500 dark:text-slate-400 underline hover:text-slate-800">
           Clear
         </button>
       </div>

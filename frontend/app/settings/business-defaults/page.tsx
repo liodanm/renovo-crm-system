@@ -6,7 +6,7 @@ import { settingsApi } from '../../../lib/api/settings';
 import { SettingsSectionShell } from '../../../components/settings/SettingsSectionShell';
 import { ApiError } from '../../../lib/api/api-client';
 
-const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm';
+const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100';
 
 export default function BusinessDefaultsPage() {
   const { data: defaults, mutate } = useSWR('settings-business-defaults', () => settingsApi.getBusinessDefaults());
@@ -86,27 +86,27 @@ export default function BusinessDefaultsPage() {
       onCancel={handleCancel}
     >
       {!defaults ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Default Tax Rate (%)">
               <input value={taxRate} onChange={(e) => track(setTaxRate)(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className={inputClass} />
             </Field>
             <Field label="Default Arrival Window (minutes)">
               <input value={arrivalWindow} onChange={(e) => track(setArrivalWindow)(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className={inputClass} />
-              <p className="mt-1 text-[11px] text-slate-400">Used by Scheduling whenever an individual job doesn&apos;t override it.</p>
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Used by Scheduling whenever an individual job doesn&apos;t override it.</p>
             </Field>
             <Field label="Default Estimate Expiration (days)">
               <input value={estimateExpiration} onChange={(e) => track(setEstimateExpiration)(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className={inputClass} />
             </Field>
             <Field label="Default Invoice Due (days)">
               <input value={invoiceDue} onChange={(e) => track(setInvoiceDue)(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className={inputClass} />
-              <p className="mt-1 text-[11px] text-slate-400">Ready for the Invoices module — not used yet.</p>
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Ready for the Invoices module — not used yet.</p>
             </Field>
             <Field label="Default Labor Rate ($/hr)">
               <input value={laborRate} onChange={(e) => track(setLaborRate)(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" className={inputClass} />
-              <p className="mt-1 text-[11px] text-slate-400">Used in estimate profitability whenever an employee has no override rate.</p>
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Used in estimate profitability whenever an employee has no override rate.</p>
             </Field>
             <Field label="Currency">
               <select value={currency} onChange={(e) => track(setCurrency)(e.target.value)} className={inputClass}>
@@ -137,7 +137,7 @@ export default function BusinessDefaultsPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-xs font-medium text-slate-500">{label}</label>
+      <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>
       <div className="mt-1">{children}</div>
     </div>
   );

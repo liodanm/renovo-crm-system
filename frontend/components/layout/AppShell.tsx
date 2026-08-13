@@ -8,7 +8,7 @@ import { GlobalSearch } from './GlobalSearch';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Previously mobile-only (lg:hidden) — desktop had no header bar
@@ -19,10 +19,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             the real, concrete reason to finally give desktop a header
             too, rather than the placeholder problem this file used to
             flag. */}
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-3 lg:hidden">
             <MobileSidebar />
-            <span className="text-sm font-semibold tracking-tight text-slate-900">Renovo CRM</span>
+            <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">Renovo CRM</span>
           </div>
           <div className="min-w-0 flex-1">
             <GlobalSearch />

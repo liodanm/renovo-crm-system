@@ -41,24 +41,24 @@ export function CompanySwitcher() {
       <button
         onClick={() => setIsOpen((v) => !v)}
         disabled={isSwitching}
-        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800"
       >
         {current?.companyName ?? 'Select company'}
-        <span className="text-xs text-slate-400">▾</span>
+        <span className="text-xs text-slate-400 dark:text-slate-500">▾</span>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-1 shadow-lg">
           {companies.map((c) => (
             <button
               key={c.companyId}
               onClick={() => handleSwitch(c.companyId)}
-              className={`flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-slate-50 ${
+              className={`flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 ${
                 c.companyId === user?.companyId ? 'bg-cyan-50/60' : ''
               }`}
             >
-              <span className="font-medium text-slate-900">{c.companyName}</span>
-              <span className="text-xs capitalize text-slate-500">{c.role.replace('_', ' ')}</span>
+              <span className="font-medium text-slate-900 dark:text-slate-100">{c.companyName}</span>
+              <span className="text-xs capitalize text-slate-500 dark:text-slate-400">{c.role.replace('_', ' ')}</span>
             </button>
           ))}
         </div>

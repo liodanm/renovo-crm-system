@@ -541,22 +541,22 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
   return (
     <AppShell>
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
-        <Link href={isEdit ? `/estimates/${existingEstimate!.id}` : '/estimates'} className="text-sm text-slate-500 hover:text-slate-800">
+        <Link href={isEdit ? `/estimates/${existingEstimate!.id}` : '/estimates'} className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800">
           ← Back to {isEdit ? 'Estimate' : 'Estimates'}
         </Link>
-        <h1 className="mt-4 text-xl font-semibold text-slate-900">{isEdit ? `Edit Estimate ${existingEstimate!.estimateNumber}` : 'New Estimate'}</h1>
+        <h1 className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">{isEdit ? `Edit Estimate ${existingEstimate!.estimateNumber}` : 'New Estimate'}</h1>
 
-        {error && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {error && <div className="mt-4 rounded-lg bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</div>}
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div>
             <RequiredLabel>Customer</RequiredLabel>
             {customersError ? (
-              <div className="mt-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div className="mt-1 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-300">
                 Couldn't load customers. <button onClick={() => window.location.reload()} className="underline">Retry</button>
               </div>
             ) : customersLoading ? (
-              <div className="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-400">Loading customers…</div>
+              <div className="mt-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-400 dark:text-slate-500">Loading customers…</div>
             ) : (
               <CustomerPicker
                 customers={customers?.data ?? []}
@@ -582,20 +582,20 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                 }}
               />
             )}
-            {fieldErrors.customer && <p className="mt-1 text-xs text-red-600">{fieldErrors.customer}</p>}
+            {fieldErrors.customer && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.customer}</p>}
           </div>
           <div>
             <RequiredLabel>Property</RequiredLabel>
             {!customerId ? (
-              <select disabled className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-400">
+              <select disabled className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-2 text-sm text-slate-400 dark:text-slate-500">
                 <option>Select a customer first…</option>
               </select>
             ) : propertiesError ? (
-              <div className="mt-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Couldn't load properties.</div>
+              <div className="mt-1 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-300">Couldn't load properties.</div>
             ) : propertiesLoading ? (
-              <div className="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-400">Loading properties…</div>
+              <div className="mt-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-400 dark:text-slate-500">Loading properties…</div>
             ) : properties && properties.length === 0 ? (
-              <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-800">
                 <span>No properties yet — likely a quick-added customer.</span>
                 <button type="button" onClick={() => setShowAddProperty(true)} className="shrink-0 font-semibold text-[var(--color-brand)] underline">
                   + Add address
@@ -605,13 +605,13 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               <select
                 value={propertyId}
                 onChange={(e) => { setPropertyId(e.target.value); setFieldErrors((f) => ({ ...f, property: '' })); }}
-                className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm ${fieldErrors.property ? 'border-red-400' : 'border-slate-300'}`}
+                className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100 ${fieldErrors.property ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
               >
                 <option value="">Select a property…</option>
                 {properties?.map((p) => <option key={p.id} value={p.id}>{p.addressLine1}, {p.city}</option>)}
               </select>
             )}
-            {fieldErrors.property && <p className="mt-1 text-xs text-red-600">{fieldErrors.property}</p>}
+            {fieldErrors.property && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.property}</p>}
             {showAddProperty && customerId && (
               <AddPropertyForm
                 customerId={customerId}
@@ -629,7 +629,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
 
         <div className="mt-8 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">Line Items</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Line Items</h2>
             <div className="flex items-center gap-3">
               <CatalogPicker
                 onPick={(catalogItem) =>
@@ -655,7 +655,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
           </div>
 
           {lineItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 py-10 text-center">
+            <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-10 text-center">
               <CardEmpty
                 message='No services added yet. Click below to add your first service.'
                 action={
@@ -668,7 +668,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                   </button>
                 }
               />
-              {fieldErrors.lineItems && <p className="mt-2 text-xs text-red-600">{fieldErrors.lineItems}</p>}
+              {fieldErrors.lineItems && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{fieldErrors.lineItems}</p>}
             </div>
           ) : (
             lineItems.map((item, i) => (
@@ -688,25 +688,25 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-4">
           <div>
             <div className="flex min-h-[22px] items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">Valid until</label>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valid until</label>
             </div>
             <input
               type="date"
               value={validUntil}
               onChange={(e) => setValidUntil(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm"
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
           <div>
             <div className="flex min-h-[22px] items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">Discount type</label>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Discount type</label>
               {activePackageDiscount && (
-                <span className="whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                <span className="whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                   {activePackageDiscount.label} • {activePackageDiscount.value}%
                 </span>
               )}
               {isManualDiscount && discountType && (
-                <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Manual Discount</span>
+                <span className="whitespace-nowrap rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">Manual Discount</span>
               )}
             </div>
             <select
@@ -718,7 +718,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                 // value to zero.
                 setIsManualDiscount(e.target.value !== '');
               }}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm"
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
             >
               <option value="">None</option>
               <option value="fixed">Fixed ($)</option>
@@ -727,7 +727,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
           </div>
           <div>
             <div className="flex min-h-[22px] items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">Discount value</label>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Discount value</label>
             </div>
             <input
               type="text"
@@ -744,12 +744,12 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               }}
               disabled={!discountType}
               placeholder="0.00"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base disabled:bg-slate-100 lg:px-3 lg:py-2 lg:text-sm"
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base disabled:bg-slate-100 dark:bg-slate-800 lg:px-3 lg:py-2 lg:text-sm"
             />
           </div>
           <div>
             <div className="flex min-h-[22px] items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">Tax rate (%)</label>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tax rate (%)</label>
             </div>
             <input
               type="text"
@@ -757,35 +757,35 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               value={taxRatePercent}
               onChange={(e) => setTaxRatePercent(sanitizeNumericInput(e.target.value))}
               placeholder="0.00"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm"
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
         </div>
 
         <div className="mt-4">
-          <label className="text-sm font-medium text-slate-700">Notes (optional — visible to the customer)</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm" />
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Notes (optional — visible to the customer)</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
         </div>
 
         <div className="mt-4">
-          <label className="text-sm font-medium text-slate-700">Internal Notes (optional — staff only, never shown to the customer)</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Internal Notes (optional — staff only, never shown to the customer)</label>
           <textarea
             value={internalNotes}
             onChange={(e) => setInternalNotes(e.target.value)}
             rows={2}
             placeholder="e.g. Customer asked to wait until next month, use 4% SH because roof is older…"
-            className="mt-1 w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm"
+            className="mt-1 w-full rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm"
           />
         </div>
 
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
           <div className="ml-auto max-w-xs space-y-1 text-sm">
-            <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatCurrency(totals.subtotal)}</span></div>
-            {totals.discountAmount > 0 && <div className="flex justify-between text-slate-600"><span>Discount</span><span>−{formatCurrency(totals.discountAmount)}</span></div>}
-            {totals.taxAmount > 0 && <div className="flex justify-between text-slate-600"><span>Tax</span><span>{formatCurrency(totals.taxAmount)}</span></div>}
-            <div className="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold text-slate-900"><span>Total</span><span>{formatCurrency(totals.total)}</span></div>
+            <div className="flex justify-between text-slate-600 dark:text-slate-400"><span>Subtotal</span><span>{formatCurrency(totals.subtotal)}</span></div>
+            {totals.discountAmount > 0 && <div className="flex justify-between text-slate-600 dark:text-slate-400"><span>Discount</span><span>−{formatCurrency(totals.discountAmount)}</span></div>}
+            {totals.taxAmount > 0 && <div className="flex justify-between text-slate-600 dark:text-slate-400"><span>Tax</span><span>{formatCurrency(totals.taxAmount)}</span></div>}
+            <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-1 text-base font-semibold text-slate-900 dark:text-slate-100"><span>Total</span><span>{formatCurrency(totals.total)}</span></div>
           </div>
-          <p className="mt-2 text-right text-xs text-slate-400">Final totals are always recalculated when you save.</p>
+          <p className="mt-2 text-right text-xs text-slate-400 dark:text-slate-500">Final totals are always recalculated when you save.</p>
         </div>
 
         {/* Mobile: sticky bottom bar so Save never requires scrolling past
@@ -794,7 +794,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             Job page; this one sticks to the bottom, the correct edge for a
             save action). Desktop reverts to the original static inline
             layout at lg+, unchanged. */}
-        <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:flex-nowrap lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0 lg:backdrop-blur-none">
+        <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:flex-nowrap lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0 lg:backdrop-blur-none">
           <button
             type="button"
             onClick={() => {
@@ -807,7 +807,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               if (!isEdit) clearDraft();
               router.push(isEdit ? `/estimates/${existingEstimate!.id}` : '/estimates');
             }}
-            className="rounded-lg border border-slate-300 px-4 py-3 text-base font-medium text-slate-700 hover:bg-slate-50 lg:py-2 lg:text-sm"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 lg:py-2 lg:text-sm"
           >
             Cancel
           </button>
@@ -828,7 +828,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             </>
           ) : (
             <>
-              <button onClick={() => handleSave(false)} disabled={isSaving} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50">
+              <button onClick={() => handleSave(false)} disabled={isSaving} className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50">
                 {isSaving && saveAction === 'draft' ? 'Saving…' : 'Save as Draft'}
               </button>
               <button onClick={() => handleSave(true)} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
@@ -855,18 +855,18 @@ function CatalogPicker({ onPick }: { onPick: (item: ServiceCatalogItem) => void 
 
   return (
     <div className="relative">
-      <button onClick={() => setIsOpen((v) => !v)} className="text-sm font-medium text-slate-600 hover:text-slate-900">
+      <button onClick={() => setIsOpen((v) => !v)} className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100">
         Load from Catalog
       </button>
       {isOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
-            {(!items || items.length === 0) && <p className="p-3 text-xs text-slate-400">No active services in your catalog yet.</p>}
+          <div className="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 shadow-lg">
+            {(!items || items.length === 0) && <p className="p-3 text-xs text-slate-400 dark:text-slate-500">No active services in your catalog yet.</p>}
             {items?.map((item) => (
-              <button key={item.id} onClick={() => { onPick(item); setIsOpen(false); }} className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50">
+              <button key={item.id} onClick={() => { onPick(item); setIsOpen(false); }} className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
                 <span className="font-medium text-slate-800">{item.name}</span>
-                {item.defaultUnitPrice && <span className="ml-1.5 text-xs text-slate-400">${item.defaultUnitPrice}</span>}
+                {item.defaultUnitPrice && <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">${item.defaultUnitPrice}</span>}
               </button>
             ))}
           </div>
@@ -906,17 +906,17 @@ function LineItemRow({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
         <div className="lg:col-span-3">
-          <label className="text-xs font-medium text-slate-500">Service</label>
+          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Service</label>
           <select
             value={item.serviceType}
             onChange={(e) => {
               onChange({ serviceType: e.target.value });
               requestAnimationFrame(() => descriptionRef.current?.focus());
             }}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm"
+            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
           >
             {SERVICE_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
@@ -928,12 +928,12 @@ function LineItemRow({
             value={item.description}
             onChange={(e) => onChange({ description: e.target.value })}
             onKeyDown={focusOnEnter(quantityRef)}
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300'}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100 ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
           />
         </div>
         <div className="lg:col-span-2">
-          <label className="text-xs font-medium text-slate-500">Unit Type</label>
-          <select value={item.unitOfMeasure} onChange={(e) => onChange({ unitOfMeasure: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Unit Type</label>
+          <select value={item.unitOfMeasure} onChange={(e) => onChange({ unitOfMeasure: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
             {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
         </div>
@@ -947,7 +947,7 @@ function LineItemRow({
             onChange={(e) => onChange({ quantity: sanitizeNumericInput(e.target.value) })}
             onKeyDown={focusOnEnter(unitPriceRef)}
             placeholder="0"
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300'}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100 ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
           />
         </div>
         <div className="lg:col-span-2">
@@ -959,16 +959,16 @@ function LineItemRow({
             value={item.unitPrice}
             onChange={(e) => onChange({ unitPrice: sanitizeNumericInput(e.target.value) })}
             placeholder="0.00"
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm ${errors[`item-${index}-unitPrice`] ? 'border-red-400' : 'border-slate-300'}`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100 ${errors[`item-${index}-unitPrice`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
           />
         </div>
       </div>
 
       <ServiceDetailFields item={item} onChange={onChange} />
 
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-        <span className="text-sm font-medium text-slate-700">Line total: {formatCurrency(lineTotal)}</span>
-        {canRemove && <button onClick={onRemove} className="text-xs font-medium text-red-600 hover:text-red-700">Remove</button>}
+      <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3">
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Line total: {formatCurrency(lineTotal)}</span>
+        {canRemove && <button onClick={onRemove} className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300">Remove</button>}
       </div>
     </div>
   );
@@ -982,25 +982,25 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
 
   if (item.serviceType === 'roof_soft_wash') {
     return (
-      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 lg:grid-cols-4">
+      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-4">
         <label className="block">
           <RequiredLabel size="sm">Roof sq ft</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
+          <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Roof type</RequiredLabel>
-          <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+          <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
             <option value="">Roof type…</option>
             <option value="tile">Tile</option><option value="shingle">Shingle</option><option value="metal">Metal</option>
           </select>
         </label>
         <label className="block">
           <RequiredLabel size="sm">Stories</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
+          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-slate-500">Pitch</span>
-          <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Pitch</span>
+          <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
             <option value="">Pitch…</option>
             <option value="low">Low</option><option value="medium">Medium</option><option value="steep">Steep</option>
           </select>
@@ -1011,22 +1011,22 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
 
   if (item.serviceType === 'driveway_cleaning') {
     return (
-      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 lg:grid-cols-4">
+      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-4">
         <label className="block">
           <RequiredLabel size="sm">Sq ft</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
+          <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Surface</RequiredLabel>
-          <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+          <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
             <option value="">Surface…</option>
             <option value="concrete">Concrete</option><option value="pavers">Pavers</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
           <input type="checkbox" checked={!!details.hasOilStains} onChange={(e) => setDetail('hasOilStains', e.target.checked)} /> Oil stains
         </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
           <input type="checkbox" checked={!!details.hasRustStains} onChange={(e) => setDetail('hasRustStains', e.target.checked)} /> Rust stains
         </label>
       </div>
@@ -1035,20 +1035,20 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
 
   if (item.serviceType === 'house_wash') {
     return (
-      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 lg:grid-cols-3">
+      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-3">
         <label className="block">
           <RequiredLabel size="sm">Stories</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm" />
+          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Exterior material</RequiredLabel>
-          <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm">
+          <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
             <option value="">Exterior material…</option>
             <option value="vinyl">Vinyl</option><option value="brick">Brick</option><option value="stucco">Stucco</option>
             <option value="wood">Wood</option><option value="fiber_cement">Fiber cement</option><option value="other">Other</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
           <input type="checkbox" checked={!!details.oxidationPresent} onChange={(e) => setDetail('oxidationPresent', e.target.checked)} /> Oxidation present
         </label>
       </div>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { AuthProvider } from '../lib/auth/auth-context';
+import { ThemeProvider } from '../lib/theme/theme-context';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -18,11 +19,30 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+// Runs before React hydrates, directly in <head> — the only way to apply
+// the stored theme class to <html> before first paint. Without this, every
+// page load would flash light mode for a frame even when dark mode is the
+// stored preference, since ThemeProvider's own effect can't run until
+// after the initial render. Wrapped in try/catch: localStorage can throw
+// in rare embedded/private-browsing contexts, and the correct fallback
+// there is just "render light," not a crashed page.
+const themeInitScript = `
+  try {
+    var t = window.localStorage.getItem('renovo_theme');
+    if (t === 'dark') document.documentElement.classList.add('dark');
+  } catch (e) {}
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-slate-50 text-slate-900 antialiased">
-        <AuthProvider>{children}</AuthProvider>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

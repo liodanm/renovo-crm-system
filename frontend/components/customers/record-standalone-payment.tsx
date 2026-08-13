@@ -54,7 +54,7 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
     return (
       <button
         onClick={() => setShowForm(true)}
-        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800"
       >
         Record Payment
       </button>
@@ -62,10 +62,10 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+    <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-slate-800">Record Payment</p>
-        <p className="text-xs text-slate-400">No invoice needed — for cash/check/Zelle received directly, including historical work</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">No invoice needed — for cash/check/Zelle received directly, including historical work</p>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
         <input
@@ -73,9 +73,9 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
           onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
           placeholder="Amount"
           inputMode="decimal"
-          className="col-span-2 rounded-lg border border-slate-300 px-3 py-3 text-base sm:col-span-1 lg:py-2 lg:text-sm"
+          className="col-span-2 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base sm:col-span-1 lg:py-2 lg:text-sm"
         />
-        <select value={method} onChange={(e) => setMethod(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm">
+        <select value={method} onChange={(e) => setMethod(e.target.value)} className="rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
           {availableMethods.map((m) => (
             <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
           ))}
@@ -84,19 +84,19 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
           type="date"
           value={paymentDate}
           onChange={(e) => setPaymentDate(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
         />
         <input
           value={tipAmount}
           onChange={(e) => setTipAmount(e.target.value.replace(/[^0-9.]/g, ''))}
           placeholder="Tip (Optional)"
           inputMode="decimal"
-          className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
         />
-        <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
-        <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+        <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+        <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
       </div>
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
       <div className="mt-3 flex gap-2">
         <button
           onClick={handleRecord}
@@ -105,7 +105,7 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
         >
           {isSaving ? 'Saving…' : 'Save Payment'}
         </button>
-        <button onClick={() => setShowForm(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+        <button onClick={() => setShowForm(false)} className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
           Cancel
         </button>
       </div>

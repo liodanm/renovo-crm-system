@@ -63,14 +63,14 @@ export function CustomerMapInner({ properties }: { properties: MapProperty[] }) 
             <Popup>
               <div className="text-sm">
                 <div className="font-medium">{p.customerName}</div>
-                <div className="text-slate-500">{p.address}</div>
+                <div className="text-slate-500 dark:text-slate-400">{p.address}</div>
                 {p.lastJobPriority && p.lastJobPriority !== 'normal' && (
                   <div className="mt-1 text-xs font-medium" style={{ color: JOB_PRIORITY_COLORS[p.lastJobPriority].dot }}>
                     {JOB_PRIORITY_LABELS[p.lastJobPriority]}
                   </div>
                 )}
                 {p.lastJobStatus && (
-                  <div className="mt-1 text-xs text-slate-400">Last job: {p.lastJobStatus.replace('_', ' ')}</div>
+                  <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">Last job: {p.lastJobStatus.replace('_', ' ')}</div>
                 )}
                 <div className="mt-1.5 text-xs text-[var(--color-brand)]">Click to view customer →</div>
               </div>

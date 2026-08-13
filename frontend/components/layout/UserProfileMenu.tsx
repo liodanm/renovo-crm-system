@@ -68,16 +68,16 @@ export function UserProfileMenu({ collapsed }: UserProfileMenuProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-64">
         <DropdownMenuLabel className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-slate-900">{name}</span>
-          <span className="text-xs font-normal text-slate-500">{user.email}</span>
+          <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{name}</span>
+          <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{user.email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem>
-          <UserCircle className="h-4 w-4 text-slate-500" aria-hidden="true" />
+          <UserCircle className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
           Account settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => logout()} className="text-red-600 focus:bg-red-50 focus:text-red-700">
+        <DropdownMenuItem onSelect={() => logout()} className="text-red-600 dark:text-red-400 focus:bg-red-50 dark:bg-red-950 focus:text-red-700 dark:text-red-300">
           <LogOut className="h-4 w-4" aria-hidden="true" />
           Log out
         </DropdownMenuItem>

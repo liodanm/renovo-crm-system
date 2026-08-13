@@ -104,10 +104,10 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
 };
 
 export const PAYMENT_STATUS_STYLES: Record<string, string> = {
-  pending: 'bg-amber-100 text-amber-700',
-  succeeded: 'bg-emerald-100 text-emerald-700',
-  failed: 'bg-red-100 text-red-700',
-  refunded: 'bg-slate-100 text-slate-500',
-  partially_refunded: 'bg-orange-100 text-orange-700',
-  void: 'bg-slate-100 text-slate-400',
+  pending: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  succeeded: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  failed: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  refunded: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
+  partially_refunded: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
+  void: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500',
 };

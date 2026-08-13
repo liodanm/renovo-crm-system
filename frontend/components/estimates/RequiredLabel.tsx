@@ -14,7 +14,7 @@
  */
 export function RequiredLabel({ children, size = 'base' }: { children: React.ReactNode; size?: 'base' | 'sm' }) {
   return (
-    <label className={`whitespace-nowrap ${size === 'sm' ? 'text-xs font-medium text-slate-500' : 'text-sm font-medium text-slate-700'}`}>
+    <label className={`whitespace-nowrap ${size === 'sm' ? 'text-xs font-medium text-slate-500 dark:text-slate-400' : 'text-sm font-medium text-slate-700 dark:text-slate-300'}`}>
       {children} <span className="text-red-500" aria-hidden="true">*</span>
     </label>
   );

@@ -83,31 +83,31 @@ export function CustomerPicker({ customers, value, selectedLabel, onSelect, onCr
         }}
         onFocus={() => setIsOpen(true)}
         placeholder="Search name, phone, email…"
-        className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm ${hasError ? 'border-red-400' : 'border-slate-300'}`}
+        className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm ${hasError ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'}`}
       />
 
       {isOpen && (
-        <div className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg">
           <button
             type="button"
             onClick={() => { setIsOpen(false); setShowCreate(true); }}
-            className="block w-full border-b border-slate-100 px-3 py-2.5 text-left text-sm font-semibold text-[var(--color-brand)] hover:bg-slate-50"
+            className="block w-full border-b border-slate-100 dark:border-slate-800 px-3 py-2.5 text-left text-sm font-semibold text-[var(--color-brand)] hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800"
           >
             + New Customer
           </button>
           {orderedResults.length === 0 && (
-            <p className="px-3 py-3 text-sm text-slate-400">No customers match "{search}".</p>
+            <p className="px-3 py-3 text-sm text-slate-400 dark:text-slate-500">No customers match "{search}".</p>
           )}
           {orderedResults.slice(0, 30).map((c) => (
             <button
               key={c.id}
               type="button"
               onClick={() => handlePick(c)}
-              className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${c.id === value ? 'bg-slate-50 font-medium' : ''}`}
+              className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 ${c.id === value ? 'bg-slate-50 dark:bg-slate-800 font-medium' : ''}`}
             >
               <span className="text-slate-800">{c.displayName}</span>
               {(c.phone || c.primaryLocation) && (
-                <span className="ml-1.5 text-xs text-slate-400">{[c.phone, c.primaryLocation].filter(Boolean).join(' · ')}</span>
+                <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">{[c.phone, c.primaryLocation].filter(Boolean).join(' · ')}</span>
               )}
             </button>
           ))}

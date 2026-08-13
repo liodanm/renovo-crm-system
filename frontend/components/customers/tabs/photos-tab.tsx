@@ -48,13 +48,13 @@ export function PhotosTab({ customerId }: { customerId: string }) {
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-800">Photos</h3>
-        <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">
+        <label className="cursor-pointer rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800">
           {isUploading ? 'Uploading…' : '+ Upload Photo'}
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelected} disabled={isUploading} className="hidden" />
         </label>
       </div>
 
-      {uploadError && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{uploadError}</div>}
+      {uploadError && <div className="mb-3 rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-600 dark:text-red-400">{uploadError}</div>}
 
       {isLoading && <CardSkeleton lines={3} />}
       {error && <CardError />}
@@ -63,7 +63,7 @@ export function PhotosTab({ customerId }: { customerId: string }) {
       {!isLoading && !error && photos && photos.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {photos.map((p) => (
-            <div key={p.id} className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200">
+            <div key={p.id} className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt={p.photoType} className="h-full w-full object-cover" />
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/50 px-2 py-1 opacity-0 transition group-hover:opacity-100">

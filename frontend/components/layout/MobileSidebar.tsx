@@ -17,7 +17,7 @@ export function MobileSidebar() {
       <SheetTrigger asChild>
         <button
           type="button"
-          className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 lg:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 lg:hidden"
           aria-label="Open navigation menu"
         >
           <Menu className="h-5 w-5" aria-hidden="true" />

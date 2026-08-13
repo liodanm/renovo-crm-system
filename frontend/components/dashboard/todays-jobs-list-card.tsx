@@ -5,11 +5,11 @@ import { useDashboardSummary } from '../../lib/hooks/use-dashboard';
 import { DashboardCard, CardSkeleton, CardError, CardEmpty, CardLocked } from './dashboard-card';
 
 const STATUS_STYLES: Record<string, string> = {
-  scheduled: 'bg-slate-100 text-slate-700',
-  in_progress: 'bg-cyan-100 text-cyan-700',
-  completed: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-red-100 text-red-700',
-  on_hold: 'bg-amber-100 text-amber-700',
+  scheduled: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
+  in_progress: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300',
+  completed: 'bg-emerald-100 text-emerald-700 dark:text-emerald-300',
+  cancelled: 'bg-red-100 text-red-700 dark:text-red-300',
+  on_hold: 'bg-amber-100 text-amber-700 dark:text-amber-300',
 };
 
 function formatTime(iso: string | null) {
@@ -32,20 +32,20 @@ export function TodaysJobsListCard() {
         <ul className="divide-y divide-slate-100">
           {data.todaysJobs.jobs.map((job) => (
             <li key={job.id} className="py-2.5 first:pt-0 last:pb-0">
-              <Link href={`/jobs/${job.id}`} className="flex items-start justify-between gap-3 rounded-lg -mx-2 px-2 py-0.5 hover:bg-slate-50">
+              <Link href={`/jobs/${job.id}`} className="flex items-start justify-between gap-3 rounded-lg -mx-2 px-2 py-0.5 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-slate-900">{job.title}</span>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[job.status] ?? 'bg-slate-100 text-slate-700'}`}>
+                    <span className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{job.title}</span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[job.status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
                       {job.status.replace('_', ' ')}
                     </span>
                   </div>
-                  <div className="mt-0.5 truncate text-xs text-slate-500">
+                  <div className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                     {job.customerName} · {job.address}
                   </div>
-                  {job.crewName && <div className="mt-0.5 text-xs text-slate-400">Crew: {job.crewName}</div>}
+                  {job.crewName && <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Crew: {job.crewName}</div>}
                 </div>
-                <div className="shrink-0 text-right text-xs text-slate-500">
+                <div className="shrink-0 text-right text-xs text-slate-500 dark:text-slate-400">
                   {formatTime(job.scheduledStart)}
                   {job.scheduledEnd && <> – {formatTime(job.scheduledEnd)}</>}
                 </div>

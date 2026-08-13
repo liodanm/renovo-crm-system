@@ -42,26 +42,26 @@ export default function EmailSettingsPage() {
   return (
     <SettingsSectionShell title="Email" description="Postmark connection status, sender identity, and a real test send." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
       {!data ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (
         <>
           <IntegrationStatusCard status={data.postmark} />
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Sender Identity</h2>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Sender Identity</h2>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-slate-500">From Name</label>
-                <input value={data.fromName ?? ''} disabled className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-400" />
-                <p className="mt-1 text-[11px] text-slate-400">From your Company settings — edit it there, not here.</p>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">From Name</label>
+                <input value={data.fromName ?? ''} disabled className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-400 dark:text-slate-500" />
+                <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">From your Company settings — edit it there, not here.</p>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-500">Reply-To Email</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Reply-To Email</label>
                 <input
                   value={replyToEmail}
                   onChange={(e) => { setReplyToEmail(e.target.value); setHasChanges(true); }}
                   placeholder="support@yourcompany.com"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+                  className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm"
                 />
               </div>
             </div>
@@ -96,12 +96,12 @@ function TestEmailCard() {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-700">Send Test Email</h2>
-      <p className="mt-1 text-xs text-slate-500">Goes through the exact same queue as every real email this app sends.</p>
-      {message && <p className={`mt-2 text-xs ${message.type === 'error' ? 'text-red-600' : 'text-emerald-600'}`}>{message.text}</p>}
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Send Test Email</h2>
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Goes through the exact same queue as every real email this app sends.</p>
+      {message && <p className={`mt-2 text-xs ${message.type === 'error' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'}`}>{message.text}</p>}
       <div className="mt-3 flex gap-2">
-        <input value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder="you@example.com" className="flex-1 rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+        <input value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder="you@example.com" className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm" />
         <button onClick={handleSend} disabled={isSending || !toEmail} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
           {isSending ? 'Sending…' : 'Send Test'}
         </button>

@@ -16,8 +16,8 @@ interface ServiceCatalogFormProps {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{title}</h2>
       <div className="mt-3 space-y-3">{children}</div>
     </div>
   );
@@ -26,13 +26,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-xs font-medium text-slate-500">{label}</label>
+      <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>
       <div className="mt-1">{children}</div>
     </div>
   );
 }
 
-const inputClass = 'w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm';
+const inputClass = 'w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm';
 
 export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
   const router = useRouter();
@@ -114,7 +114,7 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
 
   return (
     <div className="space-y-4">
-      {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-lg bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</div>}
 
       <Section title="General">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -133,7 +133,7 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
           </Field>
           <Field label="Status">
             <label className="flex items-center gap-2 py-2 text-sm">
-              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded border-slate-300" />
+              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded border-slate-300 dark:border-slate-700" />
               Active
             </label>
           </Field>
@@ -163,7 +163,7 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
           </Field>
         </div>
         <Field label="Estimated Duration (minutes)">
-          <input value={estimatedDurationMinutes} onChange={(e) => setEstimatedDurationMinutes(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className="w-40 rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+          <input value={estimatedDurationMinutes} onChange={(e) => setEstimatedDurationMinutes(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" className="w-40 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
         </Field>
       </Section>
 
@@ -171,14 +171,14 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
         {chemicals.map((c, i) => (
           <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-2">
             <input value={c.chemicalName} onChange={(e) => updateChemical(i, { chemicalName: e.target.value })} placeholder="Chemical name" className={inputClass} />
-            <input value={c.mixRatio ?? ''} onChange={(e) => updateChemical(i, { mixRatio: e.target.value })} placeholder="Mix ratio" className="w-24 rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm" />
-            <input value={c.quantity ?? ''} onChange={(e) => updateChemical(i, { quantity: Number(e.target.value.replace(/[^0-9.]/g, '')) })} placeholder="Qty" inputMode="decimal" className="w-16 rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm" />
-            <select value={c.unit ?? 'oz'} onChange={(e) => updateChemical(i, { unit: e.target.value })} className="rounded-lg border border-slate-300 px-1 py-3 text-base lg:py-2 lg:text-sm">
+            <input value={c.mixRatio ?? ''} onChange={(e) => updateChemical(i, { mixRatio: e.target.value })} placeholder="Mix ratio" className="w-24 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+            <input value={c.quantity ?? ''} onChange={(e) => updateChemical(i, { quantity: Number(e.target.value.replace(/[^0-9.]/g, '')) })} placeholder="Qty" inputMode="decimal" className="w-16 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
+            <select value={c.unit ?? 'oz'} onChange={(e) => updateChemical(i, { unit: e.target.value })} className="rounded-lg border border-slate-300 dark:border-slate-700 px-1 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100">
               {CHEMICAL_UNITS.map((u) => (
                 <option key={u} value={u}>{u}</option>
               ))}
             </select>
-            <button onClick={() => setChemicals((prev) => prev.filter((_, idx) => idx !== i))} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <button onClick={() => setChemicals((prev) => prev.filter((_, idx) => idx !== i))} className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:bg-red-950 hover:text-red-600 dark:text-red-400">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -189,11 +189,11 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
       </Section>
 
       <Section title="Equipment">
-        <p className="text-xs font-medium text-slate-500">Default (typical/suggested)</p>
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Default (typical/suggested)</p>
         {defaultEquipment.map((eq, i) => (
           <div key={i} className="flex items-center gap-2">
             <input value={eq.equipmentName} onChange={(e) => updateEquipment(defaultEquipment, setDefaultEquipment, i, { equipmentName: e.target.value })} placeholder="Equipment name" className={inputClass} />
-            <button onClick={() => setDefaultEquipment((prev) => prev.filter((_, idx) => idx !== i))} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <button onClick={() => setDefaultEquipment((prev) => prev.filter((_, idx) => idx !== i))} className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:bg-red-950 hover:text-red-600 dark:text-red-400">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -202,11 +202,11 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
           <Plus className="h-4 w-4" /> Add Default Equipment
         </button>
 
-        <p className="pt-2 text-xs font-medium text-slate-500">Required (job can't be done without it)</p>
+        <p className="pt-2 text-xs font-medium text-slate-500 dark:text-slate-400">Required (job can't be done without it)</p>
         {requiredEquipment.map((eq, i) => (
           <div key={i} className="flex items-center gap-2">
             <input value={eq.equipmentName} onChange={(e) => updateEquipment(requiredEquipment, setRequiredEquipment, i, { equipmentName: e.target.value })} placeholder="Equipment name" className={inputClass} />
-            <button onClick={() => setRequiredEquipment((prev) => prev.filter((_, idx) => idx !== i))} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <button onClick={() => setRequiredEquipment((prev) => prev.filter((_, idx) => idx !== i))} className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:bg-red-950 hover:text-red-600 dark:text-red-400">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -240,14 +240,14 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
         <Field label="Default Terms">
           <textarea value={defaultTerms} onChange={(e) => setDefaultTerms(e.target.value)} rows={2} className={inputClass} />
         </Field>
-        <p className="text-xs text-slate-400">Suggested upsells and future services can be set once more services exist to choose from.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">Suggested upsells and future services can be set once more services exist to choose from.</p>
       </Section>
 
       <div className="flex gap-2">
         <button onClick={handleSave} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50">
           {isSaving ? 'Saving…' : existing ? 'Save Changes' : 'Create Service'}
         </button>
-        <button onClick={() => router.push('/service-catalog')} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700">
+        <button onClick={() => router.push('/service-catalog')} className="rounded-lg border border-slate-300 dark:border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300">
           Cancel
         </button>
       </div>

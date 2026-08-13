@@ -29,26 +29,26 @@ export default function SmsSettingsPage() {
   return (
     <SettingsSectionShell title="SMS" description="Twilio connection status and a real test message." hasUnsavedChanges={false} isSaving={false} error={null} onSave={() => {}} onCancel={() => {}}>
       {!data ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (
         <>
           <IntegrationStatusCard status={data.twilio} />
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Send Test SMS</h2>
-            <p className="mt-1 text-xs text-slate-500">Uses the exact same Twilio path Automation's reminders use — not a separate check.</p>
-            {message && <p className={`mt-2 text-xs ${message.type === 'error' ? 'text-red-600' : 'text-emerald-600'}`}>{message.text}</p>}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Send Test SMS</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Uses the exact same Twilio path Automation's reminders use — not a separate check.</p>
+            {message && <p className={`mt-2 text-xs ${message.type === 'error' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'}`}>{message.text}</p>}
             <div className="mt-3 flex gap-2">
-              <input value={toPhone} onChange={(e) => setToPhone(e.target.value)} placeholder="+1 555 123 4567" className="flex-1 rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+              <input value={toPhone} onChange={(e) => setToPhone(e.target.value)} placeholder="+1 555 123 4567" className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm" />
               <button onClick={handleSend} disabled={isSending || !toPhone} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
                 {isSending ? 'Sending…' : 'Send Test'}
               </button>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Reminder Timing</h2>
-            <p className="mt-1 text-xs text-slate-500">Follow-up/reminder/review-request timing and toggles live in Automation settings, not duplicated here.</p>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Reminder Timing</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Follow-up/reminder/review-request timing and toggles live in Automation settings, not duplicated here.</p>
           </div>
         </>
       )}

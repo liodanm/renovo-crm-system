@@ -9,7 +9,7 @@ import { DashboardCard, CardError, CardEmpty } from './dashboard-card';
 // standard fix is ssr:false via next/dynamic so it only ever loads in the browser.
 const CustomerMapInner = dynamic(() => import('./customer-map-inner').then((m) => m.CustomerMapInner), {
   ssr: false,
-  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading map…</div>,
+  loading: () => <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">Loading map…</div>,
 });
 
 export function CustomerMapCard() {
@@ -18,7 +18,7 @@ export function CustomerMapCard() {
   return (
     <DashboardCard title="Customer Map" icon={<PinIcon />} className="lg:col-span-2" padded={false}>
       <div className="h-80 w-full overflow-hidden rounded-b-xl">
-        {isLoading && <div className="flex h-full items-center justify-center text-xs text-slate-400">Loading…</div>}
+        {isLoading && <div className="flex h-full items-center justify-center text-xs text-slate-400 dark:text-slate-500">Loading…</div>}
         {error && (
           <div className="flex h-full items-center justify-center p-4">
             <CardError />

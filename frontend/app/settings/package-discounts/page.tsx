@@ -81,11 +81,11 @@ export default function PackageDiscountsSettingsPage() {
       onCancel={handleCancel}
     >
       {!form ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (
-        <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input type="checkbox" checked={form.enabled} onChange={(e) => update({ enabled: e.target.checked })} className="h-4 w-4 rounded border-slate-300" />
+        <div className="space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+            <input type="checkbox" checked={form.enabled} onChange={(e) => update({ enabled: e.target.checked })} className="h-4 w-4 rounded border-slate-300 dark:border-slate-700" />
             Enable Package Discounts
           </label>
 
@@ -104,16 +104,16 @@ export default function PackageDiscountsSettingsPage() {
 
               {form.mode === 'fixed' ? (
                 <label className="block max-w-[160px]">
-                  <span className="mb-1 block text-xs font-medium text-slate-600">Discount when 2+ services</span>
+                  <span className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Discount when 2+ services</span>
                   <div className="flex items-center gap-1">
                     <input
                       type="text"
                       inputMode="decimal"
                       value={form.fixedPercent}
                       onChange={(e) => update({ fixedPercent: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 })}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
                     />
-                    <span className="text-sm text-slate-500">%</span>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">%</span>
                   </div>
                 </label>
               ) : (
@@ -127,18 +127,18 @@ export default function PackageDiscountsSettingsPage() {
                           inputMode="numeric"
                           value={tier.minServices}
                           onChange={(e) => updateTier(index, { minServices: Number(e.target.value.replace(/[^0-9]/g, '')) || 2 })}
-                          className="w-20 rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm"
+                          className="w-20 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
                         />
-                        <span className="text-sm text-slate-500">services or more →</span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">services or more →</span>
                         <input
                           type="text"
                           inputMode="decimal"
                           value={tier.percent}
                           onChange={(e) => updateTier(index, { percent: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 })}
-                          className="w-20 rounded-lg border border-slate-300 px-2 py-3 text-base lg:py-2 lg:text-sm"
+                          className="w-20 rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
                         />
-                        <span className="text-sm text-slate-500">%</span>
-                        <button type="button" onClick={() => removeTier(index)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">%</span>
+                        <button type="button" onClick={() => removeTier(index)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:bg-red-950 hover:text-red-600 dark:text-red-400">
                           <X className="h-4 w-4" />
                         </button>
                       </div>

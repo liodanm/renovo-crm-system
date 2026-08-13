@@ -40,27 +40,27 @@ export function ScheduleJobModal({ jobId, onClose, onScheduled }: { jobId: strin
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-sm font-semibold text-slate-900">Schedule This Job</h2>
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      <div className="w-full max-w-sm rounded-xl bg-white dark:bg-slate-900 p-4" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Schedule This Job</h2>
+        {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
         <div className="mt-3 space-y-3">
           <div>
-            <label className="text-xs font-medium text-slate-500">Date &amp; Time</label>
-            <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Date &amp; Time</label>
+            <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500">Estimated Duration (hours)</label>
-            <input type="text" inputMode="decimal" value={durationHours} onChange={(e) => setDurationHours(e.target.value.replace(/[^0-9.]/g, ''))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm" />
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Estimated Duration (hours)</label>
+            <input type="text" inputMode="decimal" value={durationHours} onChange={(e) => setDurationHours(e.target.value.replace(/[^0-9.]/g, ''))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100" />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500">Arrival Window (minutes, optional)</label>
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Arrival Window (minutes, optional)</label>
             <input
               type="text"
               inputMode="numeric"
               value={arrivalWindow}
               onChange={(e) => setArrivalWindow(e.target.value.replace(/[^0-9]/g, ''))}
               placeholder="Leave blank to use your business default"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base lg:py-2 lg:text-sm"
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
         </div>
@@ -68,7 +68,7 @@ export function ScheduleJobModal({ jobId, onClose, onScheduled }: { jobId: strin
           <button onClick={handleSave} disabled={isSaving} className="flex-1 rounded-lg bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">
             {isSaving ? 'Scheduling…' : 'Schedule'}
           </button>
-          <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700">
+          <button onClick={onClose} className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300">
             Cancel
           </button>
         </div>

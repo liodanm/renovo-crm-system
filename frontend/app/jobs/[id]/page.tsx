@@ -116,10 +116,10 @@ export default function JobDetailPage() {
   return (
     <AppShell>
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
-        <Link href="/jobs" className="text-sm text-slate-500 hover:text-slate-800">← Back to Jobs</Link>
+        <Link href="/jobs" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800">← Back to Jobs</Link>
 
-        {isLoading && <div className="mt-6 text-sm text-slate-500">Loading…</div>}
-        {error && <div className="mt-6 text-sm text-red-600">Couldn't load this job.</div>}
+        {isLoading && <div className="mt-6 text-sm text-slate-500 dark:text-slate-400">Loading…</div>}
+        {error && <div className="mt-6 text-sm text-red-600 dark:text-red-400">Couldn't load this job.</div>}
 
         {job && (
           <>
@@ -127,8 +127,8 @@ export default function JobDetailPage() {
 
             <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h1 className="text-xl font-semibold text-slate-900">{job.jobNumber}</h1>
-                <p className="mt-1 text-sm text-slate-500">
+                <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{job.jobNumber}</h1>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {customerName(job)} · {job.propertyAddressLine1}, {job.propertyCity}
                 </p>
                 {job.estimateId && (
@@ -138,7 +138,7 @@ export default function JobDetailPage() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-sm font-medium text-slate-700 dark:text-slate-300">
                   {JOB_STATUS_LABELS[job.status] ?? job.status}
                 </span>
                 {job.status === 'draft' || job.status === 'scheduled' ? (
@@ -170,7 +170,7 @@ export default function JobDetailPage() {
               </button>
             )}
             {job.scheduledStart && job.status !== 'draft' && job.status !== 'cancelled' && (
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
                 Scheduled for {formatDateTime(job.scheduledStart)}
                 {job.status === 'scheduled' && (
                   <button onClick={() => setShowScheduleModal(true)} className="ml-2 text-xs text-[var(--color-brand)] underline">
@@ -183,14 +183,14 @@ export default function JobDetailPage() {
             {(job.status === 'draft' || job.status === 'scheduled') && (
               <button
                 onClick={() => setShowCancelModal(true)}
-                className="mt-3 ml-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                className="mt-3 ml-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-950"
               >
                 Cancel Job
               </button>
             )}
 
             {job.status === 'cancelled' && (
-              <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <div className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-800">
                 <p className="font-medium">This job was cancelled.</p>
                 {job.cancellationReason && <p className="mt-0.5">Reason: {job.cancellationReason}</p>}
                 {job.scheduledStart && <p className="mt-0.5">Originally scheduled: {formatDateTime(job.scheduledStart)}</p>}
@@ -213,26 +213,26 @@ export default function JobDetailPage() {
               />
             )}
 
-            {actionError && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>}
+            {actionError && <div className="mt-4 rounded-lg bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300">{actionError}</div>}
 
             {showCompleteFlow && <CompletionFlow jobId={job.id} onSubmit={handleComplete} onCancel={() => setShowCompleteFlow(false)} isSubmitting={isActing || isCapturing} />}
 
             {/* Line items */}
-            <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
               <div className="divide-y divide-slate-100 lg:hidden">
                 {job.lineItems.map((item) => (
                   <div key={item.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <span className="font-medium text-slate-900">{item.description}</span>
-                      <span className="shrink-0 font-medium text-slate-900">{formatMoney(item.total)}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{item.description}</span>
+                      <span className="shrink-0 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')} × {formatMoney(item.unitPrice)}</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')} × {formatMoney(item.unitPrice)}</p>
                   </div>
                 ))}
               </div>
 
               <table className="hidden w-full text-sm lg:table">
-                <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3">Description</th>
                     <th className="px-4 py-3 text-right">Qty</th>
@@ -243,24 +243,24 @@ export default function JobDetailPage() {
                 <tbody className="divide-y divide-slate-100">
                   {job.lineItems.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-4 py-3 text-slate-700">{item.description}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatMoney(item.unitPrice)}</td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900">{formatMoney(item.total)}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{item.description}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{formatMoney(item.unitPrice)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="flex justify-end border-t border-slate-200 px-4 py-3 text-base font-semibold text-slate-900">
+              <div className="flex justify-end border-t border-slate-200 dark:border-slate-800 px-4 py-3 text-base font-semibold text-slate-900 dark:text-slate-100">
                 Total: {formatMoney(job.price)}
               </div>
             </div>
 
             {/* Timing, labor, and GPS */}
-            <div className="mt-6 grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
+            <div className="mt-6 grid grid-cols-2 gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:grid-cols-4">
               <div>
-                <p className="text-xs font-medium text-slate-500">Started</p>
-                <p className="mt-0.5 text-sm text-slate-900">{formatDateTime(job.actualStart)}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Started</p>
+                <p className="mt-0.5 text-sm text-slate-900 dark:text-slate-100">{formatDateTime(job.actualStart)}</p>
                 {mapLink(job.startLatitude, job.startLongitude) && (
                   <a href={mapLink(job.startLatitude, job.startLongitude)!} target="_blank" rel="noreferrer" className="text-xs text-[var(--color-brand)]">
                     View check-in location →
@@ -268,8 +268,8 @@ export default function JobDetailPage() {
                 )}
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-500">Finished</p>
-                <p className="mt-0.5 text-sm text-slate-900">{formatDateTime(job.actualEnd)}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Finished</p>
+                <p className="mt-0.5 text-sm text-slate-900 dark:text-slate-100">{formatDateTime(job.actualEnd)}</p>
                 {mapLink(job.endLatitude, job.endLongitude) && (
                   <a href={mapLink(job.endLatitude, job.endLongitude)!} target="_blank" rel="noreferrer" className="text-xs text-[var(--color-brand)]">
                     View check-out location →
@@ -277,12 +277,12 @@ export default function JobDetailPage() {
                 )}
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-500">Calculated hours</p>
-                <p className="mt-0.5 text-sm text-slate-900">{job.calculatedLaborHours ?? '—'}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Calculated hours</p>
+                <p className="mt-0.5 text-sm text-slate-900 dark:text-slate-100">{job.calculatedLaborHours ?? '—'}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-500">Billable hours</p>
-                <p className="mt-0.5 text-sm text-slate-900">{job.billableLaborHours ?? '—'}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Billable hours</p>
+                <p className="mt-0.5 text-sm text-slate-900 dark:text-slate-100">{job.billableLaborHours ?? '—'}</p>
               </div>
             </div>
 
@@ -290,32 +290,32 @@ export default function JobDetailPage() {
 
             {/* Completion summary — only shown once actually completed */}
             {job.status === 'completed' && (
-              <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-                <h2 className="text-sm font-semibold text-slate-700">Completion</h2>
+              <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Completion</h2>
                 <div className="mt-2 space-y-2 text-sm">
                   <p>
-                    <span className="text-slate-500">Signature: </span>
+                    <span className="text-slate-500 dark:text-slate-400">Signature: </span>
                     {job.customerSignatureDataUrl ? (
-                      <span className="text-emerald-700">Captured</span>
+                      <span className="text-emerald-700 dark:text-emerald-300">Captured</span>
                     ) : job.signatureUnavailableReason ? (
-                      <span className="text-slate-700">{SIGNATURE_UNAVAILABLE_LABELS[job.signatureUnavailableReason as keyof typeof SIGNATURE_UNAVAILABLE_LABELS] ?? job.signatureUnavailableReason}</span>
+                      <span className="text-slate-700 dark:text-slate-300">{SIGNATURE_UNAVAILABLE_LABELS[job.signatureUnavailableReason as keyof typeof SIGNATURE_UNAVAILABLE_LABELS] ?? job.signatureUnavailableReason}</span>
                     ) : (
-                      <span className="text-slate-400">Not recorded</span>
+                      <span className="text-slate-400 dark:text-slate-500">Not recorded</span>
                     )}
                   </p>
                   {job.customerSignatureDataUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={job.customerSignatureDataUrl} alt="Customer signature" className="h-20 rounded border border-slate-200 bg-white" />
+                    <img src={job.customerSignatureDataUrl} alt="Customer signature" className="h-20 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900" />
                   )}
                   {job.completionNotes && (
                     <p>
-                      <span className="text-slate-500">Notes: </span>
+                      <span className="text-slate-500 dark:text-slate-400">Notes: </span>
                       {job.completionNotes}
                     </p>
                   )}
                   {job.recommendedFutureServices && job.recommendedFutureServices.length > 0 && (
                     <div>
-                      <span className="text-slate-500">Recommended: </span>
+                      <span className="text-slate-500 dark:text-slate-400">Recommended: </span>
                       {job.recommendedFutureServices.map((s) => RECOMMENDABLE_SERVICE_LABELS[s] ?? s).join(', ')}
                     </div>
                   )}
@@ -341,14 +341,14 @@ export default function JobDetailPage() {
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {job.notes && (
                   <div>
-                    <h2 className="text-sm font-medium text-slate-700">Customer Notes</h2>
-                    <p className="mt-1 text-sm text-slate-600">{job.notes}</p>
+                    <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">Customer Notes</h2>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{job.notes}</p>
                   </div>
                 )}
                 {job.internalNotes && (
                   <div>
-                    <h2 className="text-sm font-medium text-slate-700">Internal Notes <span className="text-xs font-normal text-slate-400">(staff only)</span></h2>
-                    <p className="mt-1 text-sm text-slate-600">{job.internalNotes}</p>
+                    <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">Internal Notes <span className="text-xs font-normal text-slate-400 dark:text-slate-500">(staff only)</span></h2>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{job.internalNotes}</p>
                   </div>
                 )}
               </div>
@@ -357,15 +357,15 @@ export default function JobDetailPage() {
             {/* Real lifecycle audit trail */}
             {job.statusHistory && job.statusHistory.length > 0 && (
               <div className="mt-6">
-                <h2 className="text-sm font-medium text-slate-700">Activity</h2>
+                <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">Activity</h2>
                 <ul className="mt-2 space-y-1.5">
                   {job.statusHistory.map((entry) => (
-                    <li key={entry.id} className="flex items-baseline gap-2 text-xs text-slate-500">
-                      <span className="w-36 shrink-0 text-slate-400">{formatDateTime(entry.changedAt)}</span>
+                    <li key={entry.id} className="flex items-baseline gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="w-36 shrink-0 text-slate-400 dark:text-slate-500">{formatDateTime(entry.changedAt)}</span>
                       <span>
                         {entry.fromStatus ? `${JOB_STATUS_LABELS[entry.fromStatus] ?? entry.fromStatus} → ` : ''}
-                        <span className="font-medium text-slate-700">{JOB_STATUS_LABELS[entry.toStatus] ?? entry.toStatus}</span>
-                        {entry.note && <span className="text-slate-400"> — {entry.note}</span>}
+                        <span className="font-medium text-slate-700 dark:text-slate-300">{JOB_STATUS_LABELS[entry.toStatus] ?? entry.toStatus}</span>
+                        {entry.note && <span className="text-slate-400 dark:text-slate-500"> — {entry.note}</span>}
                         {mapLink(entry.latitude, entry.longitude) && (
                           <a href={mapLink(entry.latitude, entry.longitude)!} target="_blank" rel="noreferrer" className="ml-1.5 text-[var(--color-brand)]">
                             (location)
@@ -408,8 +408,8 @@ function GenerateInvoiceCard({ jobId }: { jobId: string }) {
   return (
     <div className="mt-6 rounded-xl border border-[var(--color-brand)] bg-[var(--color-brand)]/5 p-4">
       <h2 className="text-sm font-semibold text-slate-800">Ready to Invoice</h2>
-      <p className="mt-1 text-xs text-slate-600">This job is complete — generate an invoice using its real line items, current tax rate, and due date defaults.</p>
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">This job is complete — generate an invoice using its real line items, current tax rate, and due date defaults.</p>
+      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
       <button onClick={handleGenerate} disabled={isGenerating} className="mt-3 rounded-lg bg-[var(--color-brand)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
         {isGenerating ? 'Generating…' : 'Generate Invoice'}
       </button>
