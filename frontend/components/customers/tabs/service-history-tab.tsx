@@ -75,7 +75,7 @@ function Stat({ label, value, accent = 'default' }: { label: string; value: stri
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
-      <h3 className="mb-2 text-sm font-semibold text-slate-800">{title}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</h3>
       <div className="divide-y divide-slate-100">{children}</div>
     </div>
   );
@@ -97,7 +97,7 @@ function Row({
   return (
     <div className="flex items-center justify-between py-2 text-sm first:pt-0 last:pb-0">
       <div>
-        <div className="font-medium text-slate-800">{left}</div>
+        <div className="font-medium text-slate-800 dark:text-slate-100">{left}</div>
         {mid && <div className="text-xs text-slate-500 dark:text-slate-400">{mid}</div>}
         {date && <div className="text-xs text-slate-400 dark:text-slate-500">{new Date(date).toLocaleDateString()}</div>}
       </div>

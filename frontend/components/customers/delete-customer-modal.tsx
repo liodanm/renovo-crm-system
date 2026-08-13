@@ -71,7 +71,7 @@ export function DeleteCustomerModal({ customerId, customerName, jobsCount, estim
           {counts.map((c) => (
             <div key={c.label} className="text-sm">
               <span className="text-slate-500 dark:text-slate-400">{c.label}: </span>
-              <span className="font-medium text-slate-800">{c.value === null ? '…' : c.value}</span>
+              <span className="font-medium text-slate-800 dark:text-slate-100">{c.value === null ? '…' : c.value}</span>
             </div>
           ))}
         </div>

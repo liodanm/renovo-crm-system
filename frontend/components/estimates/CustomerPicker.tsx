@@ -105,7 +105,7 @@ export function CustomerPicker({ customers, value, selectedLabel, onSelect, onCr
               onClick={() => handlePick(c)}
               className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 ${c.id === value ? 'bg-slate-50 dark:bg-slate-800 font-medium' : ''}`}
             >
-              <span className="text-slate-800">{c.displayName}</span>
+              <span className="text-slate-800 dark:text-slate-100">{c.displayName}</span>
               {(c.phone || c.primaryLocation) && (
                 <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">{[c.phone, c.primaryLocation].filter(Boolean).join(' · ')}</span>
               )}

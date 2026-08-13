@@ -47,7 +47,7 @@ export function PhotosTab({ customerId }: { customerId: string }) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-800">Photos</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Photos</h3>
         <label className="cursor-pointer rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800">
           {isUploading ? 'Uploading…' : '+ Upload Photo'}
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelected} disabled={isUploading} className="hidden" />

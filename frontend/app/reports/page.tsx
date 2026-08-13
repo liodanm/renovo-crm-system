@@ -214,7 +214,7 @@ export default function ReportsPage() {
           ) : <EmptyChart />}
         </ChartCard>
 
-        <h2 className="mt-6 text-base font-semibold text-slate-800">Marketing Analytics</h2>
+        <h2 className="mt-6 text-base font-semibold text-slate-800 dark:text-slate-100">Marketing Analytics</h2>
         <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Pie — proportional share is the actual question ("what % of my leads come from where"), which a pie communicates more directly than a bar for a modest number of categories. */}
           <ChartCard title="Leads by Source" onExport={leadSourceAnalytics ? () => exportToCsv('leads-by-source', leadSourceAnalytics) : undefined}>

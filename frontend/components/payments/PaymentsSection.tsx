@@ -197,7 +197,7 @@ export function PaymentsSection({ invoiceId, balanceDue, invoiceStatus, onPaymen
         {payments?.map((p) => (
           <div key={p.id} className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2.5">
             <div>
-              <p className="text-sm font-medium text-slate-800">
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
                 {formatMoney(p.amount)} <span className="font-normal text-slate-500 dark:text-slate-400">via {PAYMENT_METHOD_LABELS[p.method] ?? p.method}</span>
               </p>
               <p className="text-xs text-slate-400 dark:text-slate-500">

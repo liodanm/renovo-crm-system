@@ -38,7 +38,7 @@ export function EquipmentSection({ jobId }: { jobId: string }) {
       <div className="mt-3 space-y-2">
         {(usage ?? []).map((item) => (
           <div key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2.5">
-            <p className="text-sm font-medium text-slate-800">{item.equipmentName}</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{item.equipmentName}</p>
             <button onClick={() => handleRemove(item.id)} className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:bg-red-950 hover:text-red-600 dark:text-red-400" aria-label={`Remove ${item.equipmentName}`}>
               <Trash2 className="h-4 w-4" />
             </button>

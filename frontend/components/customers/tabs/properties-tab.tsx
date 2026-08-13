@@ -15,7 +15,7 @@ export function PropertiesTab({ customerId }: { customerId: string }) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-800">Properties</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Properties</h3>
         <button
           onClick={() => setShowAdd(true)}
           className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800"
@@ -69,7 +69,7 @@ function PropertyCard({ property, customerId, onChanged }: { property: Property;
       <div className="flex items-start justify-between">
         <div>
           {property.label && <div className="text-xs font-medium text-slate-500 dark:text-slate-400">{property.label}</div>}
-          <div className="text-sm text-slate-800">{property.addressLine1}</div>
+          <div className="text-sm text-slate-800 dark:text-slate-100">{property.addressLine1}</div>
           <div className="text-xs text-slate-500 dark:text-slate-400">
             {property.city}, {property.state} {property.postalCode}
           </div>

@@ -75,7 +75,7 @@ export function IntegrationProviderCard({ card, logoInitial, logoColorClass, doc
         <div className="flex items-center gap-3">
           <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white ${logoColorClass}`}>{logoInitial}</div>
           <div>
-            <p className="text-sm font-semibold text-slate-800">{card.name}</p>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{card.name}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">{card.feature}</p>
           </div>
         </div>

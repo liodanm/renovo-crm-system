@@ -407,7 +407,7 @@ function GenerateInvoiceCard({ jobId }: { jobId: string }) {
 
   return (
     <div className="mt-6 rounded-xl border border-[var(--color-brand)] bg-[var(--color-brand)]/5 p-4">
-      <h2 className="text-sm font-semibold text-slate-800">Ready to Invoice</h2>
+      <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Ready to Invoice</h2>
       <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">This job is complete — generate an invoice using its real line items, current tax rate, and due date defaults.</p>
       {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
       <button onClick={handleGenerate} disabled={isGenerating} className="mt-3 rounded-lg bg-[var(--color-brand)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">

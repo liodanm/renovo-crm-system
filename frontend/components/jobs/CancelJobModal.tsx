@@ -58,13 +58,13 @@ export function CancelJobModal({ jobId, customerName, propertyAddress, scheduled
         </div>
 
         <div className="mt-4 space-y-1 rounded-lg bg-slate-50 dark:bg-slate-800 p-3 text-sm">
-          <p><span className="text-slate-500 dark:text-slate-400">Customer: </span><span className="font-medium text-slate-800">{customerName}</span></p>
-          <p><span className="text-slate-500 dark:text-slate-400">Property: </span><span className="font-medium text-slate-800">{propertyAddress}</span></p>
+          <p><span className="text-slate-500 dark:text-slate-400">Customer: </span><span className="font-medium text-slate-800 dark:text-slate-100">{customerName}</span></p>
+          <p><span className="text-slate-500 dark:text-slate-400">Property: </span><span className="font-medium text-slate-800 dark:text-slate-100">{propertyAddress}</span></p>
           {scheduledStart && (
-            <p><span className="text-slate-500 dark:text-slate-400">Scheduled: </span><span className="font-medium text-slate-800">{new Date(scheduledStart).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span></p>
+            <p><span className="text-slate-500 dark:text-slate-400">Scheduled: </span><span className="font-medium text-slate-800 dark:text-slate-100">{new Date(scheduledStart).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span></p>
           )}
           {jobTotal !== null && (
-            <p><span className="text-slate-500 dark:text-slate-400">Job Total: </span><span className="font-medium text-slate-800">${jobTotal.toFixed(2)}</span></p>
+            <p><span className="text-slate-500 dark:text-slate-400">Job Total: </span><span className="font-medium text-slate-800 dark:text-slate-100">${jobTotal.toFixed(2)}</span></p>
           )}
         </div>
 

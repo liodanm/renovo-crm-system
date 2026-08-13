@@ -865,7 +865,7 @@ function CatalogPicker({ onPick }: { onPick: (item: ServiceCatalogItem) => void 
             {(!items || items.length === 0) && <p className="p-3 text-xs text-slate-400 dark:text-slate-500">No active services in your catalog yet.</p>}
             {items?.map((item) => (
               <button key={item.id} onClick={() => { onPick(item); setIsOpen(false); }} className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
-                <span className="font-medium text-slate-800">{item.name}</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{item.name}</span>
                 {item.defaultUnitPrice && <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">${item.defaultUnitPrice}</span>}
               </button>
             ))}

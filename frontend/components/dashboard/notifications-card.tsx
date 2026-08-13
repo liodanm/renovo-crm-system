@@ -39,7 +39,7 @@ export function NotificationsCard() {
             <li key={n.id} className="flex items-start gap-2 py-2 first:pt-0 last:pb-0">
               {!n.readAt && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-brand)]" />}
               <div className={`min-w-0 ${n.readAt ? 'pl-3.5' : ''}`}>
-                <div className="truncate text-sm text-slate-800">{n.title}</div>
+                <div className="truncate text-sm text-slate-800 dark:text-slate-100">{n.title}</div>
                 <div className="text-xs text-slate-400 dark:text-slate-500">{formatRelative(n.createdAt)}</div>
               </div>
             </li>

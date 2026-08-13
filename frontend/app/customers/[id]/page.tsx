@@ -119,15 +119,15 @@ export default function CustomerProfilePage() {
                 <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
                   <div>
                     <dt className="text-xs text-slate-400 dark:text-slate-500">Customer Since</dt>
-                    <dd className="text-slate-800">{new Date(customer.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</dd>
+                    <dd className="text-slate-800 dark:text-slate-100">{new Date(customer.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400 dark:text-slate-500">Journey Stage</dt>
-                    <dd className="text-slate-800">{JOURNEY_STAGE_LABELS[customer.journeyStage]}</dd>
+                    <dd className="text-slate-800 dark:text-slate-100">{JOURNEY_STAGE_LABELS[customer.journeyStage]}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400 dark:text-slate-500">Last Service</dt>
-                    <dd className="text-slate-800">
+                    <dd className="text-slate-800 dark:text-slate-100">
                       {serviceHistory.intelligence.lastServiceDate
                         ? new Date(serviceHistory.intelligence.lastServiceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                         : 'None yet'}
@@ -135,7 +135,7 @@ export default function CustomerProfilePage() {
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400 dark:text-slate-500">Lifetime Value</dt>
-                    <dd className="text-slate-800">{currency.format(customer.lifetimeValue)}</dd>
+                    <dd className="text-slate-800 dark:text-slate-100">{currency.format(customer.lifetimeValue)}</dd>
                   </div>
                   {customer.balanceDue && Number(customer.balanceDue) > 0 && (
                     <div>
@@ -146,29 +146,29 @@ export default function CustomerProfilePage() {
                   {customer.openEstimatesCount > 0 && (
                     <div>
                       <dt className="text-xs text-slate-400 dark:text-slate-500">Open Estimates</dt>
-                      <dd className="text-slate-800">{customer.openEstimatesCount}</dd>
+                      <dd className="text-slate-800 dark:text-slate-100">{customer.openEstimatesCount}</dd>
                     </div>
                   )}
                   {customer.openInvoicesCount > 0 && (
                     <div>
                       <dt className="text-xs text-slate-400 dark:text-slate-500">Open Invoices</dt>
-                      <dd className="text-slate-800">{customer.openInvoicesCount}</dd>
+                      <dd className="text-slate-800 dark:text-slate-100">{customer.openInvoicesCount}</dd>
                     </div>
                   )}
                   <div>
                     <dt className="text-xs text-slate-400 dark:text-slate-500">Jobs Completed</dt>
-                    <dd className="text-slate-800">{serviceHistory.intelligence.jobsCompleted}</dd>
+                    <dd className="text-slate-800 dark:text-slate-100">{serviceHistory.intelligence.jobsCompleted}</dd>
                   </div>
                   {serviceHistory.intelligence.jobsCompleted > 0 && (
                     <div>
                       <dt className="text-xs text-slate-400 dark:text-slate-500">Average Job Value</dt>
-                      <dd className="text-slate-800">{currency.format(serviceHistory.intelligence.averageJobValue)}</dd>
+                      <dd className="text-slate-800 dark:text-slate-100">{currency.format(serviceHistory.intelligence.averageJobValue)}</dd>
                     </div>
                   )}
                   {serviceHistory.intelligence.recommendedUpsell && (
                     <div>
                       <dt className="text-xs text-slate-400 dark:text-slate-500">Recommended Upsell</dt>
-                      <dd className="text-slate-800">{serviceHistory.intelligence.recommendedUpsell.name}</dd>
+                      <dd className="text-slate-800 dark:text-slate-100">{serviceHistory.intelligence.recommendedUpsell.name}</dd>
                     </div>
                   )}
                   {serviceHistory.intelligence.overdueForCleaning && (
@@ -179,7 +179,7 @@ export default function CustomerProfilePage() {
                   )}
                   <div>
                     <dt className="text-xs text-slate-400 dark:text-slate-500">Review Status</dt>
-                    <dd className="text-slate-800">
+                    <dd className="text-slate-800 dark:text-slate-100">
                       {serviceHistory.intelligence.reviewStatus === 'received' && <span className="font-medium text-emerald-600 dark:text-emerald-400">⭐ Review Received</span>}
                       {serviceHistory.intelligence.reviewStatus === 'sent' && 'Request Sent'}
                       {serviceHistory.intelligence.reviewStatus === 'failed' && <span className="text-red-600 dark:text-red-400">Request Failed</span>}

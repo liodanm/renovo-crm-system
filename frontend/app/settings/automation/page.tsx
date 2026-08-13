@@ -103,7 +103,7 @@ export default function AutomationSettingsPage() {
               <div key={rule.key} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-800">{rule.label}</h3>
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{rule.label}</h3>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{rule.description}</p>
                   </div>
                   <label className="relative inline-flex shrink-0 cursor-pointer items-center">

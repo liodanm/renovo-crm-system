@@ -39,7 +39,7 @@ export function StatusTimeline({ entries }: { entries: TimelineEntry[] }) {
             {i < entries.length - 1 && <div className="mt-1 w-px flex-1 bg-slate-200" />}
           </div>
           <div className="pb-4">
-            <p className="text-sm font-medium capitalize text-slate-800">{entry.toStatus.replace(/_/g, ' ')}</p>
+            <p className="text-sm font-medium capitalize text-slate-800 dark:text-slate-100">{entry.toStatus.replace(/_/g, ' ')}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {new Date(entry.changedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
               {' · '}

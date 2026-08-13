@@ -20,7 +20,7 @@ export function DashboardCard({
       <header className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-4 py-3">
         <div className="flex items-center gap-2">
           {icon && <span className="text-slate-400 dark:text-slate-500">{icon}</span>}
-          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
         </div>
         {headerRight}
       </header>

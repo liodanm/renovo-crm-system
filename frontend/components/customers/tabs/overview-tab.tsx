@@ -52,7 +52,7 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
           just to answer "does this person owe me anything." */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm lg:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-slate-800">Money at a Glance</h3>
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Money at a Glance</h3>
           <Link
             href={`/estimates/new?customerId=${customer.id}`}
             className="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
@@ -77,7 +77,7 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
       </div>
 
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-800">Contact Information</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Contact Information</h3>
         <dl className="mt-3 space-y-2 text-sm">
           <PhoneRow label="Phone" value={customer.phone} />
           <PhoneRow label="Secondary phone" value={customer.secondaryPhone} />
@@ -88,7 +88,7 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
       </div>
 
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-800">Tags</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Tags</h3>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {tags.map((tag) => (
             <span key={tag} className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-700 dark:text-slate-300">
@@ -129,13 +129,13 @@ export function OverviewTab({ customer, onUpdated }: { customer: CustomerProfile
 
       {customer.notesText && (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm lg:col-span-2">
-          <h3 className="text-sm font-semibold text-slate-800">General Notes</h3>
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">General Notes</h3>
           <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600 dark:text-slate-400">{customer.notesText}</p>
         </div>
       )}
 
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm lg:col-span-2">
-        <h3 className="text-sm font-semibold text-slate-800">Custom Fields</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Custom Fields</h3>
         {isLoading && (
           <div className="mt-3">
             <CardSkeleton lines={2} />

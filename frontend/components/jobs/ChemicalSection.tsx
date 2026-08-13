@@ -44,7 +44,7 @@ export function ChemicalSection({ jobId }: { jobId: string }) {
         {(usage ?? []).map((item) => (
           <div key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2.5">
             <div>
-              <p className="text-sm font-medium text-slate-800">{item.chemicalName}</p>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{item.chemicalName}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">{item.quantity} {item.unit}{item.notes ? ` · ${item.notes}` : ''}</p>
             </div>
             <button onClick={() => handleRemove(item.id)} className="rounded-lg p-2 text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:bg-red-950 hover:text-red-600 dark:text-red-400" aria-label={`Remove ${item.chemicalName}`}>
