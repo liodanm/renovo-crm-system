@@ -40,7 +40,7 @@ export default function EmailSettingsPage() {
   }
 
   return (
-    <SettingsSectionShell title="Email" description="Postmark connection status, sender identity, and a real test send." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
+    <SettingsSectionShell backHref="/settings" title="Email" description="Postmark connection status, sender identity, and a real test send." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
       {!data ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (

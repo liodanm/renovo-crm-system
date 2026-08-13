@@ -67,7 +67,7 @@ export default function PaymentSettingsPage() {
   }
 
   return (
-    <SettingsSectionShell title="Payments" description="Stripe connection status and which payment methods you accept." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
+    <SettingsSectionShell backHref="/settings" title="Payments" description="Stripe connection status and which payment methods you accept." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
       {!data ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (

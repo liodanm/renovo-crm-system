@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { useTheme } from '../../../lib/theme/theme-context';
 
 /**
@@ -22,6 +24,12 @@ export default function AppearanceSettingsPage() {
 
   return (
     <div>
+      <Link
+        href="/settings"
+        className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" /> Settings
+      </Link>
       <div>
         <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Appearance</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">App theme and display preferences</p>

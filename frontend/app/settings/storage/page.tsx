@@ -9,7 +9,7 @@ export default function StorageSettingsPage() {
   const { data } = useSWR('settings-storage', () => settingsApi.getStorageSettings());
 
   return (
-    <SettingsSectionShell title="Storage" description="File storage connection status and upload limits." hasUnsavedChanges={false} isSaving={false} error={null} onSave={() => {}} onCancel={() => {}}>
+    <SettingsSectionShell backHref="/settings" title="Storage" description="File storage connection status and upload limits." hasUnsavedChanges={false} isSaving={false} error={null} onSave={() => {}} onCancel={() => {}}>
       {!data ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (

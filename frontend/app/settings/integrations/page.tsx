@@ -89,7 +89,7 @@ export default function IntegrationsSettingsPage() {
   const s3 = findCard(cards, 's3');
 
   return (
-    <SettingsSectionShell
+    <SettingsSectionShell backHref="/settings"
       title="Integrations"
       description="Provider connection status, real connectivity checks, and system health — every real secret still lives in Railway environment variables, never here."
       hasUnsavedChanges={hasChanges}

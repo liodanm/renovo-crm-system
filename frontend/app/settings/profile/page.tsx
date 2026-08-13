@@ -62,7 +62,7 @@ export default function ProfileSettingsPage() {
   }
 
   return (
-    <SettingsSectionShell
+    <SettingsSectionShell backHref="/settings"
       title="Profile"
       description="Your personal information and preferences."
       hasUnsavedChanges={hasChanges}

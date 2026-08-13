@@ -101,7 +101,7 @@ export default function BrandingSettingsPage() {
   }
 
   return (
-    <SettingsSectionShell
+    <SettingsSectionShell backHref="/settings"
       title="Branding"
       description="Your logo, colors, and messaging — shown on every Estimate and Invoice PDF."
       hasUnsavedChanges={hasChanges}

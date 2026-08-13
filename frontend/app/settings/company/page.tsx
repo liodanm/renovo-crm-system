@@ -65,7 +65,7 @@ export default function CompanySettingsPage() {
   }
 
   return (
-    <SettingsSectionShell title="Company" description="Your business identity and contact information." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
+    <SettingsSectionShell backHref="/settings" title="Company" description="Your business identity and contact information." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
       {!company ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (

@@ -84,7 +84,7 @@ export default function LeadSourcesSettingsPage() {
   }
 
   return (
-    <SettingsSectionShell
+    <SettingsSectionShell backHref="/settings"
       title="Lead Sources"
       description="Shown as a dropdown when creating or editing a customer. Removing an option here never changes any existing customer's stored source — it only affects what shows up as a choice going forward."
       hasUnsavedChanges={hasChanges}

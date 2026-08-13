@@ -76,7 +76,7 @@ export default function BusinessDefaultsPage() {
   }
 
   return (
-    <SettingsSectionShell
+    <SettingsSectionShell backHref="/settings"
       title="Business Defaults"
       description="These values automatically pre-fill new Estimates, Jobs, and Scheduling — already wired in, not just stored."
       hasUnsavedChanges={hasChanges}

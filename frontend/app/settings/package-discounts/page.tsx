@@ -71,7 +71,7 @@ export default function PackageDiscountsSettingsPage() {
   }
 
   return (
-    <SettingsSectionShell
+    <SettingsSectionShell backHref="/settings"
       title="Package Discounts"
       description="Automatically discount an estimate based on how many services are on it. Applies only while you haven't manually set your own discount on that estimate."
       hasUnsavedChanges={hasChanges}

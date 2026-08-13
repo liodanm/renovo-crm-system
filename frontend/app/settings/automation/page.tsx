@@ -75,7 +75,7 @@ export default function AutomationSettingsPage() {
   }
 
   return (
-    <SettingsSectionShell title="Automation" description="Automatic follow-ups, reminders, and thank-yous — configured here, no code required." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
+    <SettingsSectionShell backHref="/settings" title="Automation" description="Automatic follow-ups, reminders, and thank-yous — configured here, no code required." hasUnsavedChanges={hasChanges} isSaving={isSaving} error={error} onSave={handleSave} onCancel={handleCancel}>
       {!draft ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (

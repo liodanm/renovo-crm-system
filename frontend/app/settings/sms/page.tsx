@@ -27,7 +27,7 @@ export default function SmsSettingsPage() {
   }
 
   return (
-    <SettingsSectionShell title="SMS" description="Twilio connection status and a real test message." hasUnsavedChanges={false} isSaving={false} error={null} onSave={() => {}} onCancel={() => {}}>
+    <SettingsSectionShell backHref="/settings" title="SMS" description="Twilio connection status and a real test message." hasUnsavedChanges={false} isSaving={false} error={null} onSave={() => {}} onCancel={() => {}}>
       {!data ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : (

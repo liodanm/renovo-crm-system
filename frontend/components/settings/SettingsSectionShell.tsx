@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { useUnsavedChangesWarning } from '../../lib/hooks/use-unsaved-changes-warning';
 
 interface SettingsSectionShellProps {
@@ -23,6 +24,14 @@ interface SettingsSectionShellProps {
       background settings page you're just glancing at. Defaults to
       false, preserving every existing caller's current behavior. */
   alwaysShowBar?: boolean;
+  /** Optional "← back" link shown above the title. Undefined by
+      default — Customer Edit (a non-Settings caller of this same
+      shell) never passes this, so it's unaffected. Real Settings pages
+      pass backHref="/settings" to match the hub-and-spoke navigation
+      the Settings landing page now uses instead of a persistent
+      sidebar. */
+  backHref?: string;
+  backLabel?: string;
 }
 
 /**
@@ -45,6 +54,8 @@ export function SettingsSectionShell({
   children,
   successMessage = 'Saved',
   alwaysShowBar = false,
+  backHref,
+  backLabel = 'Settings',
 }: SettingsSectionShellProps) {
   const [showSuccess, setShowSuccess] = useState(false);
   useUnsavedChangesWarning(hasUnsavedChanges);
@@ -64,6 +75,14 @@ export function SettingsSectionShell({
 
   return (
     <div>
+      {backHref && (
+        <Link
+          href={backHref}
+          className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> {backLabel}
+        </Link>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h1>
