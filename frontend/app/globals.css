@@ -19,19 +19,23 @@ html {
   --color-brand: #0e7490; /* teal-700 — water/pressure-washing association without leaning on cliché blue */
   --color-brand-dark: #155e75;
 
-  /* Sidebar-specific tokens — a deep, teal-tinted charcoal, not a generic
-     slate-900 dark theme bolted onto the existing brand. Ties the "field
-     service, professional, always-on" feel to the same water association
-     as the brand color, rather than treating dark-mode as a separate,
-     disconnected palette. */
-  --sidebar-bg: #0b2530;
-  --sidebar-bg-hover: #123544;
-  --sidebar-border: #163a47;
-  --sidebar-text: #9fc3cc;
-  --sidebar-text-muted: #6d94a0;
-  --sidebar-text-active: #ecfeff;
-  --sidebar-accent: #5eead4; /* teal-300 — bright enough to read against the dark sidebar, distinct from --color-brand which targets light backgrounds */
-  --sidebar-accent-glow: rgba(94, 234, 212, 0.15);
+  /* Sidebar tokens — previously a permanently teal-tinted-dark panel
+     regardless of light/dark mode (a deliberate original design choice,
+     since reversed on direct request: the sidebar should now follow the
+     theme like everything else). These are the Light Mode values —
+     white background, dark text matching the dashboard's own font
+     colors (slate-900 for emphasized/active text, slate-600 for normal
+     text, slate-400 for muted), light border matching every other card
+     in the app (slate-200/slate-100). The .dark block below overrides
+     these back to the original dark-mode palette. */
+  --sidebar-bg: #ffffff;
+  --sidebar-bg-hover: #f1f5f9;
+  --sidebar-border: #e2e8f0;
+  --sidebar-text: #475569;
+  --sidebar-text-muted: #94a3b8;
+  --sidebar-text-active: #0f172a;
+  --sidebar-accent: #0e7490; /* same teal as --color-brand — active-item highlight stays on-brand in Light Mode, matching how every other active-nav-state in the app already uses this exact color (e.g. Settings nav) */
+  --sidebar-accent-glow: rgba(14, 116, 144, 0.08);
 
   --sidebar-width: 17rem;
   --sidebar-width-collapsed: 4.5rem;
@@ -46,13 +50,24 @@ html {
 .dark {
   color-scheme: dark;
 
-  /* Requested explicitly: match the sidebar's background to the search
-     bar's dark-mode background (Tailwind slate-900/slate-800 exactly,
-     not an approximation) rather than keeping the original teal-tinted
-     charcoal. Deliberately narrow — only the two background tokens
-     change here; --sidebar-text/-border/-accent above are untouched,
-     since matching the search bar was specifically about background
-     color, not a full re-theme of the sidebar's branding. */
+  /* Restores the sidebar's original dark-mode text/accent colors —
+     :root above now holds Light Mode values instead, so these need to
+     be explicit here to keep dark-mode text looking exactly as it did
+     before (only background and border were asked to change). */
+  --sidebar-text: #9fc3cc;
+  --sidebar-text-muted: #6d94a0;
+  --sidebar-text-active: #ecfeff;
+  --sidebar-accent: #5eead4;
+  --sidebar-accent-glow: rgba(94, 234, 212, 0.15);
+
+  /* Background matches the search bar's dark-mode background exactly
+     (Tailwind slate-900/slate-800, not an approximation). */
   --sidebar-bg: #0f172a;
   --sidebar-bg-hover: #1e293b;
+
+  /* Border matches every other dark-mode border in the app
+     (dark:border-slate-800, used on every card/panel/table on the
+     Dashboard and everywhere else) — previously a teal-tinted border
+     unique to the sidebar. */
+  --sidebar-border: #1e293b;
 }

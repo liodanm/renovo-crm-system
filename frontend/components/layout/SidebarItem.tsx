@@ -68,7 +68,7 @@ export function SidebarItem({ item, collapsed, onNavigate }: SidebarItemProps) {
         <span className="flex-1 truncate">{item.label}</span>
       )}
       {!collapsed && item.comingSoon && (
-        <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--sidebar-text-muted)]">
+        <span className="rounded-full bg-[var(--sidebar-bg-hover)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--sidebar-text-muted)]">
           Soon
         </span>
       )}
