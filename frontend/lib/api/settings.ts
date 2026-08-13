@@ -117,6 +117,11 @@ export interface BusinessLinks {
   instagram: string | null;
 }
 
+export interface GoogleReviewsConfig {
+  googlePlaceId: string | null;
+  googleReviewsEnabled: boolean;
+}
+
 export interface PaymentSettings {
   stripe: IntegrationStatus;
   enabledPaymentMethods: string[];
@@ -189,6 +194,14 @@ export const settingsApi = {
 
   getBusinessLinks: () => apiFetch<BusinessLinks>('/settings/integrations/links'),
   updateBusinessLinks: (input: Partial<BusinessLinks>) => apiFetch<BusinessLinks>('/settings/integrations/links', { method: 'PATCH', body: JSON.stringify(input) }),
+
+  getGoogleReviewsConfig: () => apiFetch<GoogleReviewsConfig>('/settings/integrations/google-reviews'),
+  updateGoogleReviewsConfig: (input: Partial<GoogleReviewsConfig>) => apiFetch<GoogleReviewsConfig>('/settings/integrations/google-reviews', { method: 'PATCH', body: JSON.stringify(input) }),
+  testGoogleReviewsPlaceId: (placeId: string) =>
+    apiFetch<{ ok: boolean; error?: string; meta?: { name?: string; rating?: number; userRatingsTotal?: number } }>('/settings/integrations/google-reviews/test', {
+      method: 'POST',
+      body: JSON.stringify({ placeId }),
+    }),
 };
 
 export const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;

@@ -10,6 +10,7 @@ import {
   UpdatePaymentSettingsDto,
   UpdateEmailSettingsDto,
   UpdateBusinessLinksDto,
+  UpdateGoogleReviewsConfigDto,
   SendTestEmailDto,
   SendTestSmsDto,
   UpdateLeadSourcesDto,
@@ -217,5 +218,22 @@ export class SettingsController {
   @RequirePermissions('settings.manage')
   updateBusinessLinks(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateBusinessLinksDto) {
     return this.integrations.updateBusinessLinks(user.companyId, dto);
+  }
+
+  @Get('integrations/google-reviews')
+  getGoogleReviewsConfig(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.integrations.getGoogleReviewsConfig(user.companyId);
+  }
+
+  @Patch('integrations/google-reviews')
+  @RequirePermissions('settings.manage')
+  updateGoogleReviewsConfig(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateGoogleReviewsConfigDto) {
+    return this.integrations.updateGoogleReviewsConfig(user.companyId, dto);
+  }
+
+  @Post('integrations/google-reviews/test')
+  @RequirePermissions('settings.manage')
+  testGoogleReviewsPlaceId(@Body() dto: { placeId: string }) {
+    return this.integrations.testGoogleReviewsPlaceId(dto.placeId);
   }
 }

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { IntegrationStatusService, IntegrationStatus } from '../../common/integrations/integration-status.service';
 import { SystemHealthService } from '../../health/system-health.service';
@@ -7,7 +8,7 @@ import { SmsService } from '../../sms/sms.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { AiSuggestionsService } from '../../ai/ai-suggestions.service';
 import { StripePaymentService } from '../../portal/services/stripe-payment.service';
-import { UpdateBusinessLinksDto } from '../dto/settings.dto';
+import { UpdateBusinessLinksDto, UpdateGoogleReviewsConfigDto } from '../dto/settings.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 
 
@@ -44,6 +45,7 @@ interface ProviderHealthEntry {
 export class IntegrationsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
     private readonly integrationStatus: IntegrationStatusService,
     private readonly systemHealth: SystemHealthService,
     private readonly mail: MailService,
@@ -255,5 +257,124 @@ return {
       JSON.stringify(merged),
     );
     return merged;
+  }
+
+  // ---- Google Reviews ----
+  // Same companies.settings.integrations JSONB key as Business Links —
+  // reads the full blob, merges in just these two fields, writes the
+  // whole thing back. Never a second storage location.
+
+  async getGoogleReviewsConfig(companyId: string) {
+    const rows: { settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT settings FROM companies WHERE id = $1::uuid`, companyId);
+    if (rows.length === 0) throw new NotFoundException('Company not found');
+    const links = rows[0].settings?.integrations ?? {};
+    return {
+      googlePlaceId: links.googlePlaceId ?? null,
+      googleReviewsEnabled: links.googleReviewsEnabled ?? false,
+    };
+  }
+
+  async updateGoogleReviewsConfig(companyId: string, dto: UpdateGoogleReviewsConfigDto) {
+    const rows: { settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT settings FROM companies WHERE id = $1::uuid`, companyId);
+    if (rows.length === 0) throw new NotFoundException('Company not found');
+    const existingLinks = rows[0].settings?.integrations ?? {};
+    const merged = {
+      ...existingLinks,
+      googlePlaceId: dto.googlePlaceId !== undefined ? dto.googlePlaceId : (existingLinks.googlePlaceId ?? null),
+      googleReviewsEnabled: dto.googleReviewsEnabled !== undefined ? dto.googleReviewsEnabled : (existingLinks.googleReviewsEnabled ?? false),
+    };
+    await this.prisma.tenant.$executeRawUnsafe(
+      `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{integrations}', $2::jsonb, true), updated_at = now() WHERE id = $1::uuid`,
+      companyId,
+      JSON.stringify(merged),
+    );
+    return { googlePlaceId: merged.googlePlaceId, googleReviewsEnabled: merged.googleReviewsEnabled };
+  }
+
+  /**
+   * Verifies a Place ID actually resolves via the real Google Places API,
+   * returning the business name + current rating/review count as proof —
+   * mirrors what every other provider's "Test" button does (a real call,
+   * not just a format check). This sandbox has no network access to
+   * Google's API and no real API key to test against; built against the
+   * documented Places API "Place Details" contract, same disclosed
+   * limitation as every other verifyConnection() in this codebase until
+   * exercised against a real account.
+   */
+  async testGoogleReviewsPlaceId(placeId: string): Promise<{ ok: boolean; error?: string; meta?: { name?: string; rating?: number; userRatingsTotal?: number } }> {
+    const apiKey = this.config.get<string>('GOOGLE_PLACES_API_KEY');
+    if (!apiKey) {
+      return { ok: false, error: 'GOOGLE_PLACES_API_KEY is not configured on the server.' };
+    }
+    if (!placeId?.trim()) {
+      return { ok: false, error: 'Enter a Place ID first.' };
+    }
+
+    try {
+      const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=name,rating,user_ratings_total&key=${apiKey}`;
+      const response = await fetch(url);
+      const data: any = await response.json();
+
+      if (data.status !== 'OK') {
+        return { ok: false, error: data.error_message || `Google returned status: ${data.status}` };
+      }
+
+      return {
+        ok: true,
+        meta: {
+          name: data.result?.name,
+          rating: data.result?.rating,
+          userRatingsTotal: data.result?.user_ratings_total,
+        },
+      };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Request to Google Places API failed.' };
+    }
+  }
+
+  /**
+   * Fetches up to 5 recent reviews for the Dashboard widget. Deliberately
+   * does no caching of its own beyond what Google's own CDN/edge already
+   * does — matches the disclosed behavior on the reference design this
+   * was modeled after ("cached and refreshed when you view the
+   * dashboard"), i.e. fetched fresh per dashboard load rather than a
+   * separate cron job or Redis cache layer this feature doesn't need yet.
+   */
+  async getGoogleReviews(companyId: string): Promise<{ enabled: boolean; rating: number | null; userRatingsTotal: number | null; reviews: Array<{ author: string; rating: number; text: string; relativeTime: string }> | null; error?: string }> {
+    const config = await this.getGoogleReviewsConfig(companyId);
+    if (!config.googleReviewsEnabled || !config.googlePlaceId) {
+      return { enabled: false, rating: null, userRatingsTotal: null, reviews: null };
+    }
+
+    const apiKey = this.config.get<string>('GOOGLE_PLACES_API_KEY');
+    if (!apiKey) {
+      return { enabled: true, rating: null, userRatingsTotal: null, reviews: null, error: 'Google Places is not configured on the server.' };
+    }
+
+    try {
+      const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(config.googlePlaceId)}&fields=rating,user_ratings_total,reviews&key=${apiKey}`;
+      const response = await fetch(url);
+      const data: any = await response.json();
+
+      if (data.status !== 'OK') {
+        return { enabled: true, rating: null, userRatingsTotal: null, reviews: null, error: data.error_message || `Google returned status: ${data.status}` };
+      }
+
+      const reviews = (data.result?.reviews ?? []).slice(0, 5).map((r: any) => ({
+        author: r.author_name ?? 'Anonymous',
+        rating: r.rating ?? 0,
+        text: r.text ?? '',
+        relativeTime: r.relative_time_description ?? '',
+      }));
+
+      return {
+        enabled: true,
+        rating: data.result?.rating ?? null,
+        userRatingsTotal: data.result?.user_ratings_total ?? null,
+        reviews,
+      };
+    } catch (err) {
+      return { enabled: true, rating: null, userRatingsTotal: null, reviews: null, error: err instanceof Error ? err.message : 'Request to Google Places API failed.' };
+    }
   }
 }

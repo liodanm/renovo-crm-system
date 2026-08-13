@@ -89,6 +89,14 @@ export interface AiSuggestion {
   actionHref?: string;
 }
 
+export interface GoogleReviewsData {
+  enabled: boolean;
+  rating: number | null;
+  userRatingsTotal: number | null;
+  reviews: Array<{ author: string; rating: number; text: string; relativeTime: string }> | null;
+  error?: string;
+}
+
 export const dashboardApi = {
   getSummary: () => apiFetch<DashboardSummary>('/dashboard/summary'),
 
@@ -102,4 +110,6 @@ export const dashboardApi = {
   getNotifications: () => apiFetch<{ unreadCount: number; notifications: DashboardNotification[] }>('/dashboard/notifications'),
 
   getAiSuggestions: () => apiFetch<AiSuggestion[]>('/dashboard/ai-suggestions'),
+
+  getGoogleReviews: () => apiFetch<GoogleReviewsData>('/dashboard/google-reviews'),
 };

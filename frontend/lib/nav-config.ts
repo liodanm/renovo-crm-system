@@ -9,7 +9,6 @@ import {
   Calendar,
   Receipt,
   CreditCard,
-  Star,
   RefreshCw,
   Megaphone,
   Zap,
@@ -68,7 +67,6 @@ export const navGroups: NavGroup[] = [
     label: 'Growth',
     items: [
       { label: 'Recurring Services', href: '/recurring-services', icon: RefreshCw, comingSoon: true },
-      { label: 'Reviews', href: '/reviews', icon: Star, comingSoon: true },
       { label: 'Marketing', href: '/marketing', icon: Megaphone, comingSoon: true },
     ],
   },

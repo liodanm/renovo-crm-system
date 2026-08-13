@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export interface IntegrationStatus {
-  key: 'stripe' | 'postmark' | 'twilio' | 's3' | 'anthropic';
+  key: 'stripe' | 'postmark' | 'twilio' | 's3' | 'anthropic' | 'google_places';
   name: string;
   configured: boolean;
   missingVars: string[];
@@ -27,6 +27,7 @@ export class IntegrationStatusService {
       { key: 'twilio', name: 'Twilio', requiredVars: ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'], feature: 'Automation SMS reminders, AI receptionist' },
       { key: 's3', name: 'AWS S3', requiredVars: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_S3_BUCKET'], feature: 'Photo uploads' },
       { key: 'anthropic', name: 'Anthropic (Claude)', requiredVars: ['ANTHROPIC_API_KEY'], feature: 'AI dashboard suggestions, AI receptionist call summaries, portal AI chat' },
+      { key: 'google_places', name: 'Google Places', requiredVars: ['GOOGLE_PLACES_API_KEY'], feature: 'Google Reviews on the Dashboard' },
     ];
 
     return definitions.map((d) => {

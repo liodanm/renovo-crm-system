@@ -19,5 +19,6 @@ import { StripePaymentService } from '../portal/services/stripe-payment.service'
   imports: [MailModule, HealthModule],
   controllers: [SettingsController],
   providers: [PrismaService, SettingsService, PasswordService, IntegrationsService, StorageService, AiSuggestionsService, StripePaymentService],
+  exports: [IntegrationsService],
 })
 export class SettingsModule {}

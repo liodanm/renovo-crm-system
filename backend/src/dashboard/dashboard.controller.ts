@@ -3,10 +3,14 @@ import { DashboardService } from './dashboard.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
 import { CalendarRangeQueryDto } from './dto/calendar-range.dto';
+import { IntegrationsService } from '../settings/services/integrations.service';
 
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    private readonly integrations: IntegrationsService,
+  ) {}
 
   /**
    * The primary payload for the dashboard's summary cards (Today's Jobs,
@@ -88,6 +92,11 @@ export class DashboardController {
   @Get('ai-suggestions')
   getAiSuggestions(@CurrentUser() user: AuthenticatedRequestUser) {
     return this.dashboardService.getAiSuggestions(user.companyId);
+  }
+
+  @Get('google-reviews')
+  getGoogleReviews(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.integrations.getGoogleReviews(user.companyId);
   }
 }
 

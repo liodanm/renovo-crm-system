@@ -6,6 +6,7 @@ import {
   Palette,
   TrendingUp,
   Tag,
+  Star,
   CreditCard,
   Key,
   Mail,
@@ -62,6 +63,7 @@ export const settingsNavGroups: SettingsNavGroup[] = [
       { key: 'branding', label: 'Branding', description: 'Colors and messaging on estimates and invoices', icon: Palette },
       { key: 'lead-sources', label: 'Lead Sources', description: 'How customers find you — shown as a dropdown on every customer', icon: TrendingUp },
       { key: 'package-discounts', label: 'Package Discounts', description: 'Automatic discounts for estimates with multiple services', icon: Tag },
+      { key: 'google-reviews', label: 'Google Reviews', description: 'Show your Google reviews on the Dashboard', icon: Star },
     ],
   },
   {

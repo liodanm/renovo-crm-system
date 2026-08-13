@@ -330,6 +330,27 @@ export class UpdateBusinessLinksDto {
   instagram?: string;
 }
 
+// ---- Google Reviews (also stored inside companies.settings.integrations —
+// same JSONB key as Business Links above, merged not overwritten. Kept as
+// its own DTO/endpoint pair rather than folded into UpdateBusinessLinksDto
+// because it's conceptually a different thing: a live Places API
+// integration with its own enable/disable state, not a static outbound
+// URL. A Google Place ID is a public identifier, not a credential — see
+// ADR-011 for why real secrets (the API key itself) never live here;
+// that stays a Railway env var (GOOGLE_PLACES_API_KEY), same as every
+// other provider. ----
+
+export class UpdateGoogleReviewsConfigDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  googlePlaceId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  googleReviewsEnabled?: boolean;
+}
+
 // ---- SMS Settings ----
 
 export class SendTestSmsDto {

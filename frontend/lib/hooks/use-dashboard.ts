@@ -10,6 +10,7 @@ const MAP_REFRESH_MS = 5 * 60_000;
 const WEATHER_REFRESH_MS = 15 * 60_000; // backend caches 30 min anyway
 const NOTIFICATIONS_REFRESH_MS = 30_000;
 const AI_SUGGESTIONS_REFRESH_MS = 5 * 60_000; // backend caches 30 min anyway
+const GOOGLE_REVIEWS_REFRESH_MS = 15 * 60_000; // real Places API call — avoid hammering it
 
 export function useDashboardSummary() {
   return useSWR('dashboard-summary', dashboardApi.getSummary, { refreshInterval: SUMMARY_REFRESH_MS });
@@ -38,5 +39,11 @@ export function useDashboardNotifications() {
 export function useDashboardAiSuggestions() {
   return useSWR('dashboard-ai-suggestions', dashboardApi.getAiSuggestions, {
     refreshInterval: AI_SUGGESTIONS_REFRESH_MS,
+  });
+}
+
+export function useDashboardGoogleReviews() {
+  return useSWR('dashboard-google-reviews', dashboardApi.getGoogleReviews, {
+    refreshInterval: GOOGLE_REVIEWS_REFRESH_MS,
   });
 }
