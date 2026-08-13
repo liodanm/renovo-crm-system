@@ -45,9 +45,18 @@ export function middleware(request: NextRequest) {
   // URL the customer sees stays clean, e.g. portal.renovocrm.com/dashboard),
   // not a redirect.
   if (host.startsWith(PORTAL_HOST_PREFIX)) {
-    // Avoid double-prefixing if a request somehow already targets
-    // /portal/... directly (e.g. local dev without a real subdomain).
-    const rewrittenPathname = pathname.startsWith('/portal/') ? pathname : `/portal${pathname === '/' ? '' : pathname}`;
+    // The bare '/portal' path needs the same no-op handling '/' already
+    // gets — without it, a request for exactly '/portal' computes
+    // '/portal' + '/portal' = '/portal/portal' (a route that doesn't
+    // exist), and worse, the redirect guard below was comparing against
+    // that already-double-prefixed value instead of the raw incoming
+    // pathname, so it could never detect "we're already at the
+    // destination" and would redirect forever — this is what caused a
+    // real ERR_TOO_MANY_REDIRECTS in production for any unauthenticated
+    // visit that landed on /portal.
+    const rewrittenPathname = pathname.startsWith('/portal/') || pathname === '/portal'
+      ? pathname
+      : `/portal${pathname === '/' ? '' : pathname}`;
 
     // Portal's own lightweight route protection — same "marker cookie,
     // not a real security boundary" reasoning as staff, using its own
@@ -58,8 +67,14 @@ export function middleware(request: NextRequest) {
     // landing rather than guessing which company's login to show,
     // since the host alone doesn't carry a company slug in this
     // single-portal-domain design.
+    //
+    // Compares against the raw `pathname`, not `rewrittenPathname` —
+    // this is the fix. The guard's intent has always been "don't
+    // redirect again if the browser is already asking for /portal
+    // directly"; comparing against the prefixed value defeated that
+    // intent for exactly this one path.
     const hasPortalSession = request.cookies.get('renovo_portal_session')?.value === '1';
-    if (!isPortalPublicPath(rewrittenPathname) && !hasPortalSession && rewrittenPathname !== '/portal') {
+    if (!isPortalPublicPath(rewrittenPathname) && !hasPortalSession && pathname !== '/portal') {
       const url = request.nextUrl.clone();
       url.pathname = '/portal';
       return NextResponse.redirect(url);
