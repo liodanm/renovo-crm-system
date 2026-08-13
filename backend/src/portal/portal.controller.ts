@@ -232,18 +232,21 @@ export class PortalController {
     });
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('me')
   me(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
     return customer;
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('dashboard')
   getDashboard(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
     return this.data.getDashboard(customer.companyId, customer.customerId);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('estimates')
   getEstimates(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
@@ -261,6 +264,7 @@ export class PortalController {
    * "what's safe to show a customer" boundary in this file, not a new
    * one invented for this route.
    */
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('estimates/:id')
   async getEstimateDetail(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string) {
@@ -296,18 +300,21 @@ export class PortalController {
     };
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('estimates/:id/approve')
   approveEstimate(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string, @Body() dto: ApproveEstimateDto) {
     return this.data.approveEstimate(customer.companyId, customer.customerId, id, dto.signatureDataUrl);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('estimates/:id/decline')
   declineEstimate(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string) {
     return this.data.declineEstimate(customer.companyId, customer.customerId, id);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('invoices')
   getInvoices(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
@@ -323,6 +330,7 @@ export class PortalController {
    * actually stamps viewedAt — "Estimate Viewed" automation depends on
    * a customer having genuinely opened it, not just received the email.
    */
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('estimates/:id/view')
   async viewEstimate(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string, @Res() res: Response) {
@@ -370,6 +378,7 @@ export class PortalController {
    * every staff-facing document, and this now stamps viewedAt too — the
    * old version never recorded that a customer had actually opened it.
    */
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('invoices/:id/view')
   async viewInvoice(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string, @Res() res: Response) {
@@ -417,6 +426,7 @@ export class PortalController {
     res.send(buffer);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('invoices/:id/pay-intent')
   async createPaymentIntent(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string) {
@@ -433,42 +443,49 @@ export class PortalController {
     return { available: true, ...result };
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('service-history')
   getServiceHistory(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
     return this.data.getServiceHistory(customer.companyId, customer.customerId);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('properties')
   getProperties(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
     return this.data.getProperties(customer.companyId, customer.customerId);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('photos/upload-url')
   presignPhoto(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Body() body: { propertyId: string; fileName: string; mimeType: string }) {
     return this.data.presignPhotoUpload(customer.companyId, customer.customerId, body.propertyId, body.fileName, body.mimeType);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('photos')
   confirmPhoto(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Body() body: { propertyId: string; key: string; mimeType?: string }) {
     return this.data.confirmPhotoUpload(customer.companyId, customer.customerId, body.propertyId, body.key, body.mimeType);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('service-requests')
   createServiceRequest(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Body() dto: CreateServiceRequestDto) {
     return this.data.createServiceRequest(customer.companyId, customer.customerId, dto);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('service-requests')
   getServiceRequests(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
     return this.data.getServiceRequests(customer.companyId, customer.customerId);
   }
 
+  @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('chat')
   async postChat(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Body() dto: PortalChatDto) {
