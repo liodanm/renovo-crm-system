@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PortalTokenPayload, AuthenticatedPortalCustomer } from '../interfaces/portal-token.interface';
@@ -27,6 +27,8 @@ import { PortalTokenPayload, AuthenticatedPortalCustomer } from '../interfaces/p
  */
 @Injectable()
 export class PortalCustomerGuard implements CanActivate {
+  private readonly logger = new Logger(PortalCustomerGuard.name);
+
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
@@ -48,7 +50,19 @@ export class PortalCustomerGuard implements CanActivate {
         secret: this.config.get<string>('PORTAL_JWT_SECRET'),
         issuer: 'renovo-crm-portal',
       });
-    } catch {
+    } catch (err) {
+      // Diagnostic only — client-facing behavior (generic 401, same message)
+      // is unchanged. Every portal token verification has been failing here
+      // with no visibility into why: expired, wrong signature (secret
+      // mismatch), wrong issuer, or malformed. err.name distinguishes these
+      // (TokenExpiredError / JsonWebTokenError / NotBeforeError) — logged
+      // server-side only, never in the response.
+      this.logger.warn({
+        msg: 'Portal token verification failed',
+        errorName: (err as Error)?.name,
+        errorMessage: (err as Error)?.message,
+        path: request.url,
+      });
       throw new UnauthorizedException('Invalid or expired portal session');
     }
 
