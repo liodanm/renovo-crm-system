@@ -1,9 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
-  UserPlus,
   Users,
-  MapPin,
   FileText,
   Briefcase,
   Calendar,
@@ -11,8 +9,6 @@ import {
   CreditCard,
   RefreshCw,
   Megaphone,
-  Zap,
-  Boxes,
   BarChart3,
   Settings,
   LifeBuoy,
@@ -48,9 +44,7 @@ export const navGroups: NavGroup[] = [
   {
     items: [
       { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-      { label: 'Leads', href: '/leads', icon: UserPlus, comingSoon: true },
       { label: 'Customers', href: '/customers', icon: Users },
-      { label: 'Properties', href: '/properties', icon: MapPin, comingSoon: true },
       { label: 'Estimates', href: '/estimates', icon: FileText },
       { label: 'Jobs', href: '/jobs', icon: Briefcase },
       { label: 'Schedule', href: '/scheduling', icon: Calendar },
@@ -73,18 +67,18 @@ export const navGroups: NavGroup[] = [
   {
     label: 'Operations',
     items: [
-      { label: 'Automation', href: '/automation', icon: Zap, comingSoon: true },
       { label: 'Service Catalog', href: '/service-catalog', icon: BookOpen },
-      { label: 'Assets', href: '/assets', icon: Boxes, comingSoon: true },
       { label: 'Reports', href: '/reports', icon: BarChart3 },
+      { label: 'Settings', href: '/settings', icon: Settings },
     ],
   },
 ];
 
-// Deliberately separate from navGroups — these sit pinned below the
-// scrollable nav, above the user profile block, and never get grouped
-// under a workflow label, since they're not part of the day's work.
+// Deliberately separate from navGroups — sits pinned below the
+// scrollable nav, above the user profile block, never grouped under a
+// workflow label, since it's not part of the day's work. Settings moved
+// into the Operations group above (right after Reports) — Support is
+// the only item left here now.
 export const utilityNavItems: NavItem[] = [
-  { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Support', href: '/support', icon: LifeBuoy, comingSoon: true },
 ];
