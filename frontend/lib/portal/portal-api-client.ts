@@ -22,6 +22,17 @@ export async function portalApiFetch<T>(path: string, options: RequestInit & { s
   });
 
   if (response.status === 401 && !skipAuth) {
+    // Diagnostic only — behavior below is unchanged. Visible directly in
+    // the browser console at the moment of failure: was a token even
+    // present in localStorage when this request was made, and what did
+    // it look like? Distinguishes "token was never saved" from "token
+    // was saved but the backend rejected it."
+    // eslint-disable-next-line no-console
+    console.warn('[portal-api-client] 401 on', path, {
+      tokenWasPresent: !!token,
+      tokenLength: token?.length,
+      tokenPreview: token ? `${token.slice(0, 12)}...` : null,
+    });
     // No refresh path exists for portal sessions — a 401 means the
     // 30-day token has genuinely expired or is invalid. Clear it and
     // send the customer back to request a new magic link, rather than
