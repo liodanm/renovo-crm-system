@@ -34,7 +34,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // meant to have a staff session at all. This check is deliberately
   // the very first thing this component does, before any of its
   // effects below can run.
-  const isPortalRoute = pathname?.startsWith('/portal/') ?? false;
+  //
+  // Two ways a portal page gets reached, and the pathname prefix alone
+  // only catches one of them:
+  //   1. An internal client-side push to a literal '/portal/...' path
+  //      (e.g. this file's own router.push, or verify's
+  //      router.replace('/portal/dashboard')) — pathname legitimately
+  //      starts with '/portal/' here.
+  //   2. A direct visit under the portal.* host — middleware.ts rewrites
+  //      these server-side (e.g. portal.renovocrm.com/{slug}/verify ->
+  //      internal /portal/{slug}/verify), but that rewrite is invisible
+  //      to the browser by design: usePathname() on the client still
+  //      reports the real, un-prefixed URL (e.g. '/{slug}/verify'), not
+  //      the rewritten one. Every portal page reached this way — the
+  //      magic-link verify page, portal login, the bare portal root —
+  //      previously fell through this check as `false`, so this
+  //      provider ran its own staff-session logic on top of the portal's,
+  //      and its redirect-to-'/login' raced (and often won) against the
+  //      portal's own verification flow, sending customers back to a
+  //      "Sign in required" wall even with a valid, freshly-clicked
+  //      magic link. Host detection (matching middleware.ts's own
+  //      PORTAL_HOST_PREFIX check) closes that gap; the pathname check is
+  //      kept too since it's still correct for case 1 and costs nothing.
+  const isPortalHost = typeof window !== 'undefined' && window.location.hostname.startsWith('portal.');
+  const isPortalRoute = isPortalHost || (pathname?.startsWith('/portal/') ?? false);
 
   const loadUser = useCallback(async () => {
     if (isPortalRoute) return;
