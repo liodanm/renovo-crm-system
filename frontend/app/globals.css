@@ -45,4 +45,14 @@ html {
    native controls dark even on pages ThemeProvider hasn't touched. */
 .dark {
   color-scheme: dark;
+
+  /* Requested explicitly: match the sidebar's background to the search
+     bar's dark-mode background (Tailwind slate-900/slate-800 exactly,
+     not an approximation) rather than keeping the original teal-tinted
+     charcoal. Deliberately narrow — only the two background tokens
+     change here; --sidebar-text/-border/-accent above are untouched,
+     since matching the search bar was specifically about background
+     color, not a full re-theme of the sidebar's branding. */
+  --sidebar-bg: #0f172a;
+  --sidebar-bg-hover: #1e293b;
 }
