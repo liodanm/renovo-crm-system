@@ -37,12 +37,14 @@ export class PortalController {
   // Auth — public, no guard (this IS the login flow)
   // ===========================================================================
 
+  @Public()
   @Throttle({ default: { limit: 3, ttl: 60_000 } }) // same email-bombing concern as staff forgot-password
   @Post(':companySlug/auth/request-link')
   requestLink(@Param('companySlug') companySlug: string, @Body() dto: RequestMagicLinkDto) {
     return this.auth.requestMagicLink(companySlug, dto.email);
   }
 
+  @Public()
   @Post('auth/verify')
   verify(@Body() dto: VerifyMagicLinkDto) {
     return this.auth.verifyMagicLink(dto.token);
