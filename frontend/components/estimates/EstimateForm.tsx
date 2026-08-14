@@ -39,7 +39,7 @@ interface DraftLineItem {
 function emptyLineItem(): DraftLineItem {
   return {
     key: crypto.randomUUID(),
-    serviceType: 'roof_soft_wash',
+    serviceType: 'other',
     description: '',
     unitOfMeasure: 'sq_ft',
     quantity: '',
@@ -857,7 +857,7 @@ function CatalogPicker({ onPick, onCreateCustom }: { onPick: (item: ServiceCatal
   return (
     <div className="relative">
       <button onClick={() => setIsOpen((v) => !v)} className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100">
-        Load from Catalog
+        + Add Service
       </button>
       {isOpen && (
         <>
