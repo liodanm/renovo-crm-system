@@ -9,7 +9,7 @@ import { settingsApi } from '../../lib/api/settings';
 import { estimatesApi, SERVICE_TYPES, UNITS_OF_MEASURE, type Estimate } from '../../lib/api/estimates';
 import { ApiError } from '../../lib/api/api-client';
 import { AppShell } from '../layout/AppShell';
-import { serviceCatalogApi, type ServiceCatalogItem } from '../../lib/api/service-catalog';
+import { serviceCatalogApi, SERVICE_TYPE_ICONS, type ServiceCatalogItem } from '../../lib/api/service-catalog';
 import { CustomerPicker } from './CustomerPicker';
 import { AddPropertyForm } from '../customers/tabs/properties-tab';
 import { recordRecentCustomer } from '../../lib/hooks/use-recent-customers';
@@ -909,7 +909,10 @@ function LineItemRow({
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
         <div className="lg:col-span-3">
-          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Service</label>
+          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+            {(() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-3.5 w-3.5 shrink-0" />; })()}
+            Service
+          </label>
           <select
             value={item.serviceType}
             onChange={(e) => {

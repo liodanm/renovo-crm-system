@@ -6,15 +6,7 @@ import useSWR from 'swr';
 import { estimatesApi, type Estimate } from '../../lib/api/estimates';
 import { AppShell } from '../../components/layout/AppShell';
 import { MobileListCard } from '../../components/ui/mobile-list-card';
-
-const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
-  sent: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  viewed: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300',
-  accepted: 'bg-emerald-100 text-emerald-700 dark:text-emerald-300',
-  declined: 'bg-red-100 text-red-700 dark:text-red-300',
-  expired: 'bg-amber-100 text-amber-700 dark:text-amber-300',
-};
+import { ESTIMATE_STATUS_COLORS } from '../../components/action-center/StatusBadge';
 
 type StatusFilter = 'needsResponse' | 'accepted' | 'all';
 const NEEDS_RESPONSE_STATUSES = new Set(['draft', 'sent', 'viewed']);
@@ -102,7 +94,10 @@ export default function EstimatesPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {estimates.map((estimate) => (
-                    <tr key={estimate.id} className="hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
+                    <tr
+                      key={estimate.id}
+                      className={`border-l-4 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 ${ESTIMATE_STATUS_COLORS[estimate.status]?.borderClassName ?? 'border-slate-300 dark:border-slate-700'}`}
+                    >
                       <td className="px-4 py-3">
                         <Link href={`/estimates/${estimate.id}`} className="font-medium text-[var(--color-brand)]">
                           {estimate.estimateNumber}
@@ -111,8 +106,8 @@ export default function EstimatesPage() {
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{customerName(estimate.customer)}</td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{estimate.property.addressLine1}, {estimate.property.city}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[estimate.status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
-                          {estimate.status}
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTIMATE_STATUS_COLORS[estimate.status]?.className ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
+                          {ESTIMATE_STATUS_COLORS[estimate.status]?.label ?? estimate.status}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-slate-100">{formatMoney(estimate.totalAmount)}</td>
@@ -128,8 +123,9 @@ export default function EstimatesPage() {
                     href={`/estimates/${estimate.id}`}
                     title={customerName(estimate.customer)}
                     subtitle={`${estimate.property.addressLine1}, ${estimate.property.city}`}
-                    statusLabel={estimate.status}
-                    statusClassName={STATUS_STYLES[estimate.status]}
+                    statusLabel={ESTIMATE_STATUS_COLORS[estimate.status]?.label ?? estimate.status}
+                    statusClassName={ESTIMATE_STATUS_COLORS[estimate.status]?.className}
+                    borderClassName={ESTIMATE_STATUS_COLORS[estimate.status]?.borderClassName}
                     amount={formatMoney(estimate.totalAmount)}
                     amountLabel="Total"
                     meta={[{ label: 'Estimate #', value: estimate.estimateNumber }]}

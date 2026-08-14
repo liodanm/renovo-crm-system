@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { jobsApi, JOB_STATUS_LABELS, JOB_PRIORITY_LABELS, JOB_PRIORITY_COLORS, SIGNATURE_UNAVAILABLE_LABELS, RECOMMENDABLE_SERVICE_LABELS, type CompleteJobInput, type JobPriority } from '../../../lib/api/jobs';
+import { SERVICE_TYPE_ICONS } from '../../../lib/api/service-catalog';
 import { AppShell } from '../../../components/layout/AppShell';
 import { PhotoSection } from '../../../components/jobs/PhotoSection';
 import { ChemicalSection } from '../../../components/jobs/ChemicalSection';
@@ -223,7 +224,10 @@ export default function JobDetailPage() {
                 {job.lineItems.map((item) => (
                   <div key={item.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <span className="font-medium text-slate-900 dark:text-slate-100">{item.description}</span>
+                      <span className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
+                        {item.serviceType && (() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
+                        {item.description}
+                      </span>
                       <span className="shrink-0 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</span>
                     </div>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')} × {formatMoney(item.unitPrice)}</p>
@@ -243,7 +247,12 @@ export default function JobDetailPage() {
                 <tbody className="divide-y divide-slate-100">
                   {job.lineItems.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{item.description}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                        <span className="flex items-center gap-1.5">
+                          {item.serviceType && (() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
+                          {item.description}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')}</td>
                       <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{formatMoney(item.unitPrice)}</td>
                       <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</td>

@@ -6,7 +6,7 @@ import useSWR from 'swr';
 import { Plus, GripVertical } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { MobileListCard } from '../../components/ui/mobile-list-card';
-import { serviceCatalogApi, SERVICE_TYPE_LABELS, type ServiceCatalogItem } from '../../lib/api/service-catalog';
+import { serviceCatalogApi, SERVICE_TYPE_LABELS, SERVICE_TYPE_ICONS, type ServiceCatalogItem } from '../../lib/api/service-catalog';
 
 function formatMoney(value: string | null): string {
   if (!value) return '—';
@@ -146,7 +146,8 @@ export default function ServiceCatalogPage() {
                         <GripVertical className="h-4 w-4" />
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/service-catalog/${item.id}`} className="font-medium text-[var(--color-brand)]">
+                        <Link href={`/service-catalog/${item.id}`} className="flex items-center gap-2 font-medium text-[var(--color-brand)]">
+                          {(() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
                           {item.name}
                         </Link>
                         <p className="text-xs text-slate-400 dark:text-slate-500">{SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType}</p>
@@ -174,7 +175,7 @@ export default function ServiceCatalogPage() {
                   <MobileListCard
                     key={item.id}
                     href={`/service-catalog/${item.id}`}
-                    title={item.name}
+                    title={(() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <span className="flex items-center gap-1.5"><Icon className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />{item.name}</span>; })()}
                     subtitle={SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType}
                     amount={`${formatMoney(item.defaultUnitPrice)}${item.defaultUnitOfMeasure ? ` /${item.defaultUnitOfMeasure.replace('_', ' ')}` : ''}`}
                     amountLabel="Default Price"

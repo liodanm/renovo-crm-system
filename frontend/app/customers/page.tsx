@@ -8,7 +8,6 @@ import { customersApi, CustomerQueryParams } from '../../lib/api/customers';
 import { CustomerTable } from '../../components/customers/customer-table';
 import { CustomerFilters } from '../../components/customers/customer-filters';
 import { CreateCustomerModal } from '../../components/customers/create-customer-modal';
-import { ImportCsvModal } from '../../components/customers/import-csv-modal';
 import { PermissionGate } from '../../components/auth/permission-gate';
 import { CardSkeleton, CardError } from '../../components/dashboard/dashboard-card';
 import { AppShell } from '../../components/layout/AppShell';
@@ -18,8 +17,6 @@ import { ConfirmDialog } from '../../components/action-center/ConfirmDialog';
 export default function CustomersPage() {
   const [filters, setFilters] = useState<CustomerQueryParams>({ page: 1, pageSize: 25 });
   const [showCreate, setShowCreate] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mobileSelectionMode, setMobileSelectionMode] = useState(false);
@@ -40,14 +37,6 @@ export default function CustomersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
-  async function handleExport() {
-    setIsExporting(true);
-    try {
-      await customersApi.exportCsv();
-    } finally {
-      setIsExporting(false);
-    }
-  }
 
   function handleToggleOne(id: string, rangeSelectTo?: string) {
     setSelectedIds((prev) => {
@@ -128,20 +117,7 @@ export default function CustomersPage() {
             >
               Review Duplicates
             </Link>
-            <button
-              onClick={handleExport}
-              disabled={isExporting}
-              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50"
-            >
-              {isExporting ? 'Exporting…' : 'Export CSV'}
-            </button>
             <PermissionGate permissions={['customers.write']}>
-              <button
-                onClick={() => setShowImport(true)}
-                className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800"
-              >
-                Import CSV
-              </button>
               {/* Mobile-only entry point into selection mode — desktop's
                   checkboxes are always visible in the table, so it never
                   needs an explicit mode toggle the way a phone-width card
@@ -231,13 +207,6 @@ export default function CustomersPage() {
             setShowCreate(false);
             mutate();
           }}
-        />
-      )}
-
-      {showImport && (
-        <ImportCsvModal
-          onClose={() => setShowImport(false)}
-          onImported={() => mutate()}
         />
       )}
 

@@ -52,6 +52,14 @@ export interface MobileListCardProps {
   onMoveDown?: () => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  /** Optional override for the card's border color — generic, not tied
+      to any one entity. A caller with its own status-to-color mapping
+      (e.g. ESTIMATE_STATUS_COLORS' borderClassName) passes the resolved
+      class string directly; this component has no opinion on what a
+      status means. Ignored while selected, since the selection-state
+      border already communicates something more immediately relevant
+      in that moment. */
+  borderClassName?: string;
 }
 
 export function MobileListCard({
@@ -70,6 +78,7 @@ export function MobileListCard({
   onMoveDown,
   canMoveUp = true,
   canMoveDown = true,
+  borderClassName,
 }: MobileListCardProps) {
   const content = (
     <>
@@ -122,8 +131,12 @@ export function MobileListCard({
   );
 
   const className = cn(
-    'block rounded-xl border p-4',
-    selected ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/5' : 'border-slate-200 bg-white active:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:active:bg-slate-800',
+    borderClassName ? 'block rounded-xl border-2 p-4' : 'block rounded-xl border p-4',
+    selected
+      ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/5'
+      : borderClassName
+        ? `${borderClassName} bg-white active:bg-slate-50 dark:bg-slate-900 dark:active:bg-slate-800`
+        : 'border-slate-200 bg-white active:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:active:bg-slate-800',
   );
 
   if (selectionMode) {

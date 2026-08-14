@@ -1,4 +1,6 @@
 import { apiFetch } from './api-client';
+import type { LucideIcon } from 'lucide-react';
+import { Triangle, Car, House, Umbrella, LayoutGrid, Fence, ArrowDownToLine, Grid3x3, Sparkles, AppWindow, Wrench } from 'lucide-react';
 
 export interface CatalogChemical {
   chemicalName: string;
@@ -69,6 +71,31 @@ export const SERVICE_TYPE_LABELS: Record<string, string> = {
   paver_cleaning: 'Paver Cleaning',
   window_cleaning: 'Window Cleaning',
   other: 'Other',
+};
+
+/**
+ * Auto-assigned by serviceType — not a per-item user selection. Same
+ * pattern/location as SERVICE_TYPE_LABELS immediately above, so the
+ * icon automatically follows the service everywhere serviceType is
+ * already displayed (Service Catalog, Estimate/Job/Invoice line items)
+ * with zero schema changes, since serviceType is already stored on all
+ * of those. If per-item icon override is ever wanted, that's a real,
+ * separate future decision requiring an actual nullable column — not
+ * something to build speculatively now.
+ */
+export const SERVICE_TYPE_ICONS: Record<string, LucideIcon> = {
+  roof_soft_wash: Triangle,
+  driveway_cleaning: Car,
+  house_wash: House,
+  pool_deck: Umbrella,
+  patio: LayoutGrid,
+  fence: Fence,
+  gutters: ArrowDownToLine,
+  screen_enclosure: Grid3x3,
+  rust_removal: Sparkles,
+  paver_cleaning: LayoutGrid,
+  window_cleaning: AppWindow,
+  other: Wrench,
 };
 
 export const UNIT_LABELS: Record<string, string> = {

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { Pencil, CheckCircle2, Briefcase, Mail, FileDown, Printer, XCircle, Clock, Trash2, RotateCcw, Copy } from 'lucide-react';
 import { estimatesApi, SERVICE_TYPES } from '../../../lib/api/estimates';
+import { SERVICE_TYPE_ICONS } from '../../../lib/api/service-catalog';
 import { PermissionGate } from '../../../components/auth/permission-gate';
 import { useAuth } from '../../../lib/auth/auth-context';
 import { ApiError, fetchPdfObjectUrl } from '../../../lib/api/api-client';
@@ -170,13 +171,16 @@ export default function EstimateDetailPage() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <div className={`overflow-hidden rounded-xl border-2 bg-white dark:bg-slate-900 ${ESTIMATE_STATUS_COLORS[displayStatus]?.borderClassName ?? 'border-slate-200 dark:border-slate-800'}`}>
               {/* Mobile: one card per service, no sideways scrolling needed */}
               <div className="divide-y divide-slate-100 lg:hidden">
                 {estimate.lineItems.map((item) => (
                   <div key={item.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <span className="font-medium text-slate-900 dark:text-slate-100">{serviceLabel(item.serviceType)}</span>
+                      <span className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
+                        {(() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
+                        {serviceLabel(item.serviceType)}
+                      </span>
                       <span className="shrink-0 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</span>
                     </div>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.description}</p>
@@ -213,7 +217,12 @@ export default function EstimateDetailPage() {
                 <tbody className="divide-y divide-slate-100">
                   {estimate.lineItems.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{serviceLabel(item.serviceType)}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                        <span className="flex items-center gap-1.5">
+                          {(() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
+                          {serviceLabel(item.serviceType)}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{item.description}</td>
                       <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{item.quantity} {item.unitOfMeasure.replace('_', ' ')}</td>
                       <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{formatMoney(item.unitPrice)}</td>
