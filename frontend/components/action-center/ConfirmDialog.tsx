@@ -37,7 +37,7 @@ export function ConfirmDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 dark:bg-black/60">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-6 dark:bg-black/60 sm:items-center">
       <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl dark:bg-slate-900">
         <div className="flex items-start gap-3">
           {danger && <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-500 dark:text-red-400" />}

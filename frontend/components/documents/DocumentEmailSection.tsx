@@ -105,7 +105,7 @@ export function DocumentEmailSection({ documentLabel, customerEmail, hasBeenSent
             value={overrideEmail}
             onChange={(e) => setOverrideEmail(e.target.value)}
             placeholder={customerEmail ?? 'customer@example.com'}
-            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
           />
         </div>
       )}

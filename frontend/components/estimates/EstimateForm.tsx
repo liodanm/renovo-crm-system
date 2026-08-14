@@ -686,7 +686,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-4">
-          <div>
+          <div className="min-w-0">
             <div className="flex min-h-[22px] items-center justify-between">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valid until</label>
             </div>
@@ -694,7 +694,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               type="date"
               value={validUntil}
               onChange={(e) => setValidUntil(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
+              className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
             />
           </div>
           <div>
@@ -794,7 +794,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             Job page; this one sticks to the bottom, the correct edge for a
             save action). Desktop reverts to the original static inline
             layout at lg+, unchanged. */}
-        <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:flex-nowrap lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0 lg:backdrop-blur-none">
+        <div className="sticky bottom-0 z-10 -mx-4 mt-6 grid grid-cols-2 gap-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:flex sm:flex-nowrap sm:justify-end sm:px-6 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0 lg:backdrop-blur-none">
           <button
             type="button"
             onClick={() => {
@@ -807,20 +807,20 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               if (!isEdit) clearDraft();
               router.push(isEdit ? `/estimates/${existingEstimate!.id}` : '/estimates');
             }}
-            className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 lg:py-2 lg:text-sm"
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 sm:w-auto lg:py-2 lg:text-sm"
           >
             Cancel
           </button>
           {isEdit ? (
             <>
-              <button onClick={() => handleSave(false)} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+              <button onClick={() => handleSave(false)} disabled={isSaving} className="w-full rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-medium text-white hover:opacity-90 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
                 {isSaving && saveAction === 'draft' ? 'Saving…' : 'Save Changes'}
               </button>
               {existingEstimate!.status === 'draft' && (
                 <button
                   onClick={handleSaveAndAccept}
                   disabled={isSaving}
-                  className="rounded-lg border border-[var(--color-brand)] px-4 py-2 text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-50"
+                  className="w-full rounded-lg border border-[var(--color-brand)] px-4 py-3 text-base font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm"
                 >
                   {isSaving && saveAction === 'accept' ? 'Saving & Accepting…' : 'Save & Accept'}
                 </button>
@@ -828,16 +828,16 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             </>
           ) : (
             <>
-              <button onClick={() => handleSave(false)} disabled={isSaving} className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50">
+              <button onClick={() => handleSave(false)} disabled={isSaving} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
                 {isSaving && saveAction === 'draft' ? 'Saving…' : 'Save as Draft'}
               </button>
-              <button onClick={() => handleSave(true)} disabled={isSaving} className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+              <button onClick={() => handleSave(true)} disabled={isSaving} className="w-full rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-medium text-white hover:opacity-90 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
                 {isSaving && saveAction === 'send' ? 'Saving…' : 'Save & Send'}
               </button>
               <button
                 onClick={handleSaveAndAcceptNew}
                 disabled={isSaving}
-                className="rounded-lg border border-[var(--color-brand)] px-4 py-2 text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-50"
+                className="w-full rounded-lg border border-[var(--color-brand)] px-4 py-3 text-base font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm"
               >
                 {isSaving && saveAction === 'accept' ? 'Saving & Accepting…' : 'Save & Accept'}
               </button>
@@ -916,7 +916,7 @@ function LineItemRow({
               onChange({ serviceType: e.target.value });
               requestAnimationFrame(() => descriptionRef.current?.focus());
             }}
-            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
+            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
           >
             {SERVICE_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
@@ -928,12 +928,12 @@ function LineItemRow({
             value={item.description}
             onChange={(e) => onChange({ description: e.target.value })}
             onKeyDown={focusOnEnter(quantityRef)}
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
           />
         </div>
         <div className="lg:col-span-2">
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Unit Type</label>
-          <select value={item.unitOfMeasure} onChange={(e) => onChange({ unitOfMeasure: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
+          <select value={item.unitOfMeasure} onChange={(e) => onChange({ unitOfMeasure: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
         </div>
@@ -947,7 +947,7 @@ function LineItemRow({
             onChange={(e) => onChange({ quantity: sanitizeNumericInput(e.target.value) })}
             onKeyDown={focusOnEnter(unitPriceRef)}
             placeholder="0"
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
           />
         </div>
         <div className="lg:col-span-2">
@@ -959,7 +959,7 @@ function LineItemRow({
             value={item.unitPrice}
             onChange={(e) => onChange({ unitPrice: sanitizeNumericInput(e.target.value) })}
             placeholder="0.00"
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-unitPrice`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
+            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-unitPrice`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
           />
         </div>
       </div>
@@ -985,22 +985,22 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-4">
         <label className="block">
           <RequiredLabel size="sm">Roof sq ft</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
+          <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Roof type</RequiredLabel>
-          <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
+          <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             <option value="">Roof type…</option>
             <option value="tile">Tile</option><option value="shingle">Shingle</option><option value="metal">Metal</option>
           </select>
         </label>
         <label className="block">
           <RequiredLabel size="sm">Stories</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
+          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </label>
         <label className="block">
           <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Pitch</span>
-          <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
+          <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             <option value="">Pitch…</option>
             <option value="low">Low</option><option value="medium">Medium</option><option value="steep">Steep</option>
           </select>
@@ -1014,11 +1014,11 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-4">
         <label className="block">
           <RequiredLabel size="sm">Sq ft</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
+          <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Surface</RequiredLabel>
-          <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
+          <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             <option value="">Surface…</option>
             <option value="concrete">Concrete</option><option value="pavers">Pavers</option>
           </select>
@@ -1038,11 +1038,11 @@ function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange
       <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-3">
         <label className="block">
           <RequiredLabel size="sm">Stories</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
+          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         </label>
         <label className="block">
           <RequiredLabel size="sm">Exterior material</RequiredLabel>
-          <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
+          <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
             <option value="">Exterior material…</option>
             <option value="vinyl">Vinyl</option><option value="brick">Brick</option><option value="stucco">Stucco</option>
             <option value="wood">Wood</option><option value="fiber_cement">Fiber cement</option><option value="other">Other</option>

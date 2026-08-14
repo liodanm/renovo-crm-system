@@ -15,6 +15,18 @@ html {
   overflow-x: hidden;
 }
 
+/* html-only overflow-x protection has a known iOS Safari gap — Safari's
+   own scrolling viewport can still be horizontally panned by touch even
+   with `overflow-x: hidden` set only on <html>. This does not hide any
+   genuine layout bug (the actual overflow sources — EstimateForm's
+   button bar and Valid Until field — are fixed at their root cause
+   separately); it's the same class of last-resort safety net `html`
+   above already provides, just closing the gap for real mobile Safari
+   touch-scroll behavior specifically. */
+body {
+  overflow-x: hidden;
+}
+
 :root {
   --color-brand: #0e7490; /* teal-700 — water/pressure-washing association without leaning on cliché blue */
   --color-brand-dark: #155e75;

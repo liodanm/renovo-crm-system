@@ -140,7 +140,7 @@ export default function AutomationSettingsPage() {
                             value={template.subject ?? ''}
                             onChange={(e) => updateTemplate(rule.key, { subject: e.target.value })}
                             placeholder="Leave blank to use the default"
-                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
+                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
                           />
                         </div>
                         <div>
@@ -150,7 +150,7 @@ export default function AutomationSettingsPage() {
                             onChange={(e) => updateTemplate(rule.key, { body: e.target.value })}
                             placeholder="Leave blank to use the default message"
                             rows={3}
-                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-1.5 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
+                            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
                           />
                         </div>
                       </div>

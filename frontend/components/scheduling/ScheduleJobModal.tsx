@@ -39,7 +39,7 @@ export function ScheduleJobModal({ jobId, onClose, onScheduled }: { jobId: strin
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-6 sm:items-center" onClick={onClose}>
       <div className="w-full max-w-sm rounded-xl bg-white dark:bg-slate-900 p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Schedule This Job</h2>
         {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
