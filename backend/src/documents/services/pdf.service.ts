@@ -299,7 +299,13 @@ export class PdfService {
       // drawing it (description text wraps, so rows aren't a fixed
       // height anymore) and start a fresh page if it wouldn't fit,
       // rather than letting pdfkit silently clip content off the bottom.
-      const nameLabel = item.serviceType ? SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType : null;
+      // 'other' means a genuinely custom service — its real name IS the
+      // description, not the generic category label. Treated the same
+      // as no serviceType at all (null), so it renders exactly like an
+      // uncategorized line item already does: description alone, no
+      // bold heading above it. Every real service type (all 11 others)
+      // is completely unaffected by this — same rendering as before.
+      const nameLabel = item.serviceType && item.serviceType !== 'other' ? SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType : null;
       doc.font('Helvetica-Bold').fontSize(10.5);
       const nameHeight = nameLabel ? doc.heightOfString(nameLabel, { width: descWidth }) + 2 : 0;
       doc.font('Helvetica').fontSize(9.5);

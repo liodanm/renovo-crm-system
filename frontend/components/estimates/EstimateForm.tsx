@@ -7,11 +7,12 @@ import useSWR from 'swr';
 import { Plus } from 'lucide-react';
 import { customersApi, type Property } from '../../lib/api/customers';
 import { settingsApi } from '../../lib/api/settings';
-import { estimatesApi, SERVICE_TYPES, UNITS_OF_MEASURE, type Estimate } from '../../lib/api/estimates';
+import { estimatesApi, UNITS_OF_MEASURE, type Estimate } from '../../lib/api/estimates';
 import { ApiError } from '../../lib/api/api-client';
 import { AppShell } from '../layout/AppShell';
 import { serviceCatalogApi, SERVICE_TYPE_ICONS, type ServiceCatalogItem } from '../../lib/api/service-catalog';
 import { CustomerPicker } from './CustomerPicker';
+import { ServicePicker } from './ServicePicker';
 import { AddPropertyForm } from '../customers/tabs/properties-tab';
 import { recordRecentCustomer } from '../../lib/hooks/use-recent-customers';
 import { CardEmpty } from '../dashboard/dashboard-card';
@@ -921,20 +922,19 @@ function LineItemRow({
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
         <div className="lg:col-span-3">
-          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-            {(() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-3.5 w-3.5 shrink-0" />; })()}
-            Service
-          </label>
-          <select
+          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Service</label>
+          <ServicePicker
             value={item.serviceType}
-            onChange={(e) => {
-              onChange({ serviceType: e.target.value });
+            description={item.description}
+            onSelect={(serviceType, descriptionOverride) => {
+              if (descriptionOverride !== undefined) {
+                onChange({ serviceType, description: descriptionOverride });
+              } else {
+                onChange({ serviceType });
+              }
               requestAnimationFrame(() => descriptionRef.current?.focus());
             }}
-            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
-          >
-            {SERVICE_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
+          />
         </div>
         <div className="lg:col-span-4">
           <RequiredLabel size="sm">Description</RequiredLabel>
