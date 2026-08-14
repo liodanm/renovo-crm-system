@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
+import { Plus } from 'lucide-react';
 import { customersApi, type Property } from '../../lib/api/customers';
 import { settingsApi } from '../../lib/api/settings';
 import { estimatesApi, SERVICE_TYPES, UNITS_OF_MEASURE, type Estimate } from '../../lib/api/estimates';
@@ -647,10 +648,8 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                     },
                   ])
                 }
+                onCreateCustom={() => setLineItems((items) => [...items, emptyLineItem()])}
               />
-              <button onClick={() => setLineItems((items) => [...items, emptyLineItem()])} className="text-sm font-medium text-[var(--color-brand)]">
-                + Add service
-              </button>
             </div>
           </div>
 
@@ -851,7 +850,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
   );
 }
 
-function CatalogPicker({ onPick }: { onPick: (item: ServiceCatalogItem) => void }) {
+function CatalogPicker({ onPick, onCreateCustom }: { onPick: (item: ServiceCatalogItem) => void; onCreateCustom: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const { data: items } = useSWR('service-catalog-active', () => serviceCatalogApi.list(true));
 
@@ -864,6 +863,14 @@ function CatalogPicker({ onPick }: { onPick: (item: ServiceCatalogItem) => void 
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 shadow-lg">
+            <button
+              onClick={() => { onCreateCustom(); setIsOpen(false); }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5"
+            >
+              <Plus className="h-4 w-4 shrink-0" />
+              Create Custom Service
+            </button>
+            <div className="my-1 h-px bg-slate-200 dark:bg-slate-800" />
             {(!items || items.length === 0) && <p className="p-3 text-xs text-slate-400 dark:text-slate-500">No active services in your catalog yet.</p>}
             {items?.map((item) => {
               const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other;
