@@ -863,12 +863,15 @@ function CatalogPicker({ onPick }: { onPick: (item: ServiceCatalogItem) => void 
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 shadow-lg">
             {(!items || items.length === 0) && <p className="p-3 text-xs text-slate-400 dark:text-slate-500">No active services in your catalog yet.</p>}
-            {items?.map((item) => (
-              <button key={item.id} onClick={() => { onPick(item); setIsOpen(false); }} className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
-                <span className="font-medium text-slate-800 dark:text-slate-100">{item.name}</span>
-                {item.defaultUnitPrice && <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">${item.defaultUnitPrice}</span>}
-              </button>
-            ))}
+            {items?.map((item) => {
+              const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other;
+              return (
+                <button key={item.id} onClick={() => { onPick(item); setIsOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
+                  <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+                  <span className="font-medium text-slate-800 dark:text-slate-100">{item.name}</span>
+                </button>
+              );
+            })}
           </div>
         </>
       )}
