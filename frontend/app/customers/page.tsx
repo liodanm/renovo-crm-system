@@ -113,7 +113,7 @@ export default function CustomersPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/customers/duplicates"
-              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800"
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 lg:py-2 lg:text-sm"
             >
               Review Duplicates
             </Link>
@@ -131,7 +131,7 @@ export default function CustomersPage() {
               </button>
               <button
                 onClick={() => setShowCreate(true)}
-                className="rounded-lg bg-[var(--color-brand)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-brand-dark)]"
+                className="rounded-lg bg-[var(--color-brand)] px-3 py-3 text-base font-semibold text-white hover:bg-[var(--color-brand-dark)] lg:py-2 lg:text-sm"
               >
                 + New Customer
               </button>

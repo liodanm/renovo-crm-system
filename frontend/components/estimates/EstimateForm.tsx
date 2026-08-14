@@ -587,7 +587,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
           <div>
             <RequiredLabel>Property</RequiredLabel>
             {!customerId ? (
-              <select disabled className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-2 text-sm text-slate-400 dark:text-slate-500">
+              <select disabled className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-3 text-base lg:py-2 lg:text-sm text-slate-400 dark:text-slate-500">
                 <option>Select a customer first…</option>
               </select>
             ) : propertiesError ? (
@@ -690,12 +690,14 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             <div className="flex min-h-[22px] items-center justify-between">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valid until</label>
             </div>
-            <input
-              type="date"
-              value={validUntil}
-              onChange={(e) => setValidUntil(e.target.value)}
-              className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
-            />
+            <div className="mt-1 w-full overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700 dark:bg-slate-900">
+              <input
+                type="date"
+                value={validUntil}
+                onChange={(e) => setValidUntil(e.target.value)}
+                className="w-full min-w-0 max-w-full border-0 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 focus:outline-none"
+              />
+            </div>
           </div>
           <div>
             <div className="flex min-h-[22px] items-center justify-between">
