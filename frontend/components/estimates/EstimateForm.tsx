@@ -392,7 +392,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         ? await estimatesApi.update(existingEstimate!.id, (({ customerId, propertyId, ...updatePayload }) => updatePayload)(payload))
         : await estimatesApi.create(payload);
       if (andSend && !isEdit) {
-        await estimatesApi.send(estimate.id);
+        await estimatesApi.sendEmail(estimate.id);
       }
       if (!isEdit) {
         clearDraft();
