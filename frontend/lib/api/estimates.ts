@@ -179,4 +179,5 @@ export const UNITS_OF_MEASURE: Array<{ value: string; label: string }> = [
   { value: 'linear_ft', label: 'Linear Ft' },
   { value: 'each', label: 'Each' },
   { value: 'hours', label: 'Hours' },
+  { value: 'flat_rate', label: 'Flat Rate' },
 ];

@@ -700,15 +700,19 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             </div>
           </div>
           <div>
-            <div className="flex min-h-[22px] items-center justify-between">
+            <div className="min-h-[22px]">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Discount type</label>
               {activePackageDiscount && (
-                <span className="whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                  {activePackageDiscount.label} • {activePackageDiscount.value}%
-                </span>
+                <div className="mt-0.5">
+                  <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    {activePackageDiscount.label} • {activePackageDiscount.value}%
+                  </span>
+                </div>
               )}
               {isManualDiscount && discountType && (
-                <span className="whitespace-nowrap rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">Manual Discount</span>
+                <div className="mt-0.5">
+                  <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">Manual Discount</span>
+                </div>
               )}
             </div>
             <select
@@ -809,20 +813,20 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               if (!isEdit) clearDraft();
               router.push(isEdit ? `/estimates/${existingEstimate!.id}` : '/estimates');
             }}
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 sm:w-auto lg:py-2 lg:text-sm"
+            className="w-full rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950 px-4 py-3 text-base font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 sm:w-auto lg:py-2 lg:text-sm"
           >
             Cancel
           </button>
           {isEdit ? (
             <>
-              <button onClick={() => handleSave(false)} disabled={isSaving} className="w-full rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-medium text-white hover:opacity-90 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
+              <button onClick={() => handleSave(false)} disabled={isSaving} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
                 {isSaving && saveAction === 'draft' ? 'Saving…' : 'Save Changes'}
               </button>
               {existingEstimate!.status === 'draft' && (
                 <button
                   onClick={handleSaveAndAccept}
                   disabled={isSaving}
-                  className="w-full rounded-lg border border-[var(--color-brand)] px-4 py-3 text-base font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm"
+                  className="w-full rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 px-4 py-3 text-base font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm"
                 >
                   {isSaving && saveAction === 'accept' ? 'Saving & Accepting…' : 'Save & Accept'}
                 </button>
@@ -830,16 +834,16 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             </>
           ) : (
             <>
-              <button onClick={() => handleSave(false)} disabled={isSaving} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
+              <button onClick={() => handleSave(false)} disabled={isSaving} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
                 {isSaving && saveAction === 'draft' ? 'Saving…' : 'Save as Draft'}
               </button>
-              <button onClick={() => handleSave(true)} disabled={isSaving} className="w-full rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-medium text-white hover:opacity-90 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
+              <button onClick={() => handleSave(true)} disabled={isSaving} className="w-full rounded-lg border border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 px-4 py-3 text-base font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
                 {isSaving && saveAction === 'send' ? 'Saving…' : 'Save & Send'}
               </button>
               <button
                 onClick={handleSaveAndAcceptNew}
                 disabled={isSaving}
-                className="w-full rounded-lg border border-[var(--color-brand)] px-4 py-3 text-base font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm"
+                className="w-full rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 px-4 py-3 text-base font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm"
               >
                 {isSaving && saveAction === 'accept' ? 'Saving & Accepting…' : 'Save & Accept'}
               </button>
@@ -948,7 +952,23 @@ function LineItemRow({
         </div>
         <div className="lg:col-span-2">
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Unit Type</label>
-          <select value={item.unitOfMeasure} onChange={(e) => onChange({ unitOfMeasure: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
+          <select
+            value={item.unitOfMeasure}
+            onChange={(e) => {
+              const nextUnit = e.target.value;
+              // Flat Rate almost always means qty=1 in practice — default
+              // it for convenience, but only when qty is still genuinely
+              // empty, so this never silently overwrites something the
+              // user already typed. Doesn't change how quantity is used
+              // in the total (still a plain multiplication either way).
+              if (nextUnit === 'flat_rate' && !item.quantity) {
+                onChange({ unitOfMeasure: nextUnit, quantity: '1' });
+              } else {
+                onChange({ unitOfMeasure: nextUnit });
+              }
+            }}
+            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
+          >
             {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
         </div>
@@ -990,85 +1010,25 @@ function LineItemRow({
 }
 
 function ServiceDetailFields({ item, onChange }: { item: DraftLineItem; onChange: (patch: Partial<DraftLineItem>) => void }) {
-  const details = item.serviceDetails ?? {};
-  function setDetail(key: string, value: unknown) {
-    onChange({ serviceDetails: { ...details, [key]: value } });
-  }
-
-  if (item.serviceType === 'roof_soft_wash') {
-    return (
-      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-4">
-        <label className="block">
-          <RequiredLabel size="sm">Roof sq ft</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Roof sq ft" value={(details.roofSquareFootage as string) ?? ''} onChange={(e) => setDetail('roofSquareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
-        </label>
-        <label className="block">
-          <RequiredLabel size="sm">Roof type</RequiredLabel>
-          <select value={(details.roofType as string) || ''} onChange={(e) => setDetail('roofType', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
-            <option value="">Roof type…</option>
-            <option value="tile">Tile</option><option value="shingle">Shingle</option><option value="metal">Metal</option>
-          </select>
-        </label>
-        <label className="block">
-          <RequiredLabel size="sm">Stories</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Pitch</span>
-          <select value={(details.pitch as string) || ''} onChange={(e) => setDetail('pitch', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
-            <option value="">Pitch…</option>
-            <option value="low">Low</option><option value="medium">Medium</option><option value="steep">Steep</option>
-          </select>
-        </label>
-      </div>
-    );
-  }
-
-  if (item.serviceType === 'driveway_cleaning') {
-    return (
-      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-4">
-        <label className="block">
-          <RequiredLabel size="sm">Sq ft</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Sq ft" value={(details.squareFootage as string) ?? ''} onChange={(e) => setDetail('squareFootage', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
-        </label>
-        <label className="block">
-          <RequiredLabel size="sm">Surface</RequiredLabel>
-          <select value={(details.surfaceMaterial as string) || ''} onChange={(e) => setDetail('surfaceMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
-            <option value="">Surface…</option>
-            <option value="concrete">Concrete</option><option value="pavers">Pavers</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-          <input type="checkbox" checked={!!details.hasOilStains} onChange={(e) => setDetail('hasOilStains', e.target.checked)} /> Oil stains
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-          <input type="checkbox" checked={!!details.hasRustStains} onChange={(e) => setDetail('hasRustStains', e.target.checked)} /> Rust stains
-        </label>
-      </div>
-    );
-  }
-
-  if (item.serviceType === 'house_wash') {
-    return (
-      <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 lg:grid-cols-3">
-        <label className="block">
-          <RequiredLabel size="sm">Stories</RequiredLabel>
-          <input type="text" inputMode="decimal" placeholder="Stories" value={(details.stories as string) ?? ''} onChange={(e) => setDetail('stories', sanitizeNumericInput(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
-        </label>
-        <label className="block">
-          <RequiredLabel size="sm">Exterior material</RequiredLabel>
-          <select value={(details.exteriorMaterial as string) || ''} onChange={(e) => setDetail('exteriorMaterial', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400">
-            <option value="">Exterior material…</option>
-            <option value="vinyl">Vinyl</option><option value="brick">Brick</option><option value="stucco">Stucco</option>
-            <option value="wood">Wood</option><option value="fiber_cement">Fiber cement</option><option value="other">Other</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-          <input type="checkbox" checked={!!details.oxidationPresent} onChange={(e) => setDetail('oxidationPresent', e.target.checked)} /> Oxidation present
-        </label>
-      </div>
-    );
-  }
-
+  // Deliberately always returns null now. Previously rendered extra
+  // fields (Roof Sq Ft/Type/Stories/Pitch for roof_soft_wash; Sq
+  // Ft/Surface/Oil+Rust stains for driveway_cleaning; Stories/Exterior
+  // material/Oxidation for house_wash) — audited directly against the
+  // backend and confirmed none of them ever fed pricing, calculations,
+  // PDF generation, or the Job/Invoice workflow. They were pure
+  // presentation with no downstream effect, so removing them from the
+  // form is safe and doesn't touch any business logic.
+  //
+  // This intentionally does NOT delete serviceDetails from the data
+  // model, the DraftLineItem type, the onChange contract, or historical
+  // rows already in the database — an existing estimate saved with
+  // this data keeps it untouched in the service_details JSONB column;
+  // this function just stops collecting more of it going forward. The
+  // (item, onChange) parameters are kept even though unused here, so
+  // reverting this later (or building a real per-service-type UX on
+  // top of the same data later) doesn't require touching every call
+  // site again.
+  void item;
+  void onChange;
   return null;
 }

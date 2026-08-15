@@ -23,7 +23,7 @@ const SERVICE_TYPES = [
   'window_cleaning', 'other',
 ] as const;
 
-const UNITS_OF_MEASURE = ['sq_ft', 'linear_ft', 'each', 'hours'] as const;
+const UNITS_OF_MEASURE = ['sq_ft', 'linear_ft', 'each', 'hours', 'flat_rate'] as const;
 
 export class CreateEstimateLineItemDto {
   @IsIn(SERVICE_TYPES)

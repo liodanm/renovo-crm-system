@@ -103,4 +103,5 @@ export const UNIT_LABELS: Record<string, string> = {
   linear_ft: 'linear ft',
   each: 'each',
   hours: 'hours',
+  flat_rate: 'flat rate',
 };
