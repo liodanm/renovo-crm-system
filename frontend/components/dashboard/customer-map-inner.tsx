@@ -13,7 +13,7 @@ import { JOB_PRIORITY_LABELS, JOB_PRIORITY_COLORS } from '../../lib/api/jobs';
 
 const LEAD_STATUS_COLOR: Record<string, string> = {
   lead: '#f59e0b', // amber — needs attention
-  active: '#0e7490', // brand teal
+  active: '#11365F', // brand navy
   inactive: '#94a3b8',
   churned: '#ef4444',
 };
@@ -25,7 +25,7 @@ const LEAD_STATUS_COLOR: Record<string, string> = {
 // from before this feature existed.
 function pinColor(p: MapProperty): string {
   if (p.lastJobPriority && p.lastJobPriority !== 'normal') return JOB_PRIORITY_COLORS[p.lastJobPriority].dot;
-  return LEAD_STATUS_COLOR[p.leadStatus] ?? '#0e7490';
+  return LEAD_STATUS_COLOR[p.leadStatus] ?? '#11365F';
 }
 
 export function CustomerMapInner({ properties }: { properties: MapProperty[] }) {

@@ -66,7 +66,7 @@ export default function SelectCompanyPage() {
             key={c.companyId}
             onClick={() => handleSelect(c.companyId)}
             disabled={selectingId !== null}
-            className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-left transition hover:border-[var(--color-brand)] hover:bg-cyan-50/50 disabled:opacity-60"
+            className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-left transition hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 disabled:opacity-60"
           >
             <div>
               <div className="text-sm font-medium text-slate-900">{c.companyName}</div>

@@ -54,7 +54,7 @@ export function CompanySwitcher() {
               key={c.companyId}
               onClick={() => handleSwitch(c.companyId)}
               className={`flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800 ${
-                c.companyId === user?.companyId ? 'bg-cyan-50/60' : ''
+                c.companyId === user?.companyId ? 'bg-[var(--color-brand)]/5' : ''
               }`}
             >
               <span className="font-medium text-slate-900 dark:text-slate-100">{c.companyName}</span>

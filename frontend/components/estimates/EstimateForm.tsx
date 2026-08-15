@@ -847,7 +847,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               <button onClick={() => handleSave(false)} disabled={isSaving} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
                 {isSaving && saveAction === 'draft' ? 'Saving…' : 'Save as Draft'}
               </button>
-              <button onClick={() => handleSave(true)} disabled={isSaving} className="w-full rounded-lg border border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 px-4 py-3 text-base font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
+              <button onClick={() => handleSave(true)} disabled={isSaving} className="w-full rounded-lg border border-[var(--color-brand-secondary)]/50 bg-[var(--color-brand-secondary)]/10 dark:bg-[var(--color-brand-secondary)]/15 px-4 py-3 text-base font-medium text-[var(--color-brand)] dark:text-[var(--color-brand-secondary)] hover:bg-[var(--color-brand-secondary)]/20 disabled:opacity-50 sm:w-auto lg:py-2 lg:text-sm">
                 {isSaving && saveAction === 'send' ? 'Saving…' : 'Save & Send'}
               </button>
               <button

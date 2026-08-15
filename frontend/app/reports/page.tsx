@@ -8,7 +8,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { reportsApi, resolvePreset, exportToCsv, DATE_PRESETS, type DatePreset } from '../../lib/api/reports';
 import { cn } from '../../lib/utils';
 
-const SOURCE_COLORS = ['#0e7490', '#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#3b82f6', '#ec4899', '#84cc16'];
+const SOURCE_COLORS = ['#11365F', '#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#3b82f6', '#ec4899', '#84cc16'];
 
 /** Reshapes [{month, source, leadCount}] rows into one row per month with
     a key per source — the shape recharts' stacked BarChart needs, not
@@ -126,7 +126,7 @@ export default function ReportsPage() {
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
                   <Tooltip formatter={(v) => money(v as number)} />
-                  <Line type="monotone" dataKey="revenue" stroke="#0e7490" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="revenue" stroke="#11365F" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             ) : <EmptyChart />}
@@ -154,7 +154,7 @@ export default function ReportsPage() {
                   <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={110} />
                   <Tooltip formatter={(v) => money(v as number)} />
-                  <Bar dataKey="revenue" fill="#0e7490" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="revenue" fill="#11365F" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <EmptyChart />}
@@ -244,7 +244,7 @@ export default function ReportsPage() {
                   <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} />
                   <Tooltip formatter={(v) => money(v as number)} />
-                  <Bar dataKey="revenue" fill="#0e7490" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="revenue" fill="#11365F" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <EmptyChart />}

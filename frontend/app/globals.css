@@ -28,8 +28,11 @@ body {
 }
 
 :root {
-  --color-brand: #0e7490; /* teal-700 — water/pressure-washing association without leaning on cliché blue */
-  --color-brand-dark: #155e75;
+  --color-brand: #11365F; /* Navy — official Relentless Pressure Wash brand color */
+  --color-brand-dark: #0c2847; /* darker navy, hover states */
+  --color-brand-secondary: #53A4CD; /* Light Blue — secondary accents */
+  --color-brand-gray: #4D4D4D; /* Dark Gray — available for icons/secondary UI */
+  --color-brand-gray-light: #999999; /* Light Gray — available for muted/disabled UI */
 
   /* Sidebar tokens — previously a permanently teal-tinted-dark panel
      regardless of light/dark mode (a deliberate original design choice,
@@ -46,8 +49,8 @@ body {
   --sidebar-text: #475569;
   --sidebar-text-muted: #94a3b8;
   --sidebar-text-active: #0f172a;
-  --sidebar-accent: #0e7490; /* same teal as --color-brand — active-item highlight stays on-brand in Light Mode, matching how every other active-nav-state in the app already uses this exact color (e.g. Settings nav) */
-  --sidebar-accent-glow: rgba(14, 116, 144, 0.08);
+  --sidebar-accent: var(--color-brand); /* active-item highlight stays on-brand in Light Mode, matching every other active-nav-state in the app */
+  --sidebar-accent-glow: rgba(17, 54, 95, 0.08);
 
   --sidebar-width: 17rem;
   --sidebar-width-collapsed: 4.5rem;
@@ -69,8 +72,8 @@ body {
   --sidebar-text: #9fc3cc;
   --sidebar-text-muted: #6d94a0;
   --sidebar-text-active: #ecfeff;
-  --sidebar-accent: #5eead4;
-  --sidebar-accent-glow: rgba(94, 234, 212, 0.15);
+  --sidebar-accent: #53A4CD; /* official brand Light Blue — same role the old teal-300 filled (bright accent for contrast against the dark sidebar), now genuinely on-brand */
+  --sidebar-accent-glow: rgba(83, 164, 205, 0.15);
 
   /* Background matches the search bar's dark-mode background exactly
      (Tailwind slate-900/slate-800, not an approximation). */
