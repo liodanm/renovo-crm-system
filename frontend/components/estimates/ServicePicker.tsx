@@ -8,15 +8,18 @@ import { SERVICE_TYPE_ICONS } from '../../lib/api/service-catalog';
 interface ServicePickerProps {
   /** Current serviceType — one of the 12 real, DB-constrained values. */
   value: string;
-  /** Current description — needed to correctly show the real name when
-      value is 'other' (a custom service is meaningless displayed as
-      just "Other"). */
-  description: string;
-  /** Predefined pick: only serviceType changes, exactly matching the
-      plain <select> this replaces — description is deliberately left
-      untouched, same as before. Custom pick: both serviceType ('other')
-      and description (the typed text) are set together. */
-  onSelect: (serviceType: string, descriptionOverride?: string) => void;
+  /** The custom service's name — only meaningful when value is 'other'.
+      Completely independent from the line item's description; this
+      component never reads or writes description in any way. Fixes the
+      root cause of the earlier mirroring bug, where this picker derived
+      its display from the live description value, so editing
+      description for any reason also changed what looked like the
+      service's name. */
+  customServiceName: string;
+  /** Predefined pick: only serviceType changes. Custom pick: serviceType
+      becomes 'other' and customServiceName is set to the typed text —
+      description is never touched by this component either way. */
+  onSelect: (serviceType: string, customServiceNameOverride?: string) => void;
   hasError?: boolean;
 }
 
@@ -24,7 +27,7 @@ function matchesSearch(label: string, term: string): boolean {
   return label.toLowerCase().includes(term);
 }
 
-export function ServicePicker({ value, description, onSelect, hasError }: ServicePickerProps) {
+export function ServicePicker({ value, customServiceName, onSelect, hasError }: ServicePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,13 +55,12 @@ export function ServicePicker({ value, description, onSelect, hasError }: Servic
   const showCustomOption = trimmedSearch.length > 0 && !exactMatch;
 
   // The current selection's real, human-meaningful display value — for
-  // 'other', that's the actual custom name (description), not the
-  // generic "Other" label, which would be uninformative when re-opening
-  // an existing custom line item for editing.
-  const isEmptyCustom = value === 'other' && !description.trim();
+  // 'other', that's customServiceName, a genuinely independent piece of
+  // state, never derived from description.
+  const isEmptyCustom = value === 'other' && !customServiceName.trim();
   const selectedLabel =
     value === 'other'
-      ? description.trim()
+      ? customServiceName.trim()
       : SERVICE_TYPES.find((s) => s.value === value)?.label ?? value;
 
   const SelectedIcon = SERVICE_TYPE_ICONS[value] ?? SERVICE_TYPE_ICONS.other;
@@ -75,10 +77,8 @@ export function ServicePicker({ value, description, onSelect, hasError }: Servic
     setSearch('');
   }
 
-  // A freshly created custom line item (serviceType 'other', no
-  // description yet) shows a genuinely empty field with an inviting
-  // placeholder — "Other" alone was confusing, since it looked like a
-  // real selected value rather than an invitation to type a name.
+  // A freshly created custom line item (serviceType 'other', no name
+  // yet) shows a genuinely empty field with an inviting placeholder.
   const displayValue = isOpen ? search : isEmptyCustom ? '' : selectedLabel;
   const placeholderText = !isOpen && isEmptyCustom ? 'e.g. Custom House Cleaning' : 'Search or type service…';
 

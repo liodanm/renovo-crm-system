@@ -365,6 +365,7 @@ export class EstimatesService {
         created.id,
         (source.lineItems as any[]).map((li) => ({
           serviceType: li.serviceType,
+          customServiceName: li.customServiceName,
           description: li.description,
           unitOfMeasure: li.unitOfMeasure,
           quantity: Number(li.quantity),
@@ -404,6 +405,7 @@ export class EstimatesService {
       lineItems: estimate.lineItems.map((li: any) => ({
         description: li.description,
         serviceType: li.serviceType,
+        customServiceName: li.customServiceName,
         quantity: Number(li.quantity),
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: Number(li.unitPrice),
@@ -562,14 +564,30 @@ export class EstimatesService {
       const item = items[i];
       validateServiceDetails(item.serviceType, item.serviceDetails);
 
+      // description and customServiceName trade required-ness depending
+      // on serviceType — a predefined service still needs a real
+      // description (existing behavior, unchanged); a custom service
+      // needs a real name instead, and description becomes genuinely
+      // optional supplementary detail. Can't express "required unless a
+      // sibling field equals X" declaratively with class-validator
+      // decorators, so this is manual, same reasoning as
+      // validateServiceDetails above.
+      if (item.serviceType === 'other') {
+        if (!item.customServiceName?.trim()) {
+          throw new BadRequestException(`Line item ${i + 1}: a custom service name is required`);
+        }
+      } else if (!item.description?.trim()) {
+        throw new BadRequestException(`Line item ${i + 1}: description is required`);
+      }
+
       const serviceDetailsJson = item.serviceDetails ? JSON.stringify(item.serviceDetails) : null;
 
       await tx.$queryRaw`
         INSERT INTO estimate_line_items
-          (company_id, estimate_id, service_type, description, unit_of_measure, quantity, unit_price, notes, sort_order,
+          (company_id, estimate_id, service_type, custom_service_name, description, unit_of_measure, quantity, unit_price, notes, sort_order,
            service_details, estimated_labor_hours, estimated_chemical_cost, estimated_equipment_cost, estimated_fuel_cost, estimated_misc_cost, assigned_user_id, service_catalog_item_id)
         VALUES
-          (${companyId}::uuid, ${estimateId}::uuid, ${item.serviceType}, ${item.description}, ${item.unitOfMeasure}, ${item.quantity}, ${item.unitPrice}, ${item.notes ?? null}, ${i},
+          (${companyId}::uuid, ${estimateId}::uuid, ${item.serviceType}, ${item.customServiceName ?? null}, ${item.description ?? ''}, ${item.unitOfMeasure}, ${item.quantity}, ${item.unitPrice}, ${item.notes ?? null}, ${i},
            ${serviceDetailsJson}::jsonb, ${item.estimatedLaborHours ?? 0}, ${item.estimatedChemicalCost ?? 0}, ${item.estimatedEquipmentCost ?? 0}, ${item.estimatedFuelCost ?? 0}, ${item.estimatedMiscCost ?? 0}, ${item.assignedUserId ?? null}::uuid, ${item.serviceCatalogItemId ?? null}::uuid)
       `;
     }

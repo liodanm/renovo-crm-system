@@ -3,7 +3,6 @@ import {
   ArrayMinSize,
   IsArray,
   IsIn,
-  IsNotEmpty,
   IsNumber,
   IsObject,
   IsOptional,
@@ -29,8 +28,20 @@ export class CreateEstimateLineItemDto {
   @IsIn(SERVICE_TYPES)
   serviceType: string;
 
+  // Only meaningful when serviceType is 'other' — the custom service's
+  // actual name, independent from `description` (which is optional
+  // additional detail, not the name). Nullable/optional since
+  // predefined catalog services never use this.
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
+  @MaxLength(500)
+  customServiceName?: string;
+
+  // Required for predefined services, optional for custom ones
+  // (serviceType 'other') — enforced conditionally in
+  // EstimatesService.validateCustomServiceFields, not here, since it
+  // depends on the sibling serviceType field's value.
+  @IsString()
   @MaxLength(500)
   description: string;
 

@@ -49,9 +49,9 @@ export class JobsService {
       if (existing.length > 0) return this.findOne(companyId, existing[0].id);
 
       const lineItems = await tx.$queryRaw<
-        { description: string; quantity: string; unitPrice: string; serviceType: string | null; unitOfMeasure: string | null; serviceDetails: unknown; notes: string | null; sortOrder: number; serviceCatalogItemId: string | null }[]
+        { description: string; quantity: string; unitPrice: string; serviceType: string | null; customServiceName: string | null; unitOfMeasure: string | null; serviceDetails: unknown; notes: string | null; sortOrder: number; serviceCatalogItemId: string | null }[]
       >`
-        SELECT description, quantity, unit_price AS "unitPrice", service_type AS "serviceType",
+        SELECT description, quantity, unit_price AS "unitPrice", service_type AS "serviceType", custom_service_name AS "customServiceName",
                unit_of_measure AS "unitOfMeasure", service_details AS "serviceDetails", notes, sort_order AS "sortOrder",
                service_catalog_item_id AS "serviceCatalogItemId"
         FROM estimate_line_items WHERE estimate_id = ${estimateId}::uuid AND company_id = ${companyId}::uuid
@@ -60,7 +60,7 @@ export class JobsService {
 
       const jobNumber = `JOB-${Date.now().toString().slice(-6)}`;
       const primaryServiceType = lineItems[0]?.serviceType ?? null;
-      const title = lineItems.map((li) => li.description).join(', ').slice(0, 200) || 'Job from estimate';
+      const title = lineItems.map((li) => li.customServiceName || li.description).join(', ').slice(0, 200) || 'Job from estimate';
 
       const jobRows = await tx.$queryRaw<{ id: string }[]>`
         INSERT INTO jobs (company_id, customer_id, property_id, estimate_id, job_number, title, service_type, status, price, notes, internal_notes)
@@ -73,8 +73,8 @@ export class JobsService {
         const li = lineItems[i];
         const serviceDetailsJson = li.serviceDetails ? JSON.stringify(li.serviceDetails) : null;
         await tx.$executeRaw`
-          INSERT INTO job_line_items (company_id, job_id, description, quantity, unit_price, sort_order, service_type, unit_of_measure, service_details, notes, service_catalog_item_id)
-          VALUES (${companyId}::uuid, ${jobId}::uuid, ${li.description}, ${li.quantity}, ${li.unitPrice}, ${i}, ${li.serviceType}, ${li.unitOfMeasure}, ${serviceDetailsJson}::jsonb, ${li.notes}, ${li.serviceCatalogItemId}::uuid)
+          INSERT INTO job_line_items (company_id, job_id, description, quantity, unit_price, sort_order, service_type, custom_service_name, unit_of_measure, service_details, notes, service_catalog_item_id)
+          VALUES (${companyId}::uuid, ${jobId}::uuid, ${li.description}, ${li.quantity}, ${li.unitPrice}, ${i}, ${li.serviceType}, ${li.customServiceName}, ${li.unitOfMeasure}, ${serviceDetailsJson}::jsonb, ${li.notes}, ${li.serviceCatalogItemId}::uuid)
         `;
       }
 
@@ -134,7 +134,7 @@ export class JobsService {
       const job = jobRows[0];
 
       const lineItems = await client.$queryRaw`
-        SELECT id, description, quantity, unit_price AS "unitPrice", total, service_type AS "serviceType",
+        SELECT id, description, quantity, unit_price AS "unitPrice", total, service_type AS "serviceType", custom_service_name AS "customServiceName",
                unit_of_measure AS "unitOfMeasure", service_details AS "serviceDetails", notes,
                service_catalog_item_id AS "serviceCatalogItemId"
         FROM job_line_items WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC

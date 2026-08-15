@@ -28,6 +28,9 @@ import { RequiredLabel } from './RequiredLabel';
 interface DraftLineItem {
   key: string;
   serviceType: string;
+  // Only meaningful when serviceType is 'other' — the custom service's
+  // name, independent from description.
+  customServiceName?: string;
   description: string;
   unitOfMeasure: string;
   quantity: string;
@@ -41,6 +44,7 @@ function emptyLineItem(): DraftLineItem {
   return {
     key: crypto.randomUUID(),
     serviceType: 'other',
+    customServiceName: '',
     description: '',
     unitOfMeasure: 'sq_ft',
     quantity: '',
@@ -97,7 +101,8 @@ function lineItemFromExisting(li: Estimate['lineItems'][number]): DraftLineItem 
   return {
     key: crypto.randomUUID(),
     serviceType: li.serviceType ?? 'other',
-    description: li.description,
+    customServiceName: li.customServiceName ?? '',
+    description: li.description ?? '',
     unitOfMeasure: li.unitOfMeasure ?? 'each',
     quantity: String(li.quantity),
     unitPrice: String(li.unitPrice),
@@ -341,7 +346,11 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
     if (lineItems.length === 0) errors.lineItems = 'Add at least one service.';
 
     lineItems.forEach((item, i) => {
-      if (!item.description.trim()) errors[`item-${i}-description`] = 'Missing description';
+      if (item.serviceType === 'other') {
+        if (!item.customServiceName?.trim()) errors[`item-${i}-service`] = 'Enter a custom service name';
+      } else if (!item.description.trim()) {
+        errors[`item-${i}-description`] = 'Missing description';
+      }
       if (toNumber(item.quantity) <= 0) errors[`item-${i}-quantity`] = 'Quantity must be greater than 0';
       if (toNumber(item.unitPrice) <= 0) errors[`item-${i}-unitPrice`] = 'Unit price must be greater than 0';
     });
@@ -930,10 +939,11 @@ function LineItemRow({
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Service</label>
           <ServicePicker
             value={item.serviceType}
-            description={item.description}
-            onSelect={(serviceType, descriptionOverride) => {
-              if (descriptionOverride !== undefined) {
-                onChange({ serviceType, description: descriptionOverride });
+            customServiceName={item.customServiceName ?? ''}
+            hasError={!!errors[`item-${index}-service`]}
+            onSelect={(serviceType, customServiceNameOverride) => {
+              if (customServiceNameOverride !== undefined) {
+                onChange({ serviceType, customServiceName: customServiceNameOverride });
               } else {
                 onChange({ serviceType });
               }
@@ -942,7 +952,11 @@ function LineItemRow({
           />
         </div>
         <div className="lg:col-span-4">
-          <RequiredLabel size="sm">Description</RequiredLabel>
+          {item.serviceType === 'other' ? (
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Description</label>
+          ) : (
+            <RequiredLabel size="sm">Description</RequiredLabel>
+          )}
           <input
             ref={descriptionRef}
             value={item.description}

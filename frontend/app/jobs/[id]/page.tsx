@@ -226,10 +226,13 @@ export default function JobDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                       <span className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
                         {item.serviceType && (() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
-                        {item.description}
+                        {item.customServiceName || item.description}
                       </span>
                       <span className="shrink-0 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</span>
                     </div>
+                    {item.customServiceName && item.description && (
+                      <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{item.description}</p>
+                    )}
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')} × {formatMoney(item.unitPrice)}</p>
                   </div>
                 ))}
@@ -250,7 +253,12 @@ export default function JobDetailPage() {
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
                         <span className="flex items-center gap-1.5">
                           {item.serviceType && (() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
-                          {item.description}
+                          <span>
+                            {item.customServiceName || item.description}
+                            {item.customServiceName && item.description && (
+                              <span className="block text-xs text-slate-400 dark:text-slate-500">{item.description}</span>
+                            )}
+                          </span>
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')}</td>

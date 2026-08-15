@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 
 export interface DocumentLineItem {
-  description: string;
+  description: string | null;
   serviceType?: string | null;
+  customServiceName?: string | null;
   quantity: number;
   unitOfMeasure?: string | null;
   unitPrice: number;
@@ -299,17 +300,25 @@ export class PdfService {
       // drawing it (description text wraps, so rows aren't a fixed
       // height anymore) and start a fresh page if it wouldn't fit,
       // rather than letting pdfkit silently clip content off the bottom.
-      // 'other' means a genuinely custom service — its real name IS the
-      // description, not the generic category label. Treated the same
-      // as no serviceType at all (null), so it renders exactly like an
-      // uncategorized line item already does: description alone, no
-      // bold heading above it. Every real service type (all 11 others)
-      // is completely unaffected by this — same rendering as before.
-      const nameLabel = item.serviceType && item.serviceType !== 'other' ? SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType : null;
+      // 'other' means a genuinely custom service — its real name is
+      // customServiceName (a separate, independent field, see migration
+      // 038), not the generic 'Other' category label. Every real
+      // service type (all 11 others) is completely unaffected by this —
+      // same rendering as before.
+      const nameLabel = item.serviceType === 'other'
+        ? item.customServiceName || null
+        : item.serviceType ? SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType : null;
+      const hasDescription = !!item.description?.trim();
+      // Defensive only — backend validation (EstimatesService) requires
+      // either a real description or a customServiceName depending on
+      // serviceType, so this shouldn't be reachable in practice. Exists
+      // so a row can never render completely blank if that guarantee is
+      // ever violated by data from an older/different code path.
+      const fallbackLabel = !nameLabel && !hasDescription ? (item.serviceType ?? 'Service') : null;
       doc.font('Helvetica-Bold').fontSize(10.5);
-      const nameHeight = nameLabel ? doc.heightOfString(nameLabel, { width: descWidth }) + 2 : 0;
+      const nameHeight = (nameLabel || fallbackLabel) ? doc.heightOfString((nameLabel || fallbackLabel) as string, { width: descWidth }) + 2 : 0;
       doc.font('Helvetica').fontSize(9.5);
-      const descHeight = doc.heightOfString(item.description, { width: descWidth });
+      const descHeight = hasDescription ? doc.heightOfString(item.description as string, { width: descWidth }) : 0;
       const rowHeight = nameHeight + descHeight + 14;
       if (doc.y + rowHeight > 700) {
         doc.addPage();
@@ -318,8 +327,12 @@ export class PdfService {
       const rowTop = doc.y;
       if (nameLabel) {
         doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#0f172a').text(nameLabel, PAGE_MARGIN, rowTop, { width: descWidth });
+      } else if (fallbackLabel) {
+        doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#0f172a').text(fallbackLabel, PAGE_MARGIN, rowTop, { width: descWidth });
       }
-      doc.font('Helvetica').fontSize(9.5).fillColor('#475569').text(item.description, PAGE_MARGIN, doc.y + (nameLabel ? 1 : 0), { width: descWidth });
+      if (hasDescription) {
+        doc.font('Helvetica').fontSize(9.5).fillColor('#475569').text(item.description as string, PAGE_MARGIN, doc.y + (nameLabel ? 1 : 0), { width: descWidth });
+      }
       doc.font('Helvetica-Bold').fontSize(11).fillColor('#0f172a').text(this.money(item.total), 470, rowTop, { width: 75, align: 'right' });
 
       doc.y = Math.max(doc.y, rowTop + nameHeight + descHeight) + 10;

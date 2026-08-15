@@ -47,9 +47,9 @@ export class InvoicesService {
       if (existing.length > 0) return this.findOne(companyId, existing[0].id);
 
       const lineItems = await tx.$queryRaw<
-        { description: string; quantity: string; unitPrice: string; serviceType: string | null; unitOfMeasure: string | null; serviceCatalogItemId: string | null; sortOrder: number }[]
+        { description: string; quantity: string; unitPrice: string; serviceType: string | null; customServiceName: string | null; unitOfMeasure: string | null; serviceCatalogItemId: string | null; sortOrder: number }[]
       >`
-        SELECT description, quantity, unit_price AS "unitPrice", service_type AS "serviceType",
+        SELECT description, quantity, unit_price AS "unitPrice", service_type AS "serviceType", custom_service_name AS "customServiceName",
                unit_of_measure AS "unitOfMeasure", service_catalog_item_id AS "serviceCatalogItemId", sort_order AS "sortOrder"
         FROM job_line_items WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC
       `;
@@ -119,8 +119,8 @@ export class InvoicesService {
 
       for (const li of lineItems) {
         await tx.$executeRaw`
-          INSERT INTO invoice_line_items (company_id, invoice_id, description, quantity, unit_price, sort_order, service_type, unit_of_measure, service_catalog_item_id)
-          VALUES (${companyId}::uuid, ${invoiceId}::uuid, ${li.description}, ${li.quantity}, ${li.unitPrice}, ${li.sortOrder}, ${li.serviceType}, ${li.unitOfMeasure}, ${li.serviceCatalogItemId}::uuid)
+          INSERT INTO invoice_line_items (company_id, invoice_id, description, quantity, unit_price, sort_order, service_type, custom_service_name, unit_of_measure, service_catalog_item_id)
+          VALUES (${companyId}::uuid, ${invoiceId}::uuid, ${li.description}, ${li.quantity}, ${li.unitPrice}, ${li.sortOrder}, ${li.serviceType}, ${li.customServiceName}, ${li.unitOfMeasure}, ${li.serviceCatalogItemId}::uuid)
         `;
       }
 
@@ -175,7 +175,7 @@ export class InvoicesService {
       const invoice = rows[0];
 
       const lineItems = await client.$queryRaw`
-        SELECT id, description, quantity, unit_price AS "unitPrice", total, service_type AS "serviceType",
+        SELECT id, description, quantity, unit_price AS "unitPrice", total, service_type AS "serviceType", custom_service_name AS "customServiceName",
                unit_of_measure AS "unitOfMeasure", service_catalog_item_id AS "serviceCatalogItemId"
         FROM invoice_line_items WHERE invoice_id = ${id}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC
       `;
@@ -263,6 +263,7 @@ export class InvoicesService {
       lineItems: invoice.lineItems.map((li: any) => ({
         description: li.description,
         serviceType: li.serviceType,
+        customServiceName: li.customServiceName,
         quantity: Number(li.quantity),
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: Number(li.unitPrice),

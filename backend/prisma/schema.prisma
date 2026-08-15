@@ -275,7 +275,12 @@ model EstimateLineItem {
   companyId                String   @map("company_id")
   estimateId               String   @map("estimate_id")
   serviceType              String   @map("service_type") // see the CHECK constraint in migration 008 for the full set
-  description              String
+  // Only meaningful when serviceType is 'other' — the custom service's
+  // actual name, independent from description. See migration 038.
+  customServiceName        String?  @map("custom_service_name")
+  // Required for predefined services, optional for custom ones — see
+  // migration 038 and EstimatesService's manual validation.
+  description              String?
   unitOfMeasure            String   @map("unit_of_measure") // 'sq_ft' | 'linear_ft' | 'each' | 'hours'
   quantity                 Decimal  @db.Decimal(10, 2)
   unitPrice                Decimal  @map("unit_price") @db.Decimal(10, 2)
@@ -385,7 +390,8 @@ model JobLineItem {
   id             String   @id @default(uuid())
   companyId      String   @map("company_id")
   jobId          String   @map("job_id")
-  description    String
+  description    String?
+  customServiceName String? @map("custom_service_name") // see migration 038
   quantity       Decimal  @default(1) @db.Decimal(10, 2)
   unitPrice      Decimal  @default(0) @map("unit_price") @db.Decimal(12, 2)
   // Generated column, same as estimate_line_items — never written by the
@@ -609,7 +615,8 @@ model InvoiceLineItem {
   id                    String   @id @default(uuid())
   companyId             String   @map("company_id")
   invoiceId             String   @map("invoice_id")
-  description           String
+  description           String?
+  customServiceName     String?  @map("custom_service_name") // see migration 038
   quantity              Decimal  @default(1) @db.Decimal(10, 2)
   unitPrice             Decimal  @default(0) @map("unit_price") @db.Decimal(12, 2)
   // Generated column, same as estimate_line_items/job_line_items — never

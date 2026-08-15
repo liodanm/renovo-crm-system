@@ -2,7 +2,8 @@ import { apiFetch } from './api-client';
 
 export interface JobLineItem {
   id: string;
-  description: string;
+  description: string | null;
+  customServiceName?: string | null;
   quantity: string;
   unitPrice: string;
   total: string;

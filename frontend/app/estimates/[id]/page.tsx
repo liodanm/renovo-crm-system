@@ -26,8 +26,9 @@ function formatMoney(value: string | number | undefined): string {
   return `$${Number(value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function serviceLabel(value: string): string {
-  return SERVICE_TYPES.find((s) => s.value === value)?.label ?? value;
+function serviceLabel(item: { serviceType: string; customServiceName?: string | null }): string {
+  if (item.serviceType === 'other') return item.customServiceName?.trim() || 'Other';
+  return SERVICE_TYPES.find((s) => s.value === item.serviceType)?.label ?? item.serviceType;
 }
 
 const DECLINE_REASONS = ['Price too high', 'Chose another company', 'No longer needed', 'Timing not right', 'Other'];
@@ -179,7 +180,7 @@ export default function EstimateDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                       <span className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
                         {(() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
-                        {serviceLabel(item.serviceType)}
+                        {serviceLabel(item)}
                       </span>
                       <span className="shrink-0 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</span>
                     </div>
@@ -220,7 +221,7 @@ export default function EstimateDetailPage() {
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
                         <span className="flex items-center gap-1.5">
                           {(() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
-                          {serviceLabel(item.serviceType)}
+                          {serviceLabel(item)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{item.description}</td>

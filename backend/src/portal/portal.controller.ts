@@ -284,6 +284,8 @@ export class PortalController {
       totalAmount: estimate.totalAmount,
       lineItems: estimate.lineItems.map((li) => ({
         description: li.description,
+        serviceType: (li as any).serviceType,
+        customServiceName: (li as any).customServiceName,
         quantity: li.quantity,
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: li.unitPrice,
@@ -346,6 +348,7 @@ export class PortalController {
       lineItems: estimate.lineItems.map((li) => ({
         description: li.description,
         serviceType: (li as any).serviceType,
+        customServiceName: (li as any).customServiceName,
         quantity: Number(li.quantity),
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: Number(li.unitPrice),
@@ -397,6 +400,7 @@ export class PortalController {
       lineItems: invoice.lineItems.map((li: any) => ({
         description: li.description,
         serviceType: li.serviceType,
+        customServiceName: li.customServiceName,
         quantity: Number(li.quantity),
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: Number(li.unitPrice),

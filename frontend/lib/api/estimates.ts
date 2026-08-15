@@ -14,7 +14,10 @@ export interface StatusHistoryEntry {
 export interface EstimateLineItem {
   id: string;
   serviceType: string;
-  description: string;
+  // Only meaningful when serviceType is 'other' — the custom service's
+  // actual name, independent from description.
+  customServiceName?: string | null;
+  description: string | null;
   unitOfMeasure: string;
   quantity: string;
   unitPrice: string;
@@ -68,6 +71,7 @@ export interface Estimate {
 
 export interface CreateLineItemInput {
   serviceType: string;
+  customServiceName?: string;
   description: string;
   unitOfMeasure: string;
   quantity: number;
