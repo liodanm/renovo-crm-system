@@ -54,12 +54,11 @@ export function ServicePicker({ value, description, onSelect, hasError }: Servic
   // The current selection's real, human-meaningful display value — for
   // 'other', that's the actual custom name (description), not the
   // generic "Other" label, which would be uninformative when re-opening
-  // an existing custom line item for editing. Falls back to "Other"
-  // only if description is genuinely empty too (a line item saved with
-  // no custom text ever entered).
+  // an existing custom line item for editing.
+  const isEmptyCustom = value === 'other' && !description.trim();
   const selectedLabel =
     value === 'other'
-      ? description.trim() || 'Other'
+      ? description.trim()
       : SERVICE_TYPES.find((s) => s.value === value)?.label ?? value;
 
   const SelectedIcon = SERVICE_TYPE_ICONS[value] ?? SERVICE_TYPE_ICONS.other;
@@ -76,7 +75,12 @@ export function ServicePicker({ value, description, onSelect, hasError }: Servic
     setSearch('');
   }
 
-  const displayValue = isOpen ? search : selectedLabel;
+  // A freshly created custom line item (serviceType 'other', no
+  // description yet) shows a genuinely empty field with an inviting
+  // placeholder — "Other" alone was confusing, since it looked like a
+  // real selected value rather than an invitation to type a name.
+  const displayValue = isOpen ? search : isEmptyCustom ? '' : selectedLabel;
+  const placeholderText = !isOpen && isEmptyCustom ? 'e.g. Custom House Cleaning' : 'Search or type service…';
 
   return (
     <div ref={containerRef} className="relative">
@@ -98,7 +102,7 @@ export function ServicePicker({ value, description, onSelect, hasError }: Servic
             setSearch('');
             e.target.select();
           }}
-          placeholder="Search or type service…"
+          placeholder={placeholderText}
           className={`mt-1 w-full rounded-lg border py-3 pr-3 text-base lg:py-2 lg:text-sm ${isOpen ? 'pl-3' : 'pl-9'} ${hasError ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400`}
         />
       </div>

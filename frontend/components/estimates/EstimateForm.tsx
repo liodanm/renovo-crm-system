@@ -700,20 +700,8 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             </div>
           </div>
           <div>
-            <div className="min-h-[22px]">
+            <div className="flex min-h-[22px] items-center justify-between">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Discount type</label>
-              {activePackageDiscount && (
-                <div className="mt-0.5">
-                  <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                    {activePackageDiscount.label} • {activePackageDiscount.value}%
-                  </span>
-                </div>
-              )}
-              {isManualDiscount && discountType && (
-                <div className="mt-0.5">
-                  <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">Manual Discount</span>
-                </div>
-              )}
             </div>
             <select
               value={discountType}
@@ -767,6 +755,19 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
             />
           </div>
         </div>
+
+        {(activePackageDiscount || (isManualDiscount && discountType)) && (
+          <div className="mt-2">
+            {activePackageDiscount && (
+              <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                {activePackageDiscount.label} • {activePackageDiscount.value}%
+              </span>
+            )}
+            {isManualDiscount && discountType && (
+              <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">Manual Discount</span>
+            )}
+          </div>
+        )}
 
         <div className="mt-4">
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Notes (optional — visible to the customer)</label>
@@ -947,6 +948,7 @@ function LineItemRow({
             value={item.description}
             onChange={(e) => onChange({ description: e.target.value })}
             onKeyDown={focusOnEnter(quantityRef)}
+            placeholder={item.serviceType === 'other' ? 'Optional description shown to Customer' : undefined}
             className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
           />
         </div>
