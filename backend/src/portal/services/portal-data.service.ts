@@ -165,7 +165,19 @@ export class PortalDataService {
   async markEstimateViewed(companyId: string, customerId: string, estimateId: string) {
     const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
     if (!estimate.viewedAt) {
-      await this.prisma.estimate.update({ where: { id: estimateId }, data: { viewedAt: new Date() } });
+      // Only transitions status when it's still 'sent' — an estimate
+      // already accepted/declined/expired/converted must never be
+      // demoted back to 'viewed' just because the customer revisits the
+      // page. viewedAt itself is still recorded regardless, as a factual
+      // "when did they first open it" timestamp independent of status.
+      const shouldTransitionStatus = estimate.status === 'sent';
+      await this.prisma.tenant.estimate.update({
+        where: { id: estimateId },
+        data: { viewedAt: new Date(), ...(shouldTransitionStatus ? { status: 'viewed' } : {}) },
+      });
+      if (shouldTransitionStatus) {
+        await this.writeEstimateHistory(companyId, estimateId, estimate.status, 'viewed', null, 'portal', 'Viewed by customer via portal');
+      }
       await logAutomationEvent(this.prisma, {
         companyId,
         customerId,
