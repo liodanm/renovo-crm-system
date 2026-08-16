@@ -39,11 +39,21 @@ export class PortalAuthService {
    * that destination today (confirmed, not assumed), and there's no
    * invoice-specific page to send them to yet (Phase 2B, not built).
    */
+  private isSafeRedirectTarget(redirectTo: string): boolean {
+    // Must be a plain internal portal path — no scheme (http:, javascript:,
+    // etc.), no protocol-relative "//" prefix (browsers treat that as an
+    // external host), and confined specifically to /portal/... routes.
+    // This is deliberately conservative: reject anything that doesn't
+    // cleanly match rather than trying to enumerate every unsafe pattern.
+    return /^\/portal\/[a-zA-Z0-9\-_/]+$/.test(redirectTo) && !redirectTo.includes('//', 1);
+  }
+
   private async generateMagicLinkUrl(companyId: string, companySlug: string, customer: { id: string; email: string | null; firstName: string | null }, redirectTo?: string): Promise<string> {
     const rawToken = this.passwordService.generateSecureToken();
+    const safeRedirectTo = redirectTo && this.isSafeRedirectTarget(redirectTo) ? redirectTo : undefined;
     await this.redis.set(
       `portal:magic-link:${this.passwordService.hashToken(rawToken)}`,
-      JSON.stringify({ customerId: customer.id, companyId, email: customer.email, redirectTo }),
+      JSON.stringify({ customerId: customer.id, companyId, email: customer.email, redirectTo: safeRedirectTo }),
       'EX',
       MAGIC_LINK_TTL_SECONDS,
     );

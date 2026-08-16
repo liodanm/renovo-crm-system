@@ -24,7 +24,12 @@ export default function PortalVerifyPage() {
     })
       .then((result) => {
         setPortalToken(result.accessToken, params.companySlug);
-        router.replace(result.redirectTo || '/portal/dashboard');
+        // Belt-and-suspenders: the backend already validates redirectTo
+        // before ever storing it (see PortalAuthService.isSafeRedirectTarget),
+        // but a client-side navigation shouldn't blindly trust an
+        // arbitrary string either — same allowlist, checked again here.
+        const isSafe = result.redirectTo && /^\/portal\/[a-zA-Z0-9\-_/]+$/.test(result.redirectTo) && !result.redirectTo.includes('//', 1);
+        router.replace(isSafe ? result.redirectTo! : '/portal/dashboard');
       })
       .catch(() => {
         setStatus('error');
