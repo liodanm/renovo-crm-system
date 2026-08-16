@@ -17,14 +17,14 @@ export default function PortalVerifyPage() {
       setStatus('error');
       return;
     }
-    portalApiFetch<{ accessToken: string }>('/portal/auth/verify', {
+    portalApiFetch<{ accessToken: string; redirectTo: string | null }>('/portal/auth/verify', {
       method: 'POST',
       skipAuth: true,
       body: JSON.stringify({ token }),
     })
       .then((result) => {
         setPortalToken(result.accessToken, params.companySlug);
-        router.replace('/portal/dashboard');
+        router.replace(result.redirectTo || '/portal/dashboard');
       })
       .catch(() => {
         setStatus('error');

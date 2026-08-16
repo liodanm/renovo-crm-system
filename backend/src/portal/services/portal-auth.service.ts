@@ -39,11 +39,11 @@ export class PortalAuthService {
    * that destination today (confirmed, not assumed), and there's no
    * invoice-specific page to send them to yet (Phase 2B, not built).
    */
-  private async generateMagicLinkUrl(companyId: string, companySlug: string, customer: { id: string; email: string | null; firstName: string | null }): Promise<string> {
+  private async generateMagicLinkUrl(companyId: string, companySlug: string, customer: { id: string; email: string | null; firstName: string | null }, redirectTo?: string): Promise<string> {
     const rawToken = this.passwordService.generateSecureToken();
     await this.redis.set(
       `portal:magic-link:${this.passwordService.hashToken(rawToken)}`,
-      JSON.stringify({ customerId: customer.id, companyId, email: customer.email }),
+      JSON.stringify({ customerId: customer.id, companyId, email: customer.email, redirectTo }),
       'EX',
       MAGIC_LINK_TTL_SECONDS,
     );
@@ -67,7 +67,8 @@ export class PortalAuthService {
   }
 
   /**
-   * Called by InvoicesService.sendEmail() — generates a real,
+   * Called by InvoicesService.sendEmail() and EstimatesService.sendEmail()
+   * — generates a real,
    * auto-authenticating portal link for the invoice email, the same
    * kind of one-time token requestMagicLink() already produces, just
    * triggered by the system sending an invoice rather than the
@@ -75,22 +76,33 @@ export class PortalAuthService {
    * customer has no email on file — the caller decides what that means
    * for the invoice email itself.
    */
-  async generateInvoicePortalLink(companyId: string, customerId: string): Promise<string | null> {
+  /**
+   * Generates a real, auto-authenticating portal link — the same kind
+   * of one-time token requestMagicLink() already produces, just
+   * triggered by the system sending a document rather than the
+   * customer asking to log in. redirectTo (e.g. "/invoices/abc123" or
+   * "/estimates/xyz789") is honored by verifyMagicLink() below, so the
+   * customer lands directly on the specific document instead of the
+   * generic dashboard. Returns null (never throws) when the customer
+   * has no email on file — the caller decides what that means for
+   * their own email.
+   */
+  async generatePortalLink(companyId: string, customerId: string, redirectTo?: string): Promise<string | null> {
     const [company, customer] = await Promise.all([
       this.prisma.company.findUnique({ where: { id: companyId }, select: { slug: true } }),
       this.prisma.customer.findFirst({ where: { id: customerId, companyId, deletedAt: null } }),
     ]);
     if (!company || !customer?.email) return null;
-    return this.generateMagicLinkUrl(companyId, company.slug, customer);
+    return this.generateMagicLinkUrl(companyId, company.slug, customer, redirectTo);
   }
 
-  async verifyMagicLink(rawToken: string): Promise<{ accessToken: string }> {
+  async verifyMagicLink(rawToken: string): Promise<{ accessToken: string; redirectTo: string | null }> {
     const key = `portal:magic-link:${this.passwordService.hashToken(rawToken)}`;
     const raw = await this.redis.get(key);
     if (!raw) throw new UnauthorizedException('This login link is invalid or has expired');
     await this.redis.del(key); // single-use
 
-    const { customerId, companyId, email } = JSON.parse(raw);
+    const { customerId, companyId, email, redirectTo } = JSON.parse(raw);
 
     const payload: PortalTokenPayload = { sub: customerId, companyId, email, type: 'portal' };
     const accessToken = this.jwt.sign(payload, {
@@ -99,6 +111,6 @@ export class PortalAuthService {
       issuer: 'renovo-crm-portal',
     });
 
-    return { accessToken };
+    return { accessToken, redirectTo: redirectTo ?? null };
   }
 }

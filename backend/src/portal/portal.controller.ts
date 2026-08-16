@@ -269,6 +269,13 @@ export class PortalController {
   @Get('estimates/:id')
   async getEstimateDetail(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string) {
     const estimate = await this.data.getEstimateForPdf(customer.companyId, customer.customerId, id);
+    // Fires on the customer actually landing on their estimate page now,
+    // not just on opening the PDF — the new flow expects most customers
+    // to review and act directly here, never touching "Download PDF" at
+    // all. markEstimateViewed() is idempotent (only sets viewedAt once),
+    // so calling it here in addition to viewEstimate() below is safe —
+    // whichever happens first wins, neither duplicates the other.
+    await this.data.markEstimateViewed(customer.companyId, customer.customerId, id);
     return {
       id: estimate.id,
       estimateNumber: estimate.estimateNumber,

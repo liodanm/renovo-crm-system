@@ -15,6 +15,17 @@ function wrapper(bodyHtml: string): string {
   return `<!doctype html><html><body style="font-family:-apple-system,sans-serif;color:#0f172a;max-width:480px;margin:0 auto;padding:24px;">${bodyHtml}</body></html>`;
 }
 
+/**
+ * Standard HTML-email button pattern: an inline-styled <a>, not a real
+ * <button> or CSS class — those aren't reliably supported across email
+ * clients (Outlook's rendering engine in particular). Padding sized for
+ * an easy mobile tap target, not just desktop click.
+ */
+function ctaButton(url: unknown, label: string, brandColor?: string | null): string {
+  const color = brandColor || '#11365F'; // falls back to Renovo's own default brand navy only when a company hasn't configured one — never hardcodes any one company's colors as the norm
+  return `<p style="margin:24px 0;"><a href="${url}" style="display:inline-block;background:${color};color:#ffffff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">${escape(label)}</a></p>`;
+}
+
 export function renderEmailTemplate(template: string, data: Record<string, any>): RenderedEmail | null {
   switch (template) {
     case 'email-verification':
@@ -60,10 +71,10 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
         subject: `Estimate ${escape(data.estimateNumber)} from ${escape(data.companyName)}`,
         html: wrapper(
           `<p>Hi ${escape(data.customerName)},</p>` +
-            `<p>${escape(data.companyName)} has prepared an estimate for you — please find it attached as a PDF.</p>` +
+            `<p>${escape(data.companyName)} has prepared an estimate for you.</p>` +
             `<p><strong>Estimate ${escape(data.estimateNumber)}</strong> · Total: ${escape(data.totalFormatted)}</p>` +
             (data.validUntilFormatted ? `<p>Valid until ${escape(data.validUntilFormatted)}.</p>` : '') +
-            `<p><a href="${data.portalUrl}">View and respond in your customer portal</a></p>`,
+            ctaButton(data.portalUrl, 'View & Accept Quote', data.brandColor as string | null | undefined),
         ),
       };
     case 'invoice-send':

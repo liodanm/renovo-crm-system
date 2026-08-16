@@ -12,6 +12,7 @@ import { generateEstimateFilename } from '../../common/utils/pdf-filename.util';
 import { EmailLogService } from '../../documents/services/email-log.service';
 import { CompanyContextService } from '../../documents/services/company-context.service';
 import { MailService } from '../../mail/mail.service';
+import { PortalAuthService } from '../../portal/services/portal-auth.service';
 import { ConfigService } from '@nestjs/config';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
 import { CustomersService } from '../../customers/services/customers.service';
@@ -36,6 +37,7 @@ export class EstimatesService {
     private readonly mailService: MailService,
     private readonly config: ConfigService,
     private readonly customersService: CustomersService,
+    private readonly portalAuthService: PortalAuthService,
   ) {}
 
   async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean) {
@@ -456,10 +458,15 @@ export class EstimatesService {
     const recipientEmail = toEmailOverride || existing.customer.email;
     if (!recipientEmail) throw new BadRequestException('This customer has no email address on file');
 
-    const { buffer, filename } = await this.generatePdf(companyId, id);
-    const { company } = await this.companyContext.getCompanyAndBranding(companyId);
+    const { company, branding } = await this.companyContext.getCompanyAndBranding(companyId);
     const replyTo = await this.companyContext.getReplyToEmail(companyId);
-    const portalUrl = `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
+    // Previously a static, unauthenticated URL to the generic portal root
+    // — clicking it landed the customer on a login wall, not their
+    // estimate. Now the same real, auto-authenticating, single-use magic
+    // link the invoice email already used (see PortalAuthService), with
+    // a redirect target so it lands directly on this specific estimate.
+    const portalUrl = (await this.portalAuthService.generatePortalLink(companyId, existing.customerId, `/portal/estimates/${id}`))
+      ?? `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
 
     const emailLogId = await this.emailLogService.create({
       companyId,
@@ -484,8 +491,14 @@ export class EstimatesService {
         totalFormatted: `$${Number(existing.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
         validUntilFormatted: existing.validUntil ? new Date(existing.validUntil).toLocaleDateString('en-US', { dateStyle: 'medium' }) : null,
         portalUrl,
+        brandColor: branding.primaryColor,
       },
-      attachment: { filename, contentBase64: buffer.toString('base64'), contentType: 'application/pdf' },
+      // No PDF attachment — the customer reviews and acts on the estimate
+      // directly in the portal now (per the new flow). The PDF is still
+      // fully available there via the existing "Download PDF" button,
+      // using the same PdfService/generatePdf this method used to call
+      // here — not removed, just no longer generated eagerly on every
+      // send when most customers will never download it.
     });
 
     return { success: true, emailLogId, recipientEmail };

@@ -329,7 +329,7 @@ export class InvoicesService {
     // actual customer portal, not a login wall. Unlike the PDF's own URL
     // above, this one is safe to make a short-lived magic link — this is
     // a freshly-sent email, acted on promptly or not at all.
-    const portalUrl = await this.portalAuthService.generateInvoicePortalLink(companyId, existing.customerId)
+    const portalUrl = await this.portalAuthService.generatePortalLink(companyId, existing.customerId)
       ?? this.config.get<string>('PORTAL_URL', 'https://portal.renovocrm.com');
 
     const emailLogId = await this.emailLogService.create({

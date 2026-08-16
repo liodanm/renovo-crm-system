@@ -107,7 +107,7 @@ export class MailService {
     companyId: string;
     emailLogId: string;
     replyTo?: string;
-    attachment: { filename: string; contentBase64: string; contentType: string };
+    attachment?: { filename: string; contentBase64: string; contentType: string };
   }) {
     try {
       await this.mailQueue.add(

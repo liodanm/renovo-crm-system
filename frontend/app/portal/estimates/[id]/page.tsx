@@ -7,9 +7,12 @@ import useSWR from 'swr';
 import { portalApiFetch, portalFetchPdfObjectUrl, PortalApiError } from '../../../../lib/portal/portal-api-client';
 import { StatusBadge, ESTIMATE_STATUS_COLORS } from '../../../../components/action-center/StatusBadge';
 import { SignaturePad } from '../../../../components/jobs/SignaturePad';
+import { SERVICE_TYPE_ICONS } from '../../../../lib/api/service-catalog';
 
 interface EstimateLineItem {
-  description: string;
+  description: string | null;
+  serviceType?: string | null;
+  customServiceName?: string | null;
   quantity: string;
   unitOfMeasure: string;
   unitPrice: string;
@@ -177,15 +180,23 @@ export default function PortalEstimateDetailPage() {
         <div className="rounded-xl bg-white p-4 shadow-sm">
           <p className="text-xs font-medium text-slate-500">Services</p>
           <div className="mt-2 divide-y divide-slate-100">
-            {estimate.lineItems.map((li, i) => (
-              <div key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-900">{li.description}</p>
-                  <p className="text-xs text-slate-500">{li.quantity} {li.unitOfMeasure} × {money(li.unitPrice)}</p>
+            {estimate.lineItems.map((li, i) => {
+              const Icon = li.serviceType ? SERVICE_TYPE_ICONS[li.serviceType] ?? SERVICE_TYPE_ICONS.other : null;
+              const primaryText = li.customServiceName || li.description;
+              return (
+                <div key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 font-medium text-slate-900">
+                      {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" />}
+                      {primaryText}
+                    </p>
+                    {li.customServiceName && li.description && <p className="text-xs text-slate-500">{li.description}</p>}
+                    <p className="text-xs text-slate-500">{li.quantity} {li.unitOfMeasure} × {money(li.unitPrice)}</p>
+                  </div>
+                  <p className="shrink-0 font-medium text-slate-900">{money(li.total)}</p>
                 </div>
-                <p className="shrink-0 font-medium text-slate-900">{money(li.total)}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -228,7 +239,7 @@ export default function PortalEstimateDetailPage() {
           disabled={pdfState === 'loading'}
           className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50"
         >
-          {pdfState === 'loading' ? 'Opening…' : 'View Estimate PDF'}
+          {pdfState === 'loading' ? 'Opening…' : 'Download PDF'}
         </button>
         {pdfState === 'error' && <p className="text-center text-xs text-red-600">Couldn't open the PDF. Please try again.</p>}
 
@@ -241,7 +252,7 @@ export default function PortalEstimateDetailPage() {
                 onClick={() => setShowDeclineConfirm(true)}
                 className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm"
               >
-                Decline
+                Decline Quote
               </button>
             )}
             {canApprove && (
@@ -249,7 +260,7 @@ export default function PortalEstimateDetailPage() {
                 onClick={() => setApproveStep('confirm')}
                 className="flex-1 rounded-xl bg-[var(--color-brand)] px-4 py-3 text-sm font-medium text-white shadow-sm"
               >
-                Approve Estimate
+                Accept Quote
               </button>
             )}
           </div>
@@ -259,7 +270,7 @@ export default function PortalEstimateDetailPage() {
       {approveStep === 'confirm' && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={() => setApproveStep('none')}>
           <div className="w-full max-w-sm rounded-t-2xl bg-white p-6 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-slate-900">Approve Estimate?</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Accept Quote?</h2>
             <p className="mt-2 text-sm text-slate-600">This will confirm that you approve this estimate and allow us to move forward with the work.</p>
             <div className="mt-5 flex gap-3">
               <button onClick={() => setApproveStep('none')} className="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700">
