@@ -45,7 +45,7 @@ export class PortalAuthService {
     // external host), and confined specifically to /portal/... routes.
     // This is deliberately conservative: reject anything that doesn't
     // cleanly match rather than trying to enumerate every unsafe pattern.
-    return /^\/portal\/[a-zA-Z0-9\-_/]+$/.test(redirectTo) && !redirectTo.includes('//', 1);
+    return /^\/portal\/[a-zA-Z0-9\-_/]*$/.test(redirectTo) && !redirectTo.includes('//', 1);
   }
 
   private async generateMagicLinkUrl(companyId: string, companySlug: string, customer: { id: string; email: string | null; firstName: string | null }, redirectTo?: string): Promise<string> {

@@ -48,7 +48,7 @@ export class PortalDataService {
     if (estimate.status === 'declined') throw new BadRequestException('This estimate was already declined and can no longer be accepted');
     if (estimate.status === 'expired') throw new BadRequestException('This estimate has expired and can no longer be accepted. Please contact us for an updated quote.');
 
-    const updated = await this.prisma.estimate.update({
+    const updated = await this.prisma.tenant.estimate.update({
       where: { id: estimateId },
       data: { status: 'accepted', acceptedAt: new Date(), signatureDataUrl, acceptedVia: 'portal' },
       select: { id: true, status: true, acceptedAt: true, totalAmount: true, estimateNumber: true },
@@ -77,7 +77,7 @@ export class PortalDataService {
 
   async declineEstimate(companyId: string, customerId: string, estimateId: string) {
     const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
-    const updated = await this.prisma.estimate.update({
+    const updated = await this.prisma.tenant.estimate.update({
       where: { id: estimateId },
       data: { status: 'declined', declinedAt: new Date() },
       select: { id: true, status: true, declinedAt: true, estimateNumber: true },
