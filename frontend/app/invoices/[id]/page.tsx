@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
 import { invoicesApi, invoiceCustomerName, INVOICE_STATUS_LABELS } from '../../../lib/api/invoices';
-import { SERVICE_TYPE_ICONS } from '../../../lib/api/service-catalog';
+import { SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS } from '../../../lib/api/service-catalog';
 import { AppShell } from '../../../components/layout/AppShell';
 import { ApiError } from '../../../lib/api/api-client';
 import { PaymentsSection } from '../../../components/payments/PaymentsSection';
@@ -109,21 +109,26 @@ export default function InvoiceDetailPage() {
 
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
               <div className="divide-y divide-slate-100 lg:hidden">
-                {invoice.lineItems.map((item) => (
+                {invoice.lineItems.map((item) => {
+                  const serviceLabel = item.customServiceName || (item.serviceType ? SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType : null);
+                  const primaryText = serviceLabel || item.description || 'Service';
+                  const showDescriptionBelow = !!item.description && item.description !== primaryText;
+                  return (
                   <div key={item.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <span className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
                         {item.serviceType && (() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
-                        {item.customServiceName || item.description}
+                        {primaryText}
                       </span>
                       <span className="shrink-0 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.total)}</span>
                     </div>
-                    {item.customServiceName && item.description && (
+                    {showDescriptionBelow && (
                       <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{item.description}</p>
                     )}
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.quantity} {item.unitOfMeasure?.replace('_', ' ')} × {formatMoney(item.unitPrice)}</p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <table className="hidden w-full text-sm lg:table">
@@ -142,10 +147,19 @@ export default function InvoiceDetailPage() {
                         <span className="flex items-center gap-1.5">
                           {item.serviceType && (() => { const Icon = SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other; return <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />; })()}
                           <span>
-                            {item.customServiceName || item.description}
-                            {item.customServiceName && item.description && (
-                              <span className="block text-xs text-slate-400 dark:text-slate-500">{item.description}</span>
-                            )}
+                            {(() => {
+                              const serviceLabel = item.customServiceName || (item.serviceType ? SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType : null);
+                              const primaryText = serviceLabel || item.description || 'Service';
+                              const showDescriptionBelow = !!item.description && item.description !== primaryText;
+                              return (
+                                <>
+                                  {primaryText}
+                                  {showDescriptionBelow && (
+                                    <span className="block text-xs text-slate-400 dark:text-slate-500">{item.description}</span>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </span>
                         </span>
                       </td>

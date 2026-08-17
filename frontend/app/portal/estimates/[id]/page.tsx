@@ -7,7 +7,7 @@ import useSWR from 'swr';
 import { portalApiFetch, portalFetchPdfObjectUrl, PortalApiError } from '../../../../lib/portal/portal-api-client';
 import { StatusBadge, ESTIMATE_STATUS_COLORS } from '../../../../components/action-center/StatusBadge';
 import { SignaturePad } from '../../../../components/jobs/SignaturePad';
-import { SERVICE_TYPE_ICONS } from '../../../../lib/api/service-catalog';
+import { SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS } from '../../../../lib/api/service-catalog';
 
 interface EstimateLineItem {
   description: string | null;
@@ -149,124 +149,132 @@ export default function PortalEstimateDetailPage() {
   const canDecline = !DECLINE_BLOCKED_STATUSES.has(estimate.status);
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-28">
-      {/* Quote Number + Date — the top of the hierarchy, large and unmissable */}
-      <div className="bg-white px-4 pb-6 pt-8 shadow-sm">
-        <div className="mx-auto max-w-md">
-          <Link href="/portal/estimates" className="text-xs text-slate-400 hover:text-slate-600">
-            ← Back to Estimates
-          </Link>
-          <div className="mt-3 flex items-start justify-between gap-3">
-            <h1 className="break-words text-2xl font-bold leading-tight text-slate-900">{estimate.estimateNumber}</h1>
-            <div className="shrink-0 pt-1">
-              <StatusBadge status={estimate.status} colorMap={ESTIMATE_STATUS_COLORS} />
-            </div>
-          </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {new Date(estimate.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-      </div>
+    <main className="min-h-screen bg-slate-50 px-4 pb-28 pt-8">
+      <div className="mx-auto max-w-md">
+        <Link href="/portal/estimates" className="text-xs text-slate-400 hover:text-slate-600">
+          ← Back to Estimates
+        </Link>
 
-      <div className="mx-auto mt-4 max-w-md space-y-3 px-4">
         {successMessage && (
-          <div className="rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-700">{successMessage}</div>
+          <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-700">{successMessage}</div>
         )}
 
-        {/* Quote For */}
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Quote For</p>
-          <p className="mt-2 text-sm font-semibold text-slate-900">{estimate.customer.name}</p>
-          {estimate.customer.email && <p className="mt-0.5 truncate text-sm text-slate-500">{estimate.customer.email}</p>}
-          {estimate.customer.phone && <p className="mt-0.5 text-sm text-slate-500">{estimate.customer.phone}</p>}
-        </div>
+        {/* One unified card, matching the reference layout — every section
+            below is a division within this same card (a border-top +
+            padding, not a separate shadowed box), so the whole quote reads
+            as one continuous document rather than a stack of fragments. */}
+        <div className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm">
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="break-words text-2xl font-bold leading-tight text-slate-900">{estimate.estimateNumber}</h1>
+              <div className="shrink-0 pt-1">
+                <StatusBadge status={estimate.status} colorMap={ESTIMATE_STATUS_COLORS} />
+              </div>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Date: {new Date(estimate.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
 
-        {/* Service Address */}
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Service Address</p>
-          <p className="mt-2 break-words text-sm text-slate-700">
-            {estimate.property.addressLine1}<br />
-            {estimate.property.city}, {estimate.property.state} {estimate.property.postalCode}
-          </p>
-        </div>
+            <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">Quote For</p>
+            <p className="mt-2 text-sm font-semibold text-slate-900">{estimate.customer.name}</p>
+            {estimate.customer.email && <p className="mt-0.5 truncate text-sm text-slate-500">{estimate.customer.email}</p>}
+            {estimate.customer.phone && <p className="mt-0.5 text-sm text-slate-500">{estimate.customer.phone}</p>}
+          </div>
 
-        {estimate.validUntil && (
-          <div className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valid Until</p>
-            <p className="mt-1 text-sm font-medium text-slate-900">
-              {new Date(estimate.validUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          <div className="border-t border-slate-100 p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Service Address</p>
+            <p className="mt-2 break-words text-sm text-slate-700">
+              {estimate.property.addressLine1}, {estimate.property.city}, {estimate.property.state} {estimate.property.postalCode}
             </p>
           </div>
-        )}
 
-        {/* Services Included */}
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Services Included</p>
-          <div className="mt-2 divide-y divide-slate-100">
-            {estimate.lineItems.map((li, i) => {
-              const Icon = li.serviceType ? SERVICE_TYPE_ICONS[li.serviceType] ?? SERVICE_TYPE_ICONS.other : null;
-              const primaryText = li.customServiceName || li.description;
-              return (
-                <div key={i} className="py-3 text-sm">
-                  <p className="flex items-start gap-2 font-semibold text-slate-900">
-                    <span className="mt-0.5 shrink-0 text-emerald-600">✓</span>
-                    <span className="flex min-w-0 items-center gap-1.5 break-words">
-                      {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" />}
-                      {primaryText}
-                    </span>
-                  </p>
-                  {li.customServiceName && li.description && (
-                    <p className="mt-0.5 pl-5 text-sm leading-relaxed text-slate-500">{li.description}</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Total — the largest, most prominent figure on the page, now that
-            the customer has intentionally clicked through into the
-            authenticated portal. Every figure below comes straight from
-            the backend response — nothing here is added, subtracted, or
-            recalculated. */}
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between text-slate-600">
-              <span>Subtotal</span>
-              <span>{money(estimate.subtotal)}</span>
+          {estimate.validUntil && (
+            <div className="border-t border-slate-100 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valid Until</p>
+              <p className="mt-2 text-sm font-medium text-slate-900">
+                {new Date(estimate.validUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
             </div>
-            {Number(estimate.discountAmount) > 0 && (
-              <div className="flex justify-between text-slate-600">
-                <span>Discount</span>
-                <span>−{money(estimate.discountAmount)}</span>
-              </div>
-            )}
-            {Number(estimate.taxAmount) > 0 && (
-              <div className="flex justify-between text-slate-600">
-                <span>Tax</span>
-                <span>{money(estimate.taxAmount)}</span>
-              </div>
-            )}
+          )}
+
+          <div className="border-t border-slate-100 p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Services Included</p>
+            <div className="mt-3 divide-y divide-slate-100">
+              {estimate.lineItems.map((li, i) => {
+                const Icon = li.serviceType ? SERVICE_TYPE_ICONS[li.serviceType] ?? SERVICE_TYPE_ICONS.other : null;
+                // Custom service name first, then the real predefined
+                // label (e.g. "Roof Soft Wash") — description alone was
+                // never the service's name, just optional extra detail.
+                // Falling back to description only if genuinely nothing
+                // else is available (defensive, shouldn't normally happen).
+                const serviceLabel = li.customServiceName || (li.serviceType ? SERVICE_TYPE_LABELS[li.serviceType] ?? li.serviceType : null);
+                const primaryText = serviceLabel || li.description || 'Service';
+                const showDescriptionBelow = !!li.description && li.description !== primaryText;
+                return (
+                  <div key={i} className="py-3 first:pt-0 last:pb-0 text-sm">
+                    <p className="flex items-start gap-2.5 font-semibold text-slate-900">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-emerald-600 text-[11px] font-bold text-emerald-600">✓</span>
+                      <span className="flex min-w-0 items-center gap-1.5 break-words pt-0.5">
+                        {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" />}
+                        {primaryText}
+                      </span>
+                    </p>
+                    {showDescriptionBelow && (
+                      <p className="mt-1 pl-[30px] text-sm leading-relaxed text-slate-500">{li.description}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
-            <span className="text-base font-semibold text-slate-900">Total</span>
-            <span className="text-2xl font-bold text-[var(--color-brand)]">{money(estimate.totalAmount)}</span>
+
+          {estimate.notes && (
+            <div className="border-t border-slate-100 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Notes</p>
+              <p className="mt-2 text-sm text-slate-700">{estimate.notes}</p>
+            </div>
+          )}
+
+          {/* Every figure below comes straight from the backend response —
+              nothing here is added, subtracted, or recalculated. Total
+              uses the same ink color as everything else on the page —
+              size alone creates the prominence, matching the reference's
+              restrained, single-color-family look rather than an
+              artificially highlighted figure. */}
+          <div className="border-t border-slate-100 p-5">
+            {(Number(estimate.discountAmount) > 0 || Number(estimate.taxAmount) > 0) && (
+              <div className="mb-3 space-y-1 text-sm">
+                <div className="flex justify-between text-slate-600">
+                  <span>Subtotal</span>
+                  <span>{money(estimate.subtotal)}</span>
+                </div>
+                {Number(estimate.discountAmount) > 0 && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Discount</span>
+                    <span>−{money(estimate.discountAmount)}</span>
+                  </div>
+                )}
+                {Number(estimate.taxAmount) > 0 && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Tax</span>
+                    <span>{money(estimate.taxAmount)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-base font-semibold text-slate-900">Total</span>
+              <span className="text-2xl font-bold text-slate-900">{money(estimate.totalAmount)}</span>
+            </div>
           </div>
         </div>
 
-        {estimate.notes && (
-          <div className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Notes</p>
-            <p className="mt-1 text-sm text-slate-700">{estimate.notes}</p>
-          </div>
-        )}
+        {actionError && <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{actionError}</div>}
 
-        {actionError && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{actionError}</div>}
-
-        {/* Actions — Accept remains the primary CTA, full-width and most
-            prominent; Decline and Download share the row below at equal
-            weight, large enough to tap comfortably on mobile. */}
-        <div className="space-y-2 pt-2">
+        {/* Actions — three full-width rows stacked, matching the
+            reference exactly: Accept as the solid primary CTA, Decline
+            and Download as equal-weight outlined buttons beneath it. */}
+        <div className="mt-4 space-y-2">
           {canApprove && (
             <button
               onClick={() => setApproveStep('confirm')}
@@ -275,25 +283,28 @@ export default function PortalEstimateDetailPage() {
               Accept Quote
             </button>
           )}
-          <div className="flex gap-3">
-            {canDecline && (
-              <button
-                onClick={() => setShowDeclineConfirm(true)}
-                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm"
-              >
-                Decline
-              </button>
-            )}
+          {canDecline && (
             <button
-              onClick={handleViewPdf}
-              disabled={pdfState === 'loading'}
-              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50"
+              onClick={() => setShowDeclineConfirm(true)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-base font-medium text-slate-700 shadow-sm"
             >
-              {pdfState === 'loading' ? 'Opening…' : 'Download'}
+              Decline
             </button>
-          </div>
+          )}
+          <button
+            onClick={handleViewPdf}
+            disabled={pdfState === 'loading'}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-base font-medium text-slate-700 shadow-sm disabled:opacity-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            {pdfState === 'loading' ? 'Opening…' : 'Download'}
+          </button>
         </div>
-        {pdfState === 'error' && <p className="text-center text-xs text-red-600">Couldn't open the PDF. Please try again.</p>}
+        {pdfState === 'error' && <p className="mt-2 text-center text-xs text-red-600">Couldn't open the PDF. Please try again.</p>}
       </div>
 
       {approveStep === 'confirm' && (
