@@ -18,8 +18,13 @@ interface ServicePickerProps {
   customServiceName: string;
   /** Predefined pick: only serviceType changes. Custom pick: serviceType
       becomes 'other' and customServiceName is set to the typed text —
-      description is never touched by this component either way. */
-  onSelect: (serviceType: string, customServiceNameOverride?: string) => void;
+      description is never touched by this component either way.
+      isLiveEdit is true only for the continuous keystroke-by-keystroke
+      commit while typing a custom name — the parent uses this to avoid
+      auto-advancing focus away from the field the user is still typing
+      into, unlike a discrete pick (clicking a predefined option or
+      "+Use"), which is a natural "done, move to the next field" moment. */
+  onSelect: (serviceType: string, customServiceNameOverride?: string, isLiveEdit?: boolean) => void;
   hasError?: boolean;
 }
 
@@ -91,8 +96,20 @@ export function ServicePicker({ value, customServiceName, onSelect, hasError }: 
         <input
           value={displayValue}
           onChange={(e) => {
-            setSearch(e.target.value);
+            const next = e.target.value;
+            setSearch(next);
             if (!isOpen) setIsOpen(true);
+            // Commit live, not just on an explicit "+Use" click — but
+            // only when already in custom mode (value === 'other').
+            // Searching to replace an existing predefined selection must
+            // NOT auto-commit to custom mid-search, or picking a
+            // different real service (e.g. "Roof Soft Wash" -> typing
+            // toward "House Wash") would corrupt the line item into a
+            // garbage custom entry on the very first keystroke, before
+            // anything was actually chosen. Typing should behave like a
+            // normal input specifically once Create Custom Service is
+            // already selected, matching what was actually asked for.
+            if (value === 'other') onSelect('other', next, true);
           }}
           onFocus={(e) => {
             setIsOpen(true);

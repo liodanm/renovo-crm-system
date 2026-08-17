@@ -941,13 +941,13 @@ function LineItemRow({
             value={item.serviceType}
             customServiceName={item.customServiceName ?? ''}
             hasError={!!errors[`item-${index}-service`]}
-            onSelect={(serviceType, customServiceNameOverride) => {
+            onSelect={(serviceType, customServiceNameOverride, isLiveEdit) => {
               if (customServiceNameOverride !== undefined) {
                 onChange({ serviceType, customServiceName: customServiceNameOverride });
               } else {
                 onChange({ serviceType });
               }
-              requestAnimationFrame(() => descriptionRef.current?.focus());
+              if (!isLiveEdit) requestAnimationFrame(() => descriptionRef.current?.focus());
             }}
           />
         </div>
