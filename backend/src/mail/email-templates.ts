@@ -85,12 +85,11 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
       };
     case 'estimate-send':
       return {
-        subject: `Estimate ${escape(data.estimateNumber)} from ${escape(data.companyName)}`,
+        subject: `Your Quote Is Ready – ${escape(data.estimateNumber)}`,
         html: wrapper(
-          `<p>Hi ${escape(data.customerName)},</p>` +
-            `<p>${escape(data.companyName)} has prepared an estimate for you.</p>` +
-            `<p><strong>Estimate ${escape(data.estimateNumber)}</strong> · Total: ${escape(data.totalFormatted)}</p>` +
-            (data.validUntilFormatted ? `<p>Valid until ${escape(data.validUntilFormatted)}.</p>` : '') +
+          `<p>Hi ${escape(data.customerFirstName)},</p>` +
+            `<p>Your quote from ${escape(data.companyName)}${data.serviceAddress ? ` for services at ${escape(data.serviceAddress)}` : ''} is ready for review.</p>` +
+            `<p>Click the button below to view your quote and review the details:</p>` +
             ctaButton(data.portalUrl, 'View & Accept Quote', data.brandColor as string | null | undefined),
         ),
       };

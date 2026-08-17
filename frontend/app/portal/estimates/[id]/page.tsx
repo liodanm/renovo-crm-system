@@ -33,8 +33,8 @@ interface EstimateDetail {
   taxAmount: string;
   totalAmount: string;
   lineItems: EstimateLineItem[];
-  customer: { name: string };
-  property: { addressLine1: string; city: string; state: string };
+  customer: { name: string; email: string | null; phone: string | null };
+  property: { addressLine1: string; city: string; state: string; postalCode: string };
 }
 
 const money = (v: string | number) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -149,17 +149,22 @@ export default function PortalEstimateDetailPage() {
   const canDecline = !DECLINE_BLOCKED_STATUSES.has(estimate.status);
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-24">
-      <div className="bg-white px-4 pb-4 pt-8 shadow-sm">
+    <main className="min-h-screen bg-slate-50 pb-28">
+      {/* Quote Number + Date — the top of the hierarchy, large and unmissable */}
+      <div className="bg-white px-4 pb-6 pt-8 shadow-sm">
         <div className="mx-auto max-w-md">
           <Link href="/portal/estimates" className="text-xs text-slate-400 hover:text-slate-600">
             ← Back to Estimates
           </Link>
-          <div className="mt-2 flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-slate-900">{estimate.estimateNumber}</h1>
-            <StatusBadge status={estimate.status} colorMap={ESTIMATE_STATUS_COLORS} />
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <h1 className="break-words text-2xl font-bold leading-tight text-slate-900">{estimate.estimateNumber}</h1>
+            <div className="shrink-0 pt-1">
+              <StatusBadge status={estimate.status} colorMap={ESTIMATE_STATUS_COLORS} />
+            </div>
           </div>
-          <p className="mt-1 text-sm text-slate-500">{estimate.property.addressLine1}, {estimate.property.city}, {estimate.property.state}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {new Date(estimate.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
         </div>
       </div>
 
@@ -168,40 +173,62 @@ export default function PortalEstimateDetailPage() {
           <div className="rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-700">{successMessage}</div>
         )}
 
+        {/* Quote For */}
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Quote For</p>
+          <p className="mt-2 text-sm font-semibold text-slate-900">{estimate.customer.name}</p>
+          {estimate.customer.email && <p className="mt-0.5 truncate text-sm text-slate-500">{estimate.customer.email}</p>}
+          {estimate.customer.phone && <p className="mt-0.5 text-sm text-slate-500">{estimate.customer.phone}</p>}
+        </div>
+
+        {/* Service Address */}
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Service Address</p>
+          <p className="mt-2 break-words text-sm text-slate-700">
+            {estimate.property.addressLine1}<br />
+            {estimate.property.city}, {estimate.property.state} {estimate.property.postalCode}
+          </p>
+        </div>
+
         {estimate.validUntil && (
           <div className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium text-slate-500">Valid Until</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valid Until</p>
             <p className="mt-1 text-sm font-medium text-slate-900">
               {new Date(estimate.validUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
           </div>
         )}
 
+        {/* Services Included */}
         <div className="rounded-xl bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">Services</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Services Included</p>
           <div className="mt-2 divide-y divide-slate-100">
             {estimate.lineItems.map((li, i) => {
               const Icon = li.serviceType ? SERVICE_TYPE_ICONS[li.serviceType] ?? SERVICE_TYPE_ICONS.other : null;
               const primaryText = li.customServiceName || li.description;
               return (
-                <div key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 font-medium text-slate-900">
+                <div key={i} className="py-3 text-sm">
+                  <p className="flex items-start gap-2 font-semibold text-slate-900">
+                    <span className="mt-0.5 shrink-0 text-emerald-600">✓</span>
+                    <span className="flex min-w-0 items-center gap-1.5 break-words">
                       {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" />}
                       {primaryText}
-                    </p>
-                    {li.customServiceName && li.description && <p className="text-xs text-slate-500">{li.description}</p>}
-                    <p className="text-xs text-slate-500">{li.quantity} {li.unitOfMeasure} × {money(li.unitPrice)}</p>
-                  </div>
-                  <p className="shrink-0 font-medium text-slate-900">{money(li.total)}</p>
+                    </span>
+                  </p>
+                  {li.customServiceName && li.description && (
+                    <p className="mt-0.5 pl-5 text-sm leading-relaxed text-slate-500">{li.description}</p>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Every figure below comes straight from the backend response —
-            nothing here is added, subtracted, or recalculated. */}
+        {/* Total — the largest, most prominent figure on the page, now that
+            the customer has intentionally clicked through into the
+            authenticated portal. Every figure below comes straight from
+            the backend response — nothing here is added, subtracted, or
+            recalculated. */}
         <div className="rounded-xl bg-white p-4 shadow-sm">
           <div className="space-y-1 text-sm">
             <div className="flex justify-between text-slate-600">
@@ -221,50 +248,52 @@ export default function PortalEstimateDetailPage() {
               </div>
             )}
           </div>
-          <div className="mt-2 flex justify-between border-t border-slate-200 pt-2">
-            <span className="font-semibold text-slate-900">Total</span>
-            <span className="text-lg font-bold text-slate-900">{money(estimate.totalAmount)}</span>
+          <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
+            <span className="text-base font-semibold text-slate-900">Total</span>
+            <span className="text-2xl font-bold text-[var(--color-brand)]">{money(estimate.totalAmount)}</span>
           </div>
         </div>
 
         {estimate.notes && (
           <div className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium text-slate-500">Notes</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Notes</p>
             <p className="mt-1 text-sm text-slate-700">{estimate.notes}</p>
           </div>
         )}
 
-        <button
-          onClick={handleViewPdf}
-          disabled={pdfState === 'loading'}
-          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50"
-        >
-          {pdfState === 'loading' ? 'Opening…' : 'Download PDF'}
-        </button>
-        {pdfState === 'error' && <p className="text-center text-xs text-red-600">Couldn't open the PDF. Please try again.</p>}
-
         {actionError && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{actionError}</div>}
 
-        {(canApprove || canDecline) && (
-          <div className="flex gap-3 pt-2">
+        {/* Actions — Accept remains the primary CTA, full-width and most
+            prominent; Decline and Download share the row below at equal
+            weight, large enough to tap comfortably on mobile. */}
+        <div className="space-y-2 pt-2">
+          {canApprove && (
+            <button
+              onClick={() => setApproveStep('confirm')}
+              className="w-full rounded-xl bg-[var(--color-brand)] px-4 py-4 text-base font-semibold text-white shadow-sm"
+            >
+              Accept Quote
+            </button>
+          )}
+          <div className="flex gap-3">
             {canDecline && (
               <button
                 onClick={() => setShowDeclineConfirm(true)}
                 className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm"
               >
-                Decline Quote
+                Decline
               </button>
             )}
-            {canApprove && (
-              <button
-                onClick={() => setApproveStep('confirm')}
-                className="flex-1 rounded-xl bg-[var(--color-brand)] px-4 py-3 text-sm font-medium text-white shadow-sm"
-              >
-                Accept Quote
-              </button>
-            )}
+            <button
+              onClick={handleViewPdf}
+              disabled={pdfState === 'loading'}
+              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-50"
+            >
+              {pdfState === 'loading' ? 'Opening…' : 'Download'}
+            </button>
           </div>
-        )}
+        </div>
+        {pdfState === 'error' && <p className="text-center text-xs text-red-600">Couldn't open the PDF. Please try again.</p>}
       </div>
 
       {approveStep === 'confirm' && (

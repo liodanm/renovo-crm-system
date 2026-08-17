@@ -473,10 +473,14 @@ export class EstimatesService {
       relatedType: 'estimate',
       relatedId: id,
       recipientEmail,
-      subject: `Estimate ${existing.estimateNumber} from ${company.dba || company.name}`,
+      subject: `Your Quote Is Ready – ${existing.estimateNumber}`,
       template: 'estimate-send',
       sentByUserId: userId,
     });
+
+    const serviceAddress = existing.property
+      ? `${existing.property.addressLine1}, ${existing.property.city}, ${existing.property.state} ${existing.property.postalCode}`
+      : null;
 
     await this.mailService.sendDocumentEmail({
       to: recipientEmail,
@@ -485,11 +489,15 @@ export class EstimatesService {
       emailLogId,
       replyTo: replyTo ?? undefined,
       data: {
-        customerName: existing.customer.businessName ?? `${existing.customer.firstName ?? ''} ${existing.customer.lastName ?? ''}`.trim(),
+        // Deliberately no total/totalAmount/totalFormatted or any other
+        // pricing field anywhere in this object — the customer email
+        // must never expose the price before the customer clicks
+        // through to the authenticated portal. See the portal estimate
+        // endpoint for where pricing is actually returned.
+        customerFirstName: existing.customer.firstName || existing.customer.businessName || 'there',
         companyName: company.dba || company.name,
         estimateNumber: existing.estimateNumber,
-        totalFormatted: `$${Number(existing.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-        validUntilFormatted: existing.validUntil ? new Date(existing.validUntil).toLocaleDateString('en-US', { dateStyle: 'medium' }) : null,
+        serviceAddress,
         portalUrl,
         brandColor: branding.primaryColor,
       },

@@ -300,11 +300,14 @@ export class PortalController {
       })),
       customer: {
         name: estimate.customer.businessName ?? `${estimate.customer.firstName ?? ''} ${estimate.customer.lastName ?? ''}`.trim(),
+        email: estimate.customer.email,
+        phone: estimate.customer.phone,
       },
       property: {
         addressLine1: estimate.property.addressLine1,
         city: estimate.property.city,
         state: estimate.property.state,
+        postalCode: estimate.property.postalCode,
       },
     };
   }
