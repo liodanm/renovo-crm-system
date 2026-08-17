@@ -304,7 +304,7 @@ return {
   async testGoogleReviewsPlaceId(placeId: string): Promise<{ ok: boolean; error?: string; meta?: { name?: string; rating?: number; userRatingsTotal?: number } }> {
     const apiKey = this.config.get<string>('GOOGLE_PLACES_API_KEY');
     if (!apiKey) {
-      return { ok: false, error: 'GOOGLE_PLACES_API_KEY is not configured on the server.' };
+      return { ok: false, error: 'Your Place ID looks fine, but reviews can\'t load yet — the server is missing its Google Places API key. This is a separate, one-time setup step: add GOOGLE_PLACES_API_KEY as an environment variable wherever this app is hosted (e.g. Railway → Variables), then try again.' };
     }
     if (!placeId?.trim()) {
       return { ok: false, error: 'Enter a Place ID first.' };
@@ -348,7 +348,7 @@ return {
 
     const apiKey = this.config.get<string>('GOOGLE_PLACES_API_KEY');
     if (!apiKey) {
-      return { enabled: true, rating: null, userRatingsTotal: null, reviews: null, error: 'Google Places is not configured on the server.' };
+      return { enabled: true, rating: null, userRatingsTotal: null, reviews: null, error: 'Reviews are enabled but can\'t load — the server is missing its Google Places API key, a separate one-time setup step from your Place ID. See Settings → Google Reviews for details.' };
     }
 
     try {

@@ -111,6 +111,10 @@ export default function GoogleReviewsSettingsPage() {
               Connect your Google Business Profile to display up to 5 recent reviews on your dashboard. This uses the Google Places API and provides read-only access.
             </div>
 
+            <div className="mt-3 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 p-3 text-xs text-amber-800 dark:text-amber-300">
+              <strong>Two things are required for reviews to actually appear:</strong> the Place ID you enter below, <em>and</em> a separate, one-time setup step where whoever manages this app&apos;s hosting adds a Google Places API key as a server environment variable. If reviews don&apos;t show up after saving and enabling below, that second step is most likely what&apos;s still missing — not something wrong with your Place ID.
+            </div>
+
             <div className="mt-4">
               <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Google Place ID</label>
               <div className="mt-1 flex gap-2">
