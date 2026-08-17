@@ -7,6 +7,7 @@ import {
   UpdateCompanyDto,
   UpdateBusinessDefaultsDto,
   UpdateBrandingDto,
+  UpdateEstimateSettingsDto,
   UpdatePaymentSettingsDto,
   UpdateEmailSettingsDto,
   UpdateBusinessLinksDto,
@@ -71,6 +72,18 @@ export class SettingsController {
   @RequirePermissions('settings.manage')
   updateBusinessDefaults(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateBusinessDefaultsDto) {
     return this.settings.updateBusinessDefaults(user.companyId, dto);
+  }
+
+  // Estimate Settings
+  @Get('estimates')
+  getEstimateSettings(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.settings.getEstimateSettings(user.companyId);
+  }
+
+  @Patch('estimates')
+  @RequirePermissions('settings.manage')
+  updateEstimateSettings(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateEstimateSettingsDto) {
+    return this.settings.updateEstimateSettings(user.companyId, dto);
   }
 
   // Branding

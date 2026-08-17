@@ -421,3 +421,17 @@ export class UpdatePackageDiscountsDto {
   @Type(() => PackageDiscountTierDto)
   tiers?: PackageDiscountTierDto[];
 }
+
+export class UpdateEstimateSettingsDto {
+  @IsBoolean()
+  enableTax!: boolean;
+
+  @IsBoolean()
+  enableExpiration!: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(365)
+  defaultValidUntilDays?: number;
+}

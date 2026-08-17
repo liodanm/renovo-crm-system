@@ -11,6 +11,7 @@ import {
   UpdateCompanyDto,
   UpdateBusinessDefaultsDto,
   UpdateBrandingDto,
+  UpdateEstimateSettingsDto,
   UpdatePaymentSettingsDto,
   UpdateEmailSettingsDto,
   SendTestEmailDto,
@@ -183,6 +184,37 @@ export class SettingsService {
     const key = this.storage.buildKey(companyId, 'branding', fileName);
     const uploadUrl = await this.storage.getPresignedUploadUrl(key, mimeType);
     return { uploadUrl, publicUrl: this.storage.getPublicUrl(key), expiresInSeconds: 300 };
+  }
+
+  async getEstimateSettings(companyId: string) {
+    const rows: { settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT settings FROM companies WHERE id = $1::uuid`, companyId);
+    if (rows.length === 0) throw new NotFoundException('Company not found');
+    const settings = rows[0].settings ?? {};
+    return {
+      // Both default to true — matches current, pre-existing behavior
+      // exactly (tax and expiration already work today for every
+      // company that's never touched this new settings page).
+      enableTax: settings.estimateSettings?.enableTax ?? true,
+      enableExpiration: settings.estimateSettings?.enableExpiration ?? true,
+      defaultValidUntilDays: settings.estimateSettings?.defaultValidUntilDays ?? 30,
+    };
+  }
+
+  async updateEstimateSettings(companyId: string, dto: UpdateEstimateSettingsDto) {
+    const existing = await this.getEstimateSettings(companyId);
+    const merged = {
+      enableTax: dto.enableTax,
+      enableExpiration: dto.enableExpiration,
+      defaultValidUntilDays: dto.defaultValidUntilDays ?? existing.defaultValidUntilDays,
+    };
+    // Same jsonb_set-merge pattern branding/integrations already use —
+    // never overwrites the rest of companies.settings.
+    await this.prisma.tenant.$executeRawUnsafe(
+      `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{estimateSettings}', $2::jsonb, true), updated_at = now() WHERE id = $1::uuid`,
+      companyId,
+      JSON.stringify(merged),
+    );
+    return merged;
   }
 
   async getBranding(companyId: string) {

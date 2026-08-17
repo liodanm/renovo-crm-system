@@ -248,6 +248,23 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
   const [notes, setNotes] = useState(existingEstimate?.notes ?? restoredDraft?.notes ?? '');
   const [internalNotes, setInternalNotes] = useState(existingEstimate?.internalNotes ?? restoredDraft?.internalNotes ?? '');
   const [validUntil, setValidUntil] = useState(existingEstimate?.validUntil?.slice(0, 10) ?? restoredDraft?.validUntil ?? '');
+  // Company-wide defaults controlling whether Tax/Expiration show at all
+  // on a NEW estimate. null while loading — treated as "show" so nothing
+  // flashes hidden-then-visible. An existing estimate that already has
+  // real data in these fields always shows them regardless of the
+  // current setting — see showTaxField/showExpirationField below.
+  const [estimateSettings, setEstimateSettings] = useState<{ enableTax: boolean; enableExpiration: boolean } | null>(null);
+  useEffect(() => {
+    settingsApi.getEstimateSettings().then(setEstimateSettings).catch(() => setEstimateSettings({ enableTax: true, enableExpiration: true }));
+  }, []);
+  const hasExistingTax = isEdit && toNumber(taxRatePercent) > 0;
+  const hasExistingValidUntil = isEdit && !!validUntil;
+  const showTaxField = estimateSettings === null ? true : (estimateSettings.enableTax || hasExistingTax);
+  const showExpirationField = estimateSettings === null ? true : (estimateSettings.enableExpiration || hasExistingValidUntil);
+  // Progressive disclosure for Discount — starts expanded only when
+  // editing an estimate that already has a real discount, so existing
+  // data is never hidden behind a collapsed "+ Add Discount" button.
+  const [showDiscount, setShowDiscount] = useState(!!existingEstimate?.discountType);
   const [isSaving, setIsSaving] = useState(false);
   // Which button's label should reflect the busy state — isSaving alone
   // disables every button in the row (the existing, correct behavior),
@@ -382,10 +399,10 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         discountType: discountType || undefined,
         discountValue: discountType ? toNumber(discountValue) : undefined,
         discountSource: discountType ? (isManualDiscount ? 'manual' : 'package') : undefined,
-        taxRatePercent: taxRatePercent ? toNumber(taxRatePercent) : undefined,
+        taxRatePercent: showTaxField && taxRatePercent ? toNumber(taxRatePercent) : undefined,
         notes: notes || undefined,
         internalNotes: internalNotes || undefined,
-        validUntil: validUntil || undefined,
+        validUntil: showExpirationField && validUntil ? validUntil : undefined,
       };
 
       const estimate = isEdit
@@ -437,10 +454,10 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         discountType: discountType || undefined,
         discountValue: discountType ? toNumber(discountValue) : undefined,
         discountSource: discountType ? (isManualDiscount ? 'manual' : 'package') : undefined,
-        taxRatePercent: taxRatePercent ? toNumber(taxRatePercent) : undefined,
+        taxRatePercent: showTaxField && taxRatePercent ? toNumber(taxRatePercent) : undefined,
         notes: notes || undefined,
         internalNotes: internalNotes || undefined,
-        validUntil: validUntil || undefined,
+        validUntil: showExpirationField && validUntil ? validUntil : undefined,
       };
 
       // Same strip-before-update as handleSave, and for the same real
@@ -509,10 +526,10 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         discountType: discountType || undefined,
         discountValue: discountType ? toNumber(discountValue) : undefined,
         discountSource: discountType ? (isManualDiscount ? 'manual' : 'package') : undefined,
-        taxRatePercent: taxRatePercent ? toNumber(taxRatePercent) : undefined,
+        taxRatePercent: showTaxField && taxRatePercent ? toNumber(taxRatePercent) : undefined,
         notes: notes || undefined,
         internalNotes: internalNotes || undefined,
-        validUntil: validUntil || undefined,
+        validUntil: showExpirationField && validUntil ? validUntil : undefined,
       };
 
       const estimate = await estimatesApi.create(payload);
@@ -695,74 +712,104 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-4">
-          <div className="min-w-0">
-            <div className="flex min-h-[22px] items-center justify-between">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valid until</label>
+          {showExpirationField && (
+            <div className="min-w-0">
+              <div className="flex min-h-[22px] items-center justify-between">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Valid until</label>
+              </div>
+              <div className="mt-1 w-full overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700 dark:bg-slate-900">
+                <input
+                  type="date"
+                  value={validUntil}
+                  onChange={(e) => setValidUntil(e.target.value)}
+                  className="w-full min-w-0 max-w-full border-0 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 focus:outline-none"
+                />
+              </div>
             </div>
-            <div className="mt-1 w-full overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700 dark:bg-slate-900">
+          )}
+          {showDiscount ? (
+            <>
+              <div>
+                <div className="flex min-h-[22px] items-center justify-between">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Discount type</label>
+                </div>
+                <select
+                  value={discountType}
+                  onChange={(e) => {
+                    setDiscountType(e.target.value);
+                    // Explicitly choosing "None" is the clearest possible
+                    // reset signal — same auto-restore rule as clearing the
+                    // value to zero.
+                    setIsManualDiscount(e.target.value !== '');
+                  }}
+                  className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
+                >
+                  <option value="">None</option>
+                  <option value="fixed">Fixed ($)</option>
+                  <option value="percentage">Percentage (%)</option>
+                </select>
+              </div>
+              <div>
+                <div className="flex min-h-[22px] items-center justify-between">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Discount value</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDiscountType('');
+                      setDiscountValue('');
+                      setIsManualDiscount(false);
+                      setShowDiscount(false);
+                    }}
+                    className="text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={discountValue}
+                  onChange={(e) => {
+                    const next = sanitizeNumericInput(e.target.value);
+                    setDiscountValue(next);
+                    // Reset to empty/zero -> resume auto-apply, no button, no
+                    // dialog, exactly the "Auto Restore" requirement. Any
+                    // other non-zero value -> this estimate is now manually
+                    // controlled, permanently, until reset the same way.
+                    setIsManualDiscount(toNumber(next) > 0);
+                  }}
+                  disabled={!discountType}
+                  placeholder="0.00"
+                  className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base disabled:bg-slate-100 dark:bg-slate-800 lg:px-3 lg:py-2 lg:text-sm"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="flex items-end pb-0.5">
+              <button
+                type="button"
+                onClick={() => setShowDiscount(true)}
+                className="text-sm font-medium text-[var(--color-brand)] hover:underline"
+              >
+                + Add Discount
+              </button>
+            </div>
+          )}
+          {showTaxField && (
+            <div>
+              <div className="flex min-h-[22px] items-center justify-between">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tax rate (%)</label>
+              </div>
               <input
-                type="date"
-                value={validUntil}
-                onChange={(e) => setValidUntil(e.target.value)}
-                className="w-full min-w-0 max-w-full border-0 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 focus:outline-none"
+                type="text"
+                inputMode="decimal"
+                value={taxRatePercent}
+                onChange={(e) => setTaxRatePercent(sanitizeNumericInput(e.target.value))}
+                placeholder="0.00"
+                className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
-          </div>
-          <div>
-            <div className="flex min-h-[22px] items-center justify-between">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Discount type</label>
-            </div>
-            <select
-              value={discountType}
-              onChange={(e) => {
-                setDiscountType(e.target.value);
-                // Explicitly choosing "None" is the clearest possible
-                // reset signal — same auto-restore rule as clearing the
-                // value to zero.
-                setIsManualDiscount(e.target.value !== '');
-              }}
-              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
-            >
-              <option value="">None</option>
-              <option value="fixed">Fixed ($)</option>
-              <option value="percentage">Percentage (%)</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex min-h-[22px] items-center justify-between">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Discount value</label>
-            </div>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={discountValue}
-              onChange={(e) => {
-                const next = sanitizeNumericInput(e.target.value);
-                setDiscountValue(next);
-                // Reset to empty/zero -> resume auto-apply, no button, no
-                // dialog, exactly the "Auto Restore" requirement. Any
-                // other non-zero value -> this estimate is now manually
-                // controlled, permanently, until reset the same way.
-                setIsManualDiscount(toNumber(next) > 0);
-              }}
-              disabled={!discountType}
-              placeholder="0.00"
-              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base disabled:bg-slate-100 dark:bg-slate-800 lg:px-3 lg:py-2 lg:text-sm"
-            />
-          </div>
-          <div>
-            <div className="flex min-h-[22px] items-center justify-between">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tax rate (%)</label>
-            </div>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={taxRatePercent}
-              onChange={(e) => setTaxRatePercent(sanitizeNumericInput(e.target.value))}
-              placeholder="0.00"
-              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-3 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
-            />
-          </div>
+          )}
         </div>
 
         {(activePackageDiscount || (isManualDiscount && discountType)) && (

@@ -46,6 +46,33 @@ export class EstimatesService {
     const result = await this.prisma.withTenantContext(companyId, async (tx) => {
       const estimateNumber = await this.generateEstimateNumber(tx, companyId);
 
+      // Server-side defaults — applied only when the caller omits the
+      // field, never overriding an explicit value. This is deliberate:
+      // estimates may eventually be created from entry points other than
+      // this staff form (API, website, mobile, automation), and every
+      // one of them should get correct tax/expiration defaults without
+      // each caller needing to know this company's configuration.
+      let validUntil = dto.validUntil ? new Date(dto.validUntil) : undefined;
+      let taxRatePercent = dto.taxRatePercent;
+      if (validUntil === undefined || taxRatePercent === undefined) {
+        const rows: { settings: any; defaultTaxRatePercent: string | null }[] = await tx.$queryRawUnsafe(
+          `SELECT settings, default_tax_rate_percent AS "defaultTaxRatePercent" FROM companies WHERE id = $1::uuid`,
+          companyId,
+        );
+        const estimateSettings = rows[0]?.settings?.estimateSettings ?? {};
+        const enableTax = estimateSettings.enableTax ?? true; // same default as SettingsService.getEstimateSettings — matches existing behavior for every company that's never touched this new settings page
+        const enableExpiration = estimateSettings.enableExpiration ?? true;
+        const defaultValidUntilDays = estimateSettings.defaultValidUntilDays ?? 30;
+
+        if (validUntil === undefined && enableExpiration) {
+          validUntil = new Date();
+          validUntil.setDate(validUntil.getDate() + defaultValidUntilDays);
+        }
+        if (taxRatePercent === undefined) {
+          taxRatePercent = enableTax && rows[0]?.defaultTaxRatePercent ? Number(rows[0].defaultTaxRatePercent) : 0;
+        }
+      }
+
       const estimate = await tx.estimate.create({
         data: {
           companyId,
@@ -58,13 +85,13 @@ export class EstimatesService {
           notes: dto.notes,
           terms: dto.terms,
           internalNotes: dto.internalNotes,
-          validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
+          validUntil,
         },
       });
 
       await this.insertLineItems(tx, companyId, estimate.id, dto.lineItems);
       await this.computeAndSaveLineItemProfitability(tx, companyId, estimate.id);
-      return this.recalculateAndSave(tx, companyId, estimate.id, dto.discountType, dto.discountValue, dto.taxRatePercent, dto.discountSource);
+      return this.recalculateAndSave(tx, companyId, estimate.id, dto.discountType, dto.discountValue, taxRatePercent, dto.discountSource);
     });
 
     return this.applyProfitabilityVisibility(result, canViewProfitability);

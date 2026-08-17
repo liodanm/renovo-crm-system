@@ -53,6 +53,12 @@ export interface BrandingSettings {
   footerMessage: string | null;
 }
 
+export interface EstimateSettings {
+  enableTax: boolean;
+  enableExpiration: boolean;
+  defaultValidUntilDays: number;
+}
+
 export interface LeadSourceOption {
   key: string;
   label: string;
@@ -160,6 +166,8 @@ export const settingsApi = {
 
   getBranding: () => apiFetch<BrandingSettings>('/settings/branding'),
   updateBranding: (input: Partial<BrandingSettings>) => apiFetch<BrandingSettings>('/settings/branding', { method: 'PATCH', body: JSON.stringify(input) }),
+  getEstimateSettings: () => apiFetch<EstimateSettings>('/settings/estimates'),
+  updateEstimateSettings: (input: EstimateSettings) => apiFetch<EstimateSettings>('/settings/estimates', { method: 'PATCH', body: JSON.stringify(input) }),
   presignLogoUpload: (fileName: string, mimeType: string) =>
     apiFetch<{ uploadUrl: string; publicUrl: string; expiresInSeconds: number }>('/settings/branding/logo-upload-url', {
       method: 'POST',
