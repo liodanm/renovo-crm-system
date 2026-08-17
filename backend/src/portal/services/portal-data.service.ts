@@ -5,6 +5,8 @@ import { logAutomationEvent } from '../../common/utils/automation-event.util';
 import { JobsService } from '../../jobs/services/jobs.service';
 import { CustomersService } from '../../customers/services/customers.service';
 import { CompanyContextService } from '../../documents/services/company-context.service';
+import { MailService } from '../../mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * Every method here takes `customerId` as an explicit, required parameter
@@ -23,6 +25,8 @@ export class PortalDataService {
     private readonly jobsService: JobsService,
     private readonly customersService: CustomersService,
     private readonly companyContext: CompanyContextService,
+    private readonly mailService: MailService,
+    private readonly config: ConfigService,
   ) {}
 
   async getEstimates(companyId: string, customerId: string) {
@@ -164,12 +168,21 @@ export class PortalDataService {
    */
   async markEstimateViewed(companyId: string, customerId: string, estimateId: string) {
     const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
-    if (!estimate.viewedAt) {
+    // A genuinely new view is either the first one ever, or one
+    // happening after the estimate was reopened and resent — sentAt
+    // gets a fresh timestamp on every real send (see
+    // EstimatesService.send()), so comparing against it is what lets a
+    // resent estimate become "Viewed" again without needing a second
+    // column or table. A plain refresh within the same cycle always has
+    // viewedAt >= sentAt and is correctly treated as a no-op below.
+    const isNewView = !estimate.viewedAt || estimate.viewedAt < estimate.sentAt!;
+    if (isNewView) {
       // Only transitions status when it's still 'sent' — an estimate
       // already accepted/declined/expired/converted must never be
       // demoted back to 'viewed' just because the customer revisits the
       // page. viewedAt itself is still recorded regardless, as a factual
-      // "when did they first open it" timestamp independent of status.
+      // "when did they most recently open it" timestamp independent of
+      // status.
       const shouldTransitionStatus = estimate.status === 'sent';
       await this.prisma.tenant.estimate.update({
         where: { id: estimateId },
@@ -182,9 +195,53 @@ export class PortalDataService {
         companyId,
         customerId,
         ruleType: 'estimate_viewed',
-        dedupeKey: `estimate-viewed-${estimateId}`,
+        // Cycle-aware, not just estimateId — otherwise logAutomationEvent's
+        // own permanent ON CONFLICT(company_id, dedupe_key) DO NOTHING
+        // would silently suppress this log entry forever after the very
+        // first view, even on a legitimate later resend-and-review cycle.
+        // sentAt changes on every real send, so this correctly allows one
+        // entry per cycle while still blocking any duplicate within it.
+        dedupeKey: `estimate-viewed-${estimateId}-${estimate.sentAt!.getTime()}`,
         messageBody: `Estimate ${estimate.estimateNumber} viewed by customer`,
       });
+      await this.sendEstimateViewedNotification(companyId, estimateId);
+    }
+  }
+
+  /**
+   * Fire-and-forget internal notification — a delivery failure here must
+   * never surface to the customer or block their view. MailService's own
+   * enqueue() already swallows and logs queue errors internally, so this
+   * try/catch only guards the lookups (company reply-to email, estimate
+   * detail) that happen before the send itself.
+   */
+  private async sendEstimateViewedNotification(companyId: string, estimateId: string): Promise<void> {
+    try {
+      const to = await this.companyContext.getReplyToEmail(companyId);
+      if (!to) return; // no configured business email — nothing to notify
+
+      const estimate = await this.prisma.estimate.findUnique({
+        where: { id: estimateId },
+        include: { customer: true, lineItems: { orderBy: { sortOrder: 'asc' } } },
+      });
+      if (!estimate) return;
+
+      const customerName = estimate.customer.businessName ?? `${estimate.customer.firstName ?? ''} ${estimate.customer.lastName ?? ''}`.trim();
+      const description = estimate.lineItems.map((li) => li.customServiceName || li.description).filter(Boolean).join(', ') || 'Estimate';
+      const staffUrl = `${this.config.get('auth.frontendUrl') ?? ''}/estimates/${estimateId}`;
+
+      await this.mailService.sendEstimateViewedNotification(to, {
+        customerName,
+        estimateNumber: estimate.estimateNumber,
+        description,
+        totalFormatted: `$${Number(estimate.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+        viewedAtFormatted: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+        estimateUrl: staffUrl,
+      });
+    } catch {
+      // Never let a notification failure affect the customer's own
+      // portal view — same principle as logAutomationEvent's own
+      // catch-and-swallow just above.
     }
   }
 

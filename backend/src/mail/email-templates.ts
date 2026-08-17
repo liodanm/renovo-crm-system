@@ -58,6 +58,23 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
         subject: `New lead: ${escape(data.name)}`,
         html: wrapper(`<p>New lead from your website:</p><ul><li>Name: ${escape(data.name)}</li><li>Phone: ${escape(data.phone)}</li><li>Email: ${escape(data.email)}</li><li>Interested in: ${escape(data.serviceInterest)}</li></ul>`),
       };
+    case 'estimate-viewed-notification':
+      // Internal-only — never sent to the customer, see MailService.
+      // No brand-color CTA here deliberately: this lands in a staff
+      // inbox, not a customer's, so it doesn't need to carry the
+      // company's own outward branding the way estimate-send's button
+      // does.
+      return {
+        subject: `Customer Viewed Your Estimate — ${escape(data.customerName)}`,
+        html: wrapper(
+          `<p><strong>${escape(data.customerName)}</strong> has viewed Estimate <strong>${escape(data.estimateNumber)}</strong>.</p>` +
+            `<p>${escape(data.description)}</p>` +
+            `<p>Total: <strong>${escape(data.totalFormatted)}</strong></p>` +
+            `<p>Viewed: ${escape(data.viewedAtFormatted)}</p>` +
+            `<p>The customer viewed this Estimate through the Customer Portal.</p>` +
+            ctaButton(data.estimateUrl, 'View Estimate in Renovo'),
+        ),
+      };
     case 'automation-message':
       // Automation's emails are already fully-composed plain text (same
       // message content as the SMS branch) — just needs a subject and

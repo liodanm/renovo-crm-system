@@ -84,6 +84,18 @@ export class MailService {
   }
 
   /**
+   * Internal notification to the company's own reply-to/business email —
+   * never the customer. Same shape as sendNewLeadNotification above, not
+   * reused directly since the content is different. Inherits enqueue()'s
+   * existing fire-and-forget error handling below, so a queue/delivery
+   * failure here can never break the customer's own portal view — the
+   * caller doesn't need its own try/catch around this.
+   */
+  async sendEstimateViewedNotification(to: string, data: { customerName: string; estimateNumber: string; description: string; totalFormatted: string; viewedAtFormatted: string; estimateUrl: string }) {
+    await this.enqueue('estimate-viewed-notification', to, data);
+  }
+
+  /**
    * Reuses the exact same message text AutomationService already composed
    * for SMS — this is a delivery-channel fallback, not a second copy of
    * the message-writing logic living in two places that could drift apart.
