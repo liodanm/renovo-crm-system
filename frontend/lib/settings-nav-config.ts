@@ -15,15 +15,12 @@ import {
   HardDrive,
   Wrench,
   FlaskConical,
-  Truck,
   Zap,
   Users,
-  Shield,
   Bell,
   Link as LinkIcon,
   BarChart3,
   Moon,
-  Database,
   HelpCircle,
   Info,
 } from 'lucide-react';
@@ -88,7 +85,6 @@ export const settingsNavGroups: SettingsNavGroup[] = [
     items: [
       { key: 'service-catalog', label: 'Service Catalog', description: 'Predefined services with pricing and defaults', externalHref: '/service-catalog', icon: Wrench },
       { key: 'chemical-inventory', label: 'Chemical Inventory', description: 'Track chemical stock and usage', comingSoon: true, icon: FlaskConical },
-      { key: 'equipment-inventory', label: 'Equipment Inventory', description: 'Track equipment and maintenance', comingSoon: true, icon: Truck },
       { key: 'automation', label: 'Automation', description: 'Automated follow-ups and reminders', icon: Zap },
     ],
   },
@@ -96,7 +92,6 @@ export const settingsNavGroups: SettingsNavGroup[] = [
     label: 'Team & Access',
     items: [
       { key: 'users-roles', label: 'Users & Roles', description: 'Team members and permissions', comingSoon: true, icon: Users },
-      { key: 'security', label: 'Security', description: 'Two-factor auth and session management', comingSoon: true, icon: Shield },
     ],
   },
   {
@@ -111,7 +106,6 @@ export const settingsNavGroups: SettingsNavGroup[] = [
   {
     label: 'Support',
     items: [
-      { key: 'backups', label: 'Backups', description: 'Data export and backup schedule', comingSoon: true, icon: Database },
       { key: 'help-support', label: 'Help & Support', description: 'Documentation and contact support', comingSoon: true, icon: HelpCircle },
       { key: 'about', label: 'About', description: 'Version info and legal', comingSoon: true, icon: Info },
     ],
