@@ -564,8 +564,20 @@ export class EstimatesService {
   }
 
   private async generateEstimateNumber(tx: any, companyId: string): Promise<string> {
-    const count = await tx.estimate.count({ where: { companyId } });
-    return `EST-${(count + 1).toString().padStart(4, '0')}`;
+    // Previously COUNT(*) + 1 — undercounts (and therefore collides with
+    // an existing estimate_number) the moment any estimate for this
+    // company has ever been deleted, since count() drops but the highest
+    // number already issued doesn't. Fixed to derive the next number
+    // from the actual highest existing numeric suffix, which stays
+    // correct regardless of deletion history. Verified directly against
+    // the real DELETE endpoint (EstimatesService.remove()) existing and
+    // being a live, reachable code path — this isn't a hypothetical.
+    const rows: { maxNum: number }[] = await tx.$queryRawUnsafe(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(estimate_number FROM 'EST-(\\d+)') AS INTEGER)), 0) AS "maxNum" FROM estimates WHERE company_id = $1::uuid`,
+      companyId,
+    );
+    const nextNum = (rows[0]?.maxNum ?? 0) + 1;
+    return `EST-${nextNum.toString().padStart(4, '0')}`;
   }
 
   /**
