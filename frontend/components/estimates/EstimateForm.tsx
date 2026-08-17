@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { customersApi, type Property } from '../../lib/api/customers';
 import { settingsApi } from '../../lib/api/settings';
 import { estimatesApi, UNITS_OF_MEASURE, type Estimate } from '../../lib/api/estimates';
@@ -230,6 +230,10 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
   // discards it); 'edit' references an existing item's key/index.
   const [modalState, setModalState] = useState<{ mode: 'add' | 'edit'; index: number; item: DraftLineItem } | null>(null);
   const [deleteConfirmKey, setDeleteConfirmKey] = useState<string | null>(null);
+  // Only one row's action area expands at a time — opening a different
+  // row's actions collapses whichever was previously open, matching the
+  // explicit requirement.
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState(existingEstimate?.discountType ?? restoredDraft?.discountType ?? '');
   // existingEstimate.discountAmount is always a resolved DOLLAR figure,
   // regardless of discountType — for a 'percentage' discount, showing that
@@ -708,6 +712,8 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               <LineItemRow
                 key={item.key}
                 item={item}
+                isExpanded={expandedKey === item.key}
+                onToggleExpand={() => setExpandedKey((k) => (k === item.key ? null : item.key))}
                 onEdit={() => setModalState({ mode: 'edit', index: i, item })}
                 onDeleteClick={() => setDeleteConfirmKey(item.key)}
               />
@@ -1073,20 +1079,23 @@ function LineItemModal({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Unit Type</label>
-              <select
-                value={draft.unitOfMeasure}
-                onChange={(e) => {
-                  const nextUnit = e.target.value;
-                  if (nextUnit === 'flat_rate' && !draft.quantity) {
-                    update({ unitOfMeasure: nextUnit, quantity: '1' });
-                  } else {
-                    update({ unitOfMeasure: nextUnit });
-                  }
-                }}
-                className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100"
-              >
-                {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  value={draft.unitOfMeasure}
+                  onChange={(e) => {
+                    const nextUnit = e.target.value;
+                    if (nextUnit === 'flat_rate' && !draft.quantity) {
+                      update({ unitOfMeasure: nextUnit, quantity: '1' });
+                    } else {
+                      update({ unitOfMeasure: nextUnit });
+                    }
+                  }}
+                  className="mt-1 w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 pr-7 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100"
+                >
+                  {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 mt-0.5 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+              </div>
             </div>
             <div>
               <RequiredLabel size="sm">Qty</RequiredLabel>
@@ -1135,10 +1144,14 @@ function LineItemModal({
 
 function LineItemRow({
   item,
+  isExpanded,
+  onToggleExpand,
   onEdit,
   onDeleteClick,
 }: {
   item: DraftLineItem;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   onEdit: () => void;
   onDeleteClick: () => void;
 }) {
@@ -1152,16 +1165,24 @@ function LineItemRow({
   const showDescriptionBelow = !!item.description && item.description !== primaryText;
 
   return (
-    <button
-      type="button"
-      onClick={onEdit}
-      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-left"
-    >
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
-        <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{primaryText}</span>
-      </div>
-      {showDescriptionBelow && <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{item.description}</p>}
+    <div className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+      {/* Only the chevron responds to taps — the row body itself is no
+          longer a click-to-edit trigger, so scrolling/reading the card
+          can never accidentally open Edit or Delete. */}
+      <button type="button" onClick={onToggleExpand} className="flex w-full items-start justify-between gap-2 text-left">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+            <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{primaryText}</span>
+          </div>
+          {showDescriptionBelow && <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{item.description}</p>}
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+        ) : (
+          <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+        )}
+      </button>
 
       <div className="mt-2 flex items-center justify-between text-sm">
         <span className="text-slate-600 dark:text-slate-400">
@@ -1170,21 +1191,25 @@ function LineItemRow({
         <span className="font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(lineTotal)}</span>
       </div>
 
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3">
-        <span
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5"
-        >
-          Edit
-        </span>
-        <span
-          onClick={(e) => { e.stopPropagation(); onDeleteClick(); }}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
-        >
-          Delete
-        </span>
-      </div>
-    </button>
+      {isExpanded && (
+        <div className="mt-3 flex gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+          <button
+            type="button"
+            onClick={() => { onToggleExpand(); onEdit(); }}
+            className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 lg:py-2 lg:text-sm"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => { onToggleExpand(); onDeleteClick(); }}
+            className="flex-1 rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950 px-4 py-3 text-base font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 lg:py-2 lg:text-sm"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
