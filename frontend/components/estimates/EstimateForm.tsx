@@ -10,9 +10,10 @@ import { settingsApi } from '../../lib/api/settings';
 import { estimatesApi, UNITS_OF_MEASURE, type Estimate } from '../../lib/api/estimates';
 import { ApiError } from '../../lib/api/api-client';
 import { AppShell } from '../layout/AppShell';
-import { serviceCatalogApi, SERVICE_TYPE_ICONS, type ServiceCatalogItem } from '../../lib/api/service-catalog';
+import { serviceCatalogApi, SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS, type ServiceCatalogItem } from '../../lib/api/service-catalog';
 import { CustomerPicker } from './CustomerPicker';
 import { ServicePicker } from './ServicePicker';
+import { ConfirmDialog } from '../action-center/ConfirmDialog';
 import { AddPropertyForm } from '../customers/tabs/properties-tab';
 import { recordRecentCustomer } from '../../lib/hooks/use-recent-customers';
 import { CardEmpty } from '../dashboard/dashboard-card';
@@ -224,6 +225,11 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
         ? restoredDraft.lineItems
         : [],
   );
+  // Add/Edit line item modal state — 'add' holds a not-yet-appended
+  // draft (only written into lineItems on Save, so Cancel truly
+  // discards it); 'edit' references an existing item's key/index.
+  const [modalState, setModalState] = useState<{ mode: 'add' | 'edit'; index: number; item: DraftLineItem } | null>(null);
+  const [deleteConfirmKey, setDeleteConfirmKey] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState(existingEstimate?.discountType ?? restoredDraft?.discountType ?? '');
   // existingEstimate.discountAmount is always a resolved DOLLAR figure,
   // regardless of discountType — for a 'percentage' discount, showing that
@@ -353,7 +359,7 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
   }
 
   function removeLineItem(key: string) {
-    setLineItems((items) => (items.length > 1 ? items.filter((item) => item.key !== key) : items));
+    setLineItems((items) => items.filter((item) => item.key !== key));
   }
 
   function validate(): boolean {
@@ -657,13 +663,14 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
 
         <div className="mt-8 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Line Items</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Services</h2>
             <div className="flex items-center gap-3">
               <CatalogPicker
                 onPick={(catalogItem) =>
-                  setLineItems((items) => [
-                    ...items,
-                    {
+                  setModalState({
+                    mode: 'add',
+                    index: lineItems.length,
+                    item: {
                       key: crypto.randomUUID(),
                       serviceType: catalogItem.serviceType,
                       description: catalogItem.description || catalogItem.name,
@@ -673,9 +680,9 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                       notes: catalogItem.defaultNotes ?? undefined,
                       serviceCatalogItemId: catalogItem.id,
                     },
-                  ])
+                  })
                 }
-                onCreateCustom={() => setLineItems((items) => [...items, emptyLineItem()])}
+                onCreateCustom={() => setModalState({ mode: 'add', index: lineItems.length, item: emptyLineItem() })}
               />
             </div>
           </div>
@@ -683,14 +690,14 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
           {lineItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-10 text-center">
               <CardEmpty
-                message='No services added yet. Click below to add your first service.'
+                message="No services added yet."
                 action={
                   <button
                     type="button"
-                    onClick={() => setLineItems((items) => [...items, emptyLineItem()])}
+                    onClick={() => setModalState({ mode: 'add', index: 0, item: emptyLineItem() })}
                     className="rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-semibold text-white hover:bg-[var(--color-brand-dark)] lg:py-2 lg:text-sm"
                   >
-                    + Add First Line Item
+                    + Add Service
                   </button>
                 }
               />
@@ -701,15 +708,43 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               <LineItemRow
                 key={item.key}
                 item={item}
-                index={i}
-                errors={fieldErrors}
-                onChange={(patch) => updateLineItem(item.key, patch)}
-                onRemove={() => removeLineItem(item.key)}
-                canRemove={lineItems.length > 1}
+                onEdit={() => setModalState({ mode: 'edit', index: i, item })}
+                onDeleteClick={() => setDeleteConfirmKey(item.key)}
               />
             ))
           )}
         </div>
+
+        {modalState && (
+          <LineItemModal
+            item={modalState.item}
+            index={modalState.index}
+            errors={fieldErrors}
+            onClose={() => setModalState(null)}
+            onSave={(patch) => {
+              if (modalState.mode === 'add') {
+                setLineItems((items) => [...items, { ...modalState.item, ...patch }]);
+              } else {
+                updateLineItem(modalState.item.key, patch);
+              }
+            }}
+          />
+        )}
+
+        {deleteConfirmKey && (
+          <ConfirmDialog
+            title="Delete Service?"
+            message={`Are you sure you want to remove ${(() => {
+              const target = lineItems.find((li) => li.key === deleteConfirmKey);
+              if (!target) return 'this service';
+              return target.customServiceName || (target.serviceType ? SERVICE_TYPE_LABELS[target.serviceType] ?? target.serviceType : null) || target.description || 'this service';
+            })()} from this estimate?`}
+            confirmLabel="Delete"
+            danger
+            onConfirm={() => removeLineItem(deleteConfirmKey)}
+            onClose={() => setDeleteConfirmKey(null)}
+          />
+        )}
 
         <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-4">
           {showExpirationField && (
@@ -950,25 +985,37 @@ function CatalogPicker({ onPick, onCreateCustom }: { onPick: (item: ServiceCatal
   );
 }
 
-function LineItemRow({
+/**
+ * One modal, used for both adding and editing a line item — per the
+ * explicit instruction not to build two competing implementations.
+ * Holds its own local draft state, seeded from `item` on open, and only
+ * writes back via `onSave` — Cancel simply discards the local draft,
+ * never touching the parent's lineItems array. Uses the exact same
+ * overlay markup as every other modal in this codebase (CancelJobModal,
+ * ImportCsvModal, CreateCustomerModal, ConfirmDialog, etc.) — already
+ * proven mobile-safe, not a new pattern.
+ */
+function LineItemModal({
   item,
   index,
   errors,
-  onChange,
-  onRemove,
-  canRemove,
+  onSave,
+  onClose,
 }: {
   item: DraftLineItem;
   index: number;
   errors: Record<string, string>;
-  onChange: (patch: Partial<DraftLineItem>) => void;
-  onRemove: () => void;
-  canRemove: boolean;
+  onSave: (patch: Partial<DraftLineItem>) => void;
+  onClose: () => void;
 }) {
-  const lineTotal = toNumber(item.quantity) * toNumber(item.unitPrice);
+  const [draft, setDraft] = useState<DraftLineItem>(item);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
   const unitPriceRef = useRef<HTMLInputElement>(null);
+
+  function update(patch: Partial<DraftLineItem>) {
+    setDraft((d) => ({ ...d, ...patch }));
+  }
 
   function focusOnEnter(next: React.RefObject<HTMLInputElement | null>) {
     return (e: React.KeyboardEvent) => {
@@ -979,96 +1026,165 @@ function LineItemRow({
     };
   }
 
+  function handleSave() {
+    onSave(draft);
+    onClose();
+  }
+
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        <div className="lg:col-span-3">
-          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Service</label>
-          <ServicePicker
-            value={item.serviceType}
-            customServiceName={item.customServiceName ?? ''}
-            hasError={!!errors[`item-${index}-service`]}
-            onSelect={(serviceType, customServiceNameOverride, isLiveEdit) => {
-              if (customServiceNameOverride !== undefined) {
-                onChange({ serviceType, customServiceName: customServiceNameOverride });
-              } else {
-                onChange({ serviceType });
-              }
-              if (!isLiveEdit) requestAnimationFrame(() => descriptionRef.current?.focus());
-            }}
-          />
-        </div>
-        <div className="lg:col-span-4">
-          {item.serviceType === 'other' ? (
-            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Description</label>
-          ) : (
-            <RequiredLabel size="sm">Description</RequiredLabel>
-          )}
-          <input
-            ref={descriptionRef}
-            value={item.description}
-            onChange={(e) => onChange({ description: e.target.value })}
-            onKeyDown={focusOnEnter(quantityRef)}
-            placeholder={item.serviceType === 'other' ? 'Optional description shown to Customer' : undefined}
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
-          />
-        </div>
-        <div className="lg:col-span-2">
-          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Unit Type</label>
-          <select
-            value={item.unitOfMeasure}
-            onChange={(e) => {
-              const nextUnit = e.target.value;
-              // Flat Rate almost always means qty=1 in practice — default
-              // it for convenience, but only when qty is still genuinely
-              // empty, so this never silently overwrites something the
-              // user already typed. Doesn't change how quantity is used
-              // in the total (still a plain multiplication either way).
-              if (nextUnit === 'flat_rate' && !item.quantity) {
-                onChange({ unitOfMeasure: nextUnit, quantity: '1' });
-              } else {
-                onChange({ unitOfMeasure: nextUnit });
-              }
-            }}
-            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
-          >
-            {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-          </select>
-        </div>
-        <div className="lg:col-span-1">
-          <RequiredLabel size="sm">Qty</RequiredLabel>
-          <input
-            ref={quantityRef}
-            type="text"
-            inputMode="decimal"
-            value={item.quantity}
-            onChange={(e) => onChange({ quantity: sanitizeNumericInput(e.target.value) })}
-            onKeyDown={focusOnEnter(unitPriceRef)}
-            placeholder="0"
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
-          />
-        </div>
-        <div className="lg:col-span-2">
-          <RequiredLabel size="sm">Unit Price</RequiredLabel>
-          <input
-            ref={unitPriceRef}
-            type="text"
-            inputMode="decimal"
-            value={item.unitPrice}
-            onChange={(e) => onChange({ unitPrice: sanitizeNumericInput(e.target.value) })}
-            placeholder="0.00"
-            className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:px-2 lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-unitPrice`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
-          />
-        </div>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-6 dark:bg-black/60 sm:items-center">
+      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl dark:bg-slate-900">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Service</h2>
 
-      <ServiceDetailFields item={item} onChange={onChange} />
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Service</label>
+            <ServicePicker
+              value={draft.serviceType}
+              customServiceName={draft.customServiceName ?? ''}
+              hasError={!!errors[`item-${index}-service`]}
+              onSelect={(serviceType, customServiceNameOverride, isLiveEdit) => {
+                if (customServiceNameOverride !== undefined) {
+                  update({ serviceType, customServiceName: customServiceNameOverride });
+                } else {
+                  update({ serviceType });
+                }
+                if (!isLiveEdit) requestAnimationFrame(() => descriptionRef.current?.focus());
+              }}
+            />
+          </div>
 
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3">
-        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Line total: {formatCurrency(lineTotal)}</span>
-        {canRemove && <button onClick={onRemove} className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300">Remove</button>}
+          <div>
+            {draft.serviceType === 'other' ? (
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Description</label>
+            ) : (
+              <RequiredLabel size="sm">Description</RequiredLabel>
+            )}
+            <input
+              ref={descriptionRef}
+              value={draft.description}
+              onChange={(e) => update({ description: e.target.value })}
+              onKeyDown={focusOnEnter(quantityRef)}
+              placeholder={draft.serviceType === 'other' ? 'Optional description shown to Customer' : undefined}
+              className={`mt-1 w-full rounded-lg border px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-description`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Unit Type</label>
+              <select
+                value={draft.unitOfMeasure}
+                onChange={(e) => {
+                  const nextUnit = e.target.value;
+                  if (nextUnit === 'flat_rate' && !draft.quantity) {
+                    update({ unitOfMeasure: nextUnit, quantity: '1' });
+                  } else {
+                    update({ unitOfMeasure: nextUnit });
+                  }
+                }}
+                className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100"
+              >
+                {UNITS_OF_MEASURE.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <RequiredLabel size="sm">Qty</RequiredLabel>
+              <input
+                ref={quantityRef}
+                type="text"
+                inputMode="decimal"
+                value={draft.quantity}
+                onChange={(e) => update({ quantity: sanitizeNumericInput(e.target.value) })}
+                onKeyDown={focusOnEnter(unitPriceRef)}
+                placeholder="0"
+                className={`mt-1 w-full rounded-lg border px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-quantity`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
+              />
+            </div>
+            <div>
+              <RequiredLabel size="sm">Unit Price</RequiredLabel>
+              <input
+                ref={unitPriceRef}
+                type="text"
+                inputMode="decimal"
+                value={draft.unitPrice}
+                onChange={(e) => update({ unitPrice: sanitizeNumericInput(e.target.value) })}
+                placeholder="0.00"
+                className={`mt-1 w-full rounded-lg border px-2 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 ${errors[`item-${index}-unitPrice`] ? 'border-red-400' : 'border-slate-300 dark:border-slate-700'} dark:placeholder:text-slate-400`}
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300">
+            Line total: {formatCurrency(toNumber(draft.quantity) * toNumber(draft.unitPrice))}
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 lg:py-2 lg:text-sm">
+            Cancel
+          </button>
+          <button onClick={handleSave} className="rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-medium text-white hover:opacity-90 lg:py-2 lg:text-sm">
+            Save Service
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+function LineItemRow({
+  item,
+  onEdit,
+  onDeleteClick,
+}: {
+  item: DraftLineItem;
+  onEdit: () => void;
+  onDeleteClick: () => void;
+}) {
+  const lineTotal = toNumber(item.quantity) * toNumber(item.unitPrice);
+  const Icon = item.serviceType ? SERVICE_TYPE_ICONS[item.serviceType] ?? SERVICE_TYPE_ICONS.other : SERVICE_TYPE_ICONS.other;
+  // Same real-name resolution used everywhere else in the app: custom
+  // name first, then the actual predefined label, description only as
+  // a last resort — never just "Other" for a real custom service.
+  const serviceLabel = item.customServiceName || (item.serviceType ? SERVICE_TYPE_LABELS[item.serviceType] ?? item.serviceType : null);
+  const primaryText = serviceLabel || item.description || 'Service';
+  const showDescriptionBelow = !!item.description && item.description !== primaryText;
+
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-left"
+    >
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+        <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{primaryText}</span>
+      </div>
+      {showDescriptionBelow && <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{item.description}</p>}
+
+      <div className="mt-2 flex items-center justify-between text-sm">
+        <span className="text-slate-600 dark:text-slate-400">
+          {item.quantity || '0'} × {UNITS_OF_MEASURE.find((u) => u.value === item.unitOfMeasure)?.label ?? item.unitOfMeasure}
+        </span>
+        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(lineTotal)}</span>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3">
+        <span
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5"
+        >
+          Edit
+        </span>
+        <span
+          onClick={(e) => { e.stopPropagation(); onDeleteClick(); }}
+          className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
+        >
+          Delete
+        </span>
+      </div>
+    </button>
   );
 }
 
