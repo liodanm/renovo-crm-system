@@ -692,19 +692,8 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
           </div>
 
           {lineItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-10 text-center">
-              <CardEmpty
-                message="No services added yet."
-                action={
-                  <button
-                    type="button"
-                    onClick={() => setModalState({ mode: 'add', index: 0, item: emptyLineItem() })}
-                    className="rounded-lg bg-[var(--color-brand)] px-4 py-3 text-base font-semibold text-white hover:bg-[var(--color-brand-dark)] lg:py-2 lg:text-sm"
-                  >
-                    + Add Service
-                  </button>
-                }
-              />
+            <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-8 text-center">
+              <CardEmpty message='No service added yet. Click "+ Add Service" above to get started.' />
               {fieldErrors.lineItems && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{fieldErrors.lineItems}</p>}
             </div>
           ) : (
