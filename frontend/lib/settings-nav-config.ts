@@ -22,6 +22,7 @@ import {
   BarChart3,
   Moon,
   HelpCircle,
+  Trash2,
   Info,
 } from 'lucide-react';
 
@@ -39,6 +40,9 @@ export interface SettingsNavItem {
    * screen living inside Settings. */
   externalHref?: string;
   comingSoon?: boolean;
+  /** Only rendered for users with the 'owner' role — filtered out
+      entirely on the Settings landing page for everyone else. */
+  ownerOnly?: boolean;
 }
 
 export interface SettingsNavGroup {
@@ -101,6 +105,7 @@ export const settingsNavGroups: SettingsNavGroup[] = [
       { key: 'integrations', label: 'Integrations', description: 'Provider status, system health, and business links', icon: LinkIcon },
       { key: 'reports', label: 'Reports', description: 'Custom reports and dashboards', comingSoon: true, icon: BarChart3 },
       { key: 'appearance', label: 'Appearance', description: 'App theme and display preferences', icon: Moon },
+      { key: 'data-management', label: 'Data Management', description: 'Permanently delete test Estimates, Jobs, Invoices, and Payments', icon: Trash2, ownerOnly: true },
     ],
   },
   {

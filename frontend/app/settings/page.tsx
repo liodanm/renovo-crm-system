@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ChevronRight, Settings as SettingsIcon } from 'lucide-react';
 import { settingsNavGroups } from '../../lib/settings-nav-config';
+import { useAuth } from '../../lib/auth/auth-context';
 
 /**
  * The Settings hub — previously this route just redirected straight to
@@ -17,6 +18,11 @@ import { settingsNavGroups } from '../../lib/settings-nav-config';
  * would double-wrap AppShell.
  */
 export default function SettingsRootPage() {
+  const { hasRole } = useAuth();
+  const visibleGroups = settingsNavGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => !item.ownerOnly || hasRole('owner')) }))
+    .filter((group) => group.items.length > 0);
+
   return (
     <div>
       <div className="mb-6 flex items-center gap-2">
@@ -25,7 +31,7 @@ export default function SettingsRootPage() {
       </div>
 
       <div className="space-y-8">
-        {settingsNavGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label}>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{group.label}</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
