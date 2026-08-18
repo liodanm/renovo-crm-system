@@ -391,6 +391,63 @@ export class PortalController {
    * every staff-facing document, and this now stamps viewedAt too — the
    * old version never recorded that a customer had actually opened it.
    */
+  /**
+   * JSON equivalent of viewInvoice() below, for the Portal page to
+   * render the full invoice inline rather than requiring a PDF
+   * download — same pattern as getEstimateDetail() above. Reuses
+   * getInvoiceForPdf() (already fetches line items) and the same
+   * idempotent markInvoiceViewed() the PDF route also calls — whichever
+   * happens first wins, neither duplicates the other.
+   */
+  @Public()
+  @UseGuards(PortalCustomerGuard)
+  @Get('invoices/:id')
+  async getInvoiceDetail(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string) {
+    const invoice = await this.data.getInvoiceForPdf(customer.companyId, customer.customerId, id);
+    await this.data.markInvoiceViewed(customer.companyId, customer.customerId, id);
+    const property = invoice.property ?? invoice.job?.property ?? null;
+    const payments = (invoice as any).payments ?? [];
+
+    return {
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      status: invoice.status,
+      createdAt: invoice.createdAt,
+      dueDate: invoice.dueDate,
+      notes: invoice.notes,
+      subtotal: invoice.subtotal,
+      discountAmount: invoice.discountAmount,
+      taxRate: invoice.taxRate,
+      taxAmount: invoice.taxAmount,
+      totalAmount: invoice.totalAmount,
+      amountPaid: invoice.amountPaid,
+      balanceDue: invoice.totalAmount.toNumber() - invoice.amountPaid.toNumber(),
+      lineItems: (invoice.lineItems as any[]).map((li) => ({
+        description: li.description,
+        quantity: li.quantity,
+        unitOfMeasure: li.unitOfMeasure,
+        unitPrice: li.unitPrice,
+        total: li.total,
+      })),
+      payments: payments.map((p: any) => ({
+        amount: p.amount,
+        method: p.method,
+        date: p.processedAt ?? p.paymentDate,
+      })),
+      customer: {
+        name: invoice.customer.businessName ?? `${invoice.customer.firstName ?? ''} ${invoice.customer.lastName ?? ''}`.trim(),
+        email: invoice.customer.email,
+        phone: invoice.customer.phone,
+      },
+      property: property ? {
+        addressLine1: property.addressLine1,
+        city: property.city,
+        state: property.state,
+        postalCode: (property as any).postalCode,
+      } : null,
+    };
+  }
+
   @Public()
   @UseGuards(PortalCustomerGuard)
   @Get('invoices/:id/view')

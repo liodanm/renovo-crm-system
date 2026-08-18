@@ -39,6 +39,7 @@ export interface Invoice {
   balanceDue: string;
   dueDate: string | null;
   sentAt: string | null;
+  viewedAt: string | null;
   paidAt: string | null;
   notes: string | null;
   terms: string | null;

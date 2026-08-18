@@ -75,6 +75,39 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
             ctaButton(data.estimateUrl, 'View Estimate in Renovo'),
         ),
       };
+    case 'invoice-sent-notification':
+      // Internal-only, same style as estimate-viewed-notification above
+      // — a staff-inbox notice, not a customer-facing email.
+      return {
+        subject: `Invoice Sent to ${escape(data.customerName)}`,
+        html: wrapper(
+          `<p>An invoice has been sent to <strong>${escape(data.customerName)}</strong>.</p>` +
+            `<ul>` +
+            `<li>Customer: ${escape(data.customerName)}</li>` +
+            `<li>Email: ${escape(data.customerEmail)}</li>` +
+            `<li>Invoice #: ${escape(data.invoiceNumber)}</li>` +
+            `<li>Total: ${escape(data.totalFormatted)}</li>` +
+            (data.propertyAddress ? `<li>Property: ${escape(data.propertyAddress)}</li>` : '') +
+            `</ul>` +
+            ctaButton(data.invoiceUrl, 'View Invoice in Renovo'),
+        ),
+      };
+    case 'invoice-viewed-notification':
+      return {
+        subject: `Invoice Viewed by ${escape(data.customerName)}`,
+        html: wrapper(
+          `<p><strong>${escape(data.customerName)}</strong> has viewed Invoice <strong>${escape(data.invoiceNumber)}</strong>.</p>` +
+            `<ul>` +
+            `<li>Customer: ${escape(data.customerName)}</li>` +
+            `<li>Email: ${escape(data.customerEmail)}</li>` +
+            `<li>Invoice #: ${escape(data.invoiceNumber)}</li>` +
+            `<li>Total: ${escape(data.totalFormatted)}</li>` +
+            `<li>Viewed: ${escape(data.viewedAtFormatted)}</li>` +
+            (data.propertyAddress ? `<li>Property: ${escape(data.propertyAddress)}</li>` : '') +
+            `</ul>` +
+            ctaButton(data.invoiceUrl, 'View Invoice in Renovo'),
+        ),
+      };
     case 'automation-message':
       // Automation's emails are already fully-composed plain text (same
       // message content as the SMS branch) — just needs a subject and
@@ -95,13 +128,13 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
       };
     case 'invoice-send':
       return {
-        subject: `Invoice ${escape(data.invoiceNumber)} from ${escape(data.companyName)}`,
+        subject: `Your Invoice Is Ready – ${escape(data.invoiceNumber)}`,
         html: wrapper(
-          `<p>Hi ${escape(data.customerName)},</p>` +
-            `<p>Your invoice from ${escape(data.companyName)} is attached as a PDF.</p>` +
-            `<p><strong>Invoice ${escape(data.invoiceNumber)}</strong> · Balance due: ${escape(data.balanceDueFormatted)}</p>` +
-            (data.dueDateFormatted ? `<p>Due ${escape(data.dueDateFormatted)}.</p>` : '') +
-            `<p><a href="${data.portalUrl}">View and pay online in your customer portal</a></p>`,
+          `<p>Hi ${escape(data.customerFirstName)},</p>` +
+            `<p>Your invoice from ${escape(data.companyName)} is ready to view.</p>` +
+            `<p>Click the button below to securely view your invoice and make a payment.</p>` +
+            ctaButton(data.portalUrl, 'View & Pay Invoice', data.brandColor as string | null | undefined) +
+            `<p>Thank you,<br>${escape(data.companyName)}</p>`,
         ),
       };
     default:

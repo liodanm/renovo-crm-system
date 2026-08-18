@@ -315,21 +315,12 @@ export class InvoicesService {
     const recipientEmail = toEmailOverride || existing.customerEmail;
     if (!recipientEmail) throw new BadRequestException('This customer has no email address on file');
 
-    const { buffer, filename } = await this.generatePdf(companyId, id);
-    const { company } = await this.companyContext.getCompanyAndBranding(companyId);
+    const { company, branding } = await this.companyContext.getCompanyAndBranding(companyId);
     const replyTo = await this.companyContext.getReplyToEmail(companyId);
-    // Was: `${this.config.get('auth.frontendUrl') ?? ''}/portal` — the
-    // STAFF app's base URL with no auth token at all. A customer clicking
-    // that landed on the main host under /portal, which the middleware's
-    // host-based routing never recognizes as portal traffic (only
-    // portal.* hosts are), so it fell through to the staff-app branch and
-    // redirected to /login — the exact bug being fixed here. Now uses the
-    // same magic-link mechanism portal login already relies on (PORTAL_URL,
-    // a real one-time token), so the customer lands authenticated on the
-    // actual customer portal, not a login wall. Unlike the PDF's own URL
-    // above, this one is safe to make a short-lived magic link — this is
-    // a freshly-sent email, acted on promptly or not at all.
-    const portalUrl = await this.portalAuthService.generatePortalLink(companyId, existing.customerId)
+    // Deep-links straight to the specific invoice, same pattern as the
+    // estimate email fix — redirectTo carries the customer past the
+    // generic portal dashboard directly onto /portal/invoices/{id}.
+    const portalUrl = await this.portalAuthService.generatePortalLink(companyId, existing.customerId, `/portal/invoices/${id}`)
       ?? this.config.get<string>('PORTAL_URL', 'https://portal.renovocrm.com');
 
     const emailLogId = await this.emailLogService.create({
@@ -337,10 +328,12 @@ export class InvoicesService {
       relatedType: 'invoice',
       relatedId: id,
       recipientEmail,
-      subject: `Invoice ${existing.invoiceNumber} from ${company.dba || company.name}`,
+      subject: `Your Invoice Is Ready – ${existing.invoiceNumber}`,
       template: 'invoice-send',
       sentByUserId: userId,
     });
+
+    const property = existing.property ?? existing.job?.property ?? null;
 
     await this.mailService.sendDocumentEmail({
       to: recipientEmail,
@@ -349,15 +342,48 @@ export class InvoicesService {
       emailLogId,
       replyTo: replyTo ?? undefined,
       data: {
-        customerName: existing.customerBusinessName ?? `${existing.customerFirstName ?? ''} ${existing.customerLastName ?? ''}`.trim(),
+        // Deliberately no total/balanceDue or any other pricing field —
+        // the customer email must never expose the amount before the
+        // customer clicks through to the authenticated portal, same
+        // rule already applied to the estimate email.
+        customerFirstName: existing.customerFirstName || existing.customerBusinessName || 'there',
         companyName: company.dba || company.name,
         invoiceNumber: existing.invoiceNumber,
-        balanceDueFormatted: `$${Number(existing.balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-        dueDateFormatted: existing.dueDate ? new Date(existing.dueDate).toLocaleDateString('en-US', { dateStyle: 'medium' }) : null,
         portalUrl,
+        brandColor: branding.primaryColor,
       },
-      attachment: { filename, contentBase64: buffer.toString('base64'), contentType: 'application/pdf' },
+      // No PDF attachment — the customer reviews and pays directly in
+      // the portal now. The PDF is still fully available there via the
+      // existing "Download Invoice PDF" button, using the same
+      // PdfService this method used to attach from here — not removed,
+      // just no longer generated eagerly on every send.
     });
+
+    // Internal "Invoice Sent" notification — only fires after the
+    // customer email above has actually been accepted by sendDocumentEmail
+    // (which itself only enqueues after emailLogService.create() and the
+    // recipient/eligibility checks earlier in this method have already
+    // passed). Best-effort and isolated in its own try/catch so a
+    // notification failure can never fail — or even be attributed to — the
+    // customer's own successful send.
+    try {
+      const to = replyTo;
+      if (to) {
+        const customerName = existing.customerBusinessName ?? `${existing.customerFirstName ?? ''} ${existing.customerLastName ?? ''}`.trim();
+        const staffUrl = `${this.config.get('auth.frontendUrl') ?? ''}/invoices/${id}`;
+        await this.mailService.sendInvoiceSentNotification(to, {
+          customerName,
+          customerEmail: recipientEmail,
+          invoiceNumber: existing.invoiceNumber,
+          totalFormatted: `$${Number(existing.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+          propertyAddress: property ? `${property.addressLine1}, ${property.city}, ${property.state} ${(property as any).postalCode ?? ''}`.trim() : null,
+          invoiceUrl: staffUrl,
+        });
+      }
+    } catch {
+      // Logged implicitly via MailService.enqueue()'s own catch/log —
+      // never rethrown here, never allowed to affect the response below.
+    }
 
     return { success: true, emailLogId, recipientEmail };
   }

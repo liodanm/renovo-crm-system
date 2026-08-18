@@ -39,6 +39,16 @@ export class PortalCustomerGuard implements CanActivate {
     const authHeader: string | undefined = request.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
+      // Diagnostic only — client-facing behavior unchanged. This branch
+      // fires BEFORE the catch block below ever runs, so a failure here
+      // was previously invisible to the "Portal token verification failed"
+      // log line — this closes that gap.
+      this.logger.warn({
+        msg: 'Portal request missing Bearer token',
+        hasAuthHeader: !!authHeader,
+        authHeaderPrefix: authHeader?.slice(0, 10),
+        path: request.url,
+      });
       throw new UnauthorizedException('Missing portal access token');
     }
 
@@ -61,12 +71,18 @@ export class PortalCustomerGuard implements CanActivate {
         msg: 'Portal token verification failed',
         errorName: (err as Error)?.name,
         errorMessage: (err as Error)?.message,
+        tokenLength: token?.length,
         path: request.url,
       });
       throw new UnauthorizedException('Invalid or expired portal session');
     }
 
     if (payload.type !== 'portal') {
+      this.logger.warn({
+        msg: 'Portal token had wrong type claim',
+        actualType: payload.type,
+        path: request.url,
+      });
       throw new UnauthorizedException('Invalid token type');
     }
 

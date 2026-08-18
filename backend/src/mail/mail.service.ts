@@ -95,6 +95,14 @@ export class MailService {
     await this.enqueue('estimate-viewed-notification', to, data);
   }
 
+  async sendInvoiceViewedNotification(to: string, data: { customerName: string; customerEmail: string; invoiceNumber: string; totalFormatted: string; viewedAtFormatted: string; propertyAddress: string | null; invoiceUrl: string }) {
+    await this.enqueue('invoice-viewed-notification', to, data);
+  }
+
+  async sendInvoiceSentNotification(to: string, data: { customerName: string; customerEmail: string; invoiceNumber: string; totalFormatted: string; propertyAddress: string | null; invoiceUrl: string }) {
+    await this.enqueue('invoice-sent-notification', to, data);
+  }
+
   /**
    * Reuses the exact same message text AutomationService already composed
    * for SMS — this is a delivery-channel fallback, not a second copy of

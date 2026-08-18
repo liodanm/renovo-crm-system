@@ -28,3 +28,15 @@ export const ESTIMATE_STATUS_COLORS: StatusColorMap = {
   expired: { label: 'Expired', className: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300', borderClassName: 'border-orange-400 dark:border-orange-600' },
   converted: { label: 'Converted to Job', className: 'bg-emerald-900 text-white dark:bg-emerald-800', borderClassName: 'border-emerald-400 dark:border-emerald-600' },
 };
+
+// Every real Invoice status, confirmed directly against
+// computeInvoiceStatusAfterPayment() — deliberately no 'viewed' entry:
+// Option A tracks customer viewing via viewedAt only, never the status
+// itself, so it never needs a color here at all.
+export const INVOICE_STATUS_COLORS: StatusColorMap = {
+  draft: { label: 'Draft', className: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400', borderClassName: 'border-slate-300 dark:border-slate-700' },
+  sent: { label: 'Sent', className: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300', borderClassName: 'border-blue-300 dark:border-blue-700' },
+  partial: { label: 'Partially Paid', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300', borderClassName: 'border-amber-400 dark:border-amber-600' },
+  paid: { label: 'Paid', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300', borderClassName: 'border-emerald-400 dark:border-emerald-600' },
+  void: { label: 'Void', className: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500', borderClassName: 'border-slate-300 dark:border-slate-700' },
+};

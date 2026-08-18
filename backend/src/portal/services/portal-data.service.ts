@@ -245,17 +245,65 @@ export class PortalDataService {
     }
   }
 
+  /**
+   * Option A: viewing an Invoice is tracked purely via viewedAt — it
+   * NEVER touches status. Invoice status is owned exclusively by
+   * computeInvoiceStatusAfterPayment() (draft/sent/partial/paid/void);
+   * a "Viewed" status was deliberately rejected during design to avoid
+   * that function silently demoting a viewed invoice back to 'sent' on
+   * its next payment check. Cycle-aware exactly like
+   * markEstimateViewed(): sentAt refreshes on every real resend (see
+   * InvoicesService.send()), so comparing against it lets a resent
+   * invoice register as newly viewed again without a second column.
+   */
   async markInvoiceViewed(companyId: string, customerId: string, invoiceId: string) {
     const invoice = await this.getOwnedInvoice(companyId, customerId, invoiceId);
-    if (!invoice.viewedAt) {
-      await this.prisma.invoice.update({ where: { id: invoiceId }, data: { viewedAt: new Date() } });
+    const isNewView = !invoice.viewedAt || (invoice.sentAt != null && invoice.viewedAt < invoice.sentAt);
+    if (isNewView) {
+      await this.prisma.tenant.invoice.update({ where: { id: invoiceId }, data: { viewedAt: new Date() } });
       await logAutomationEvent(this.prisma, {
         companyId,
         customerId,
         ruleType: 'invoice_viewed',
-        dedupeKey: `invoice-viewed-${invoiceId}`,
+        // Cycle-aware, not just invoiceId — same fix already applied to
+        // Estimate viewing: a static key would hit logAutomationEvent's
+        // permanent ON CONFLICT(company_id, dedupe_key) DO NOTHING and
+        // silently stop recording after the very first view, even on a
+        // legitimate later resend-and-review cycle.
+        dedupeKey: `invoice-viewed-${invoiceId}-${(invoice.sentAt ?? invoice.createdAt).getTime()}`,
         messageBody: `Invoice ${invoice.invoiceNumber} viewed by customer`,
       });
+      await this.sendInvoiceViewedNotification(companyId, invoiceId);
+    }
+  }
+
+  private async sendInvoiceViewedNotification(companyId: string, invoiceId: string): Promise<void> {
+    try {
+      const to = await this.companyContext.getReplyToEmail(companyId);
+      if (!to) return;
+
+      const invoice = await this.prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: { customer: true, property: true },
+      });
+      if (!invoice) return;
+
+      const customerName = invoice.customer.businessName ?? `${invoice.customer.firstName ?? ''} ${invoice.customer.lastName ?? ''}`.trim();
+      const staffUrl = `${this.config.get('auth.frontendUrl') ?? ''}/invoices/${invoiceId}`;
+
+      await this.mailService.sendInvoiceViewedNotification(to, {
+        customerName,
+        customerEmail: invoice.customer.email ?? '',
+        invoiceNumber: invoice.invoiceNumber,
+        totalFormatted: `$${Number(invoice.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+        viewedAtFormatted: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+        propertyAddress: invoice.property ? `${invoice.property.addressLine1}, ${invoice.property.city}, ${invoice.property.state} ${invoice.property.postalCode}` : null,
+        invoiceUrl: staffUrl,
+      });
+    } catch {
+      // Same principle as sendEstimateViewedNotification's catch above —
+      // never let a notification failure affect the customer's own
+      // portal view.
     }
   }
 

@@ -58,9 +58,16 @@ export default function InvoiceDetailPage() {
                   {invoice.estimateId && <Link href={`/estimates/${invoice.estimateId}`} className="text-[var(--color-brand)]">View Estimate →</Link>}
                 </div>
               </div>
-              <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-sm font-medium text-slate-700 dark:text-slate-300">
-                {INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
-              </span>
+              <div className="text-right">
+                <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
+                </span>
+                {invoice.viewedAt && (
+                  <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    Customer Viewed: {new Date(invoice.viewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(invoice.viewedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
             </div>
 
             {actionError && <div className="mt-4 rounded-lg bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300">{actionError}</div>}
