@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { portalApiFetch, portalFetchPdfObjectUrl, PortalApiError } from '../../../../lib/portal/portal-api-client';
+import { darkenHex } from '../../../../lib/theme/brand-theme-injector';
 import { StatusBadge, INVOICE_STATUS_COLORS } from '../../../../components/action-center/StatusBadge';
 
 interface InvoiceLineItem {
@@ -41,6 +42,7 @@ interface InvoiceDetail {
   payments: InvoicePayment[];
   customer: { name: string; email: string | null; phone: string | null };
   property: { addressLine1: string; city: string; state: string; postalCode: string } | null;
+  branding: { logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
 }
 
 const money = (v: string | number) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -68,6 +70,24 @@ export default function PortalInvoiceDetailPage() {
     ['portal-invoice', invoiceId],
     () => portalApiFetch<InvoiceDetail>(`/portal/invoices/${invoiceId}`),
   );
+
+  // Same per-tenant color-override technique as the Estimate portal
+  // page and the staff app's BrandThemeInjector.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (invoice?.branding?.primaryColor) {
+      root.style.setProperty('--color-brand', invoice.branding.primaryColor);
+      root.style.setProperty('--color-brand-dark', darkenHex(invoice.branding.primaryColor));
+    }
+    if (invoice?.branding?.secondaryColor) {
+      root.style.setProperty('--color-brand-secondary', invoice.branding.secondaryColor);
+    }
+    return () => {
+      root.style.removeProperty('--color-brand');
+      root.style.removeProperty('--color-brand-dark');
+      root.style.removeProperty('--color-brand-secondary');
+    };
+  }, [invoice?.branding?.primaryColor, invoice?.branding?.secondaryColor]);
 
   const [showPayModal, setShowPayModal] = useState(false);
   const [pdfState, setPdfState] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -117,6 +137,15 @@ export default function PortalInvoiceDetailPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 pb-28 pt-8">
       <div className="mx-auto max-w-md">
+        {invoice.branding.logoUrl && (
+          <div className="mb-4 flex justify-center">
+            <img
+              src={invoice.branding.logoUrl}
+              alt=""
+              className="max-h-16 w-auto max-w-full object-contain"
+            />
+          </div>
+        )}
         <Link href="/portal/estimates" className="text-xs text-slate-400 hover:text-slate-600">
           ← Back to Portal
         </Link>
@@ -290,26 +319,56 @@ export default function PortalInvoiceDetailPage() {
  * PCI SAQ D scope, matching the backend's own existing design intent.
  */
 function PayInvoiceModal({ invoiceId, onClose, onSuccess }: { invoiceId: string; onClose: () => void; onSuccess: () => void }) {
-  const { data, error } = useSWR(
-    ['portal-invoice-pay-intent', invoiceId],
-    () => portalApiFetch<{ available: boolean; clientSecret?: string; message?: string }>(`/portal/invoices/${invoiceId}/pay-intent`, { method: 'POST' }),
-  );
+  // Plain async-function + useState mutation, matching handleApprove/
+  // handleDecline in the Estimate portal — deliberately NOT useSWR.
+  // POST /pay-intent creates a real, non-idempotent Stripe object; it
+  // must run exactly once per genuine modal open, never re-fire from a
+  // re-render, tab focus, reconnect, or stale-cache revalidation the
+  // way SWR's default behavior previously allowed.
+  const [state, setState] = useState<{ status: 'loading' | 'ready' | 'unavailable' | 'error'; clientSecret?: string; message?: string }>({ status: 'loading' });
   const stripe = getStripe();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function createIntent() {
+      try {
+        const result = await portalApiFetch<{ available: boolean; clientSecret?: string; message?: string }>(`/portal/invoices/${invoiceId}/pay-intent`, { method: 'POST' });
+        if (cancelled) return;
+        if (result.available && result.clientSecret) {
+          setState({ status: 'ready', clientSecret: result.clientSecret });
+        } else {
+          setState({ status: 'unavailable', message: result.message });
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setState({ status: 'error', message: err instanceof PortalApiError ? err.message : 'Something went wrong setting up payment.' });
+      }
+    }
+    createIntent();
+    // Empty dependency array is deliberate: this must run exactly once
+    // for the lifetime of this component instance (i.e. once per
+    // genuine modal mount). invoiceId is stable for the page's whole
+    // lifetime, so it's correct to omit — including it would add no
+    // real re-run trigger, only an easy-to-misread lint suggestion to
+    // add one that shouldn't exist here.
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
       <div className="w-full max-w-sm rounded-t-2xl bg-white p-6 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-slate-900">Pay Invoice</h2>
-        {!data && !error && <p className="mt-4 text-sm text-slate-500">Loading payment form…</p>}
-        {(error || (data && !data.available)) && (
-          <p className="mt-4 text-sm text-red-600">{data?.message || "Online payment isn't available right now — please contact us."}</p>
+        {state.status === 'loading' && <p className="mt-4 text-sm text-slate-500">Loading payment form…</p>}
+        {(state.status === 'unavailable' || state.status === 'error') && (
+          <p className="mt-4 text-sm text-red-600">{state.message || "Online payment isn't available right now — please contact us."}</p>
         )}
-        {data?.available && data.clientSecret && stripe && (
-          <Elements stripe={stripe} options={{ clientSecret: data.clientSecret }}>
+        {state.status === 'ready' && state.clientSecret && stripe && (
+          <Elements stripe={stripe} options={{ clientSecret: state.clientSecret }}>
             <StripePaymentForm onClose={onClose} onSuccess={onSuccess} />
           </Elements>
         )}
-        {data?.available && !stripe && (
+        {state.status === 'ready' && !stripe && (
           <p className="mt-4 text-sm text-red-600">Online payment isn't configured for this app right now — please contact us.</p>
         )}
       </div>

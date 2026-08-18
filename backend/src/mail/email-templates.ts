@@ -26,6 +26,22 @@ function ctaButton(url: unknown, label: string, brandColor?: string | null): str
   return `<p style="margin:24px 0;"><a href="${url}" style="display:inline-block;background:${color};color:#ffffff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">${escape(label)}</a></p>`;
 }
 
+/**
+ * The company's own logo, shown above the message body in customer-
+ * facing document emails (estimate-send, invoice-send) only —
+ * deliberately not folded into wrapper() itself, since that's shared by
+ * internal system emails (password reset, verification, security
+ * alerts) that have nothing to do with any company's branding. Inline
+ * max-width, not a fixed width/height, so the image's own real aspect
+ * ratio is always preserved regardless of the uploaded logo's shape.
+ * Renders nothing at all when no logo is configured — never a broken-
+ * image placeholder.
+ */
+function logoHeader(logoUrl?: string | null): string {
+  if (!logoUrl) return '';
+  return `<div style="text-align:center;margin-bottom:16px;"><img src="${logoUrl}" alt="" style="max-width:220px;max-height:80px;width:auto;height:auto;display:inline-block;" /></div>`;
+}
+
 export function renderEmailTemplate(template: string, data: Record<string, any>): RenderedEmail | null {
   switch (template) {
     case 'email-verification':
@@ -120,7 +136,8 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
       return {
         subject: `Your Quote Is Ready – ${escape(data.estimateNumber)}`,
         html: wrapper(
-          `<p>Hi ${escape(data.customerFirstName)},</p>` +
+          logoHeader(data.logoUrl as string | null | undefined) +
+            `<p>Hi ${escape(data.customerFirstName)},</p>` +
             `<p>Your quote from ${escape(data.companyName)}${data.serviceAddress ? ` for services at ${escape(data.serviceAddress)}` : ''} is ready for review.</p>` +
             `<p>Click the button below to view your quote and review the details:</p>` +
             ctaButton(data.portalUrl, 'View & Accept Quote', data.brandColor as string | null | undefined),
@@ -130,7 +147,8 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
       return {
         subject: `Your Invoice Is Ready – ${escape(data.invoiceNumber)}`,
         html: wrapper(
-          `<p>Hi ${escape(data.customerFirstName)},</p>` +
+          logoHeader(data.logoUrl as string | null | undefined) +
+            `<p>Hi ${escape(data.customerFirstName)},</p>` +
             `<p>Your invoice from ${escape(data.companyName)} is ready to view.</p>` +
             `<p>Click the button below to securely view your invoice and make a payment.</p>` +
             ctaButton(data.portalUrl, 'View & Pay Invoice', data.brandColor as string | null | undefined) +

@@ -527,6 +527,7 @@ export class EstimatesService {
         serviceAddress,
         portalUrl,
         brandColor: branding.primaryColor,
+        logoUrl: branding.logoUrl,
       },
       // No PDF attachment — the customer reviews and acts on the estimate
       // directly in the portal now (per the new flow). The PDF is still

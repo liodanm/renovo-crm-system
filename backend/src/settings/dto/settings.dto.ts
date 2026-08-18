@@ -382,6 +382,9 @@ export class UpdateLeadSourcesDto {
   options!: LeadSourceOptionDto[];
 }
 
+const ALLOWED_LOGO_MIME_TYPES = ['image/png', 'image/jpeg'];
+const MAX_LOGO_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB — no existing established limit found elsewhere in this codebase for image uploads, so using the requested default.
+
 export class PresignLogoUploadDto {
   @IsNotEmpty()
   @IsString()
@@ -390,7 +393,13 @@ export class PresignLogoUploadDto {
 
   @IsNotEmpty()
   @IsString()
+  @IsIn(ALLOWED_LOGO_MIME_TYPES, { message: 'Logo must be a PNG or JPEG image' })
   mimeType: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Max(MAX_LOGO_FILE_SIZE_BYTES, { message: 'Logo file must be 2MB or smaller' })
+  fileSizeBytes?: number;
 }
 
 export class PackageDiscountTierDto {

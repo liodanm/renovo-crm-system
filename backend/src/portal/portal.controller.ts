@@ -269,6 +269,10 @@ export class PortalController {
   @Get('estimates/:id')
   async getEstimateDetail(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string) {
     const estimate = await this.data.getEstimateForPdf(customer.companyId, customer.customerId, id);
+    // Same company-scoped branding source PDFs and internal
+    // notifications already use — the portal reads it live at request
+    // time too, not a copy stored on the estimate itself.
+    const { branding } = await this.companyContext.getCompanyAndBranding(customer.companyId);
     // Fires on the customer actually landing on their estimate page now,
     // not just on opening the PDF — the new flow expects most customers
     // to review and act directly here, never touching "Download PDF" at
@@ -289,6 +293,11 @@ export class PortalController {
       taxRate: estimate.taxRate,
       taxAmount: estimate.taxAmount,
       totalAmount: estimate.totalAmount,
+      branding: {
+        logoUrl: branding.logoUrl,
+        primaryColor: branding.primaryColor,
+        secondaryColor: branding.secondaryColor,
+      },
       lineItems: estimate.lineItems.map((li) => ({
         description: li.description,
         serviceType: (li as any).serviceType,
@@ -404,6 +413,9 @@ export class PortalController {
   @Get('invoices/:id')
   async getInvoiceDetail(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('id') id: string) {
     const invoice = await this.data.getInvoiceForPdf(customer.companyId, customer.customerId, id);
+    // Same company-scoped branding source PDFs and internal
+    // notifications already use.
+    const { branding } = await this.companyContext.getCompanyAndBranding(customer.companyId);
     await this.data.markInvoiceViewed(customer.companyId, customer.customerId, id);
     const property = invoice.property ?? invoice.job?.property ?? null;
     const payments = (invoice as any).payments ?? [];
@@ -422,6 +434,11 @@ export class PortalController {
       totalAmount: invoice.totalAmount,
       amountPaid: invoice.amountPaid,
       balanceDue: invoice.totalAmount.toNumber() - invoice.amountPaid.toNumber(),
+      branding: {
+        logoUrl: branding.logoUrl,
+        primaryColor: branding.primaryColor,
+        secondaryColor: branding.secondaryColor,
+      },
       lineItems: (invoice.lineItems as any[]).map((li) => ({
         description: li.description,
         quantity: li.quantity,

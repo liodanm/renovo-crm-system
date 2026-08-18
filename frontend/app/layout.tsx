@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { AuthProvider } from '../lib/auth/auth-context';
 import { ThemeProvider } from '../lib/theme/theme-context';
+import { BrandThemeInjector } from '../lib/theme/brand-theme-injector';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -41,7 +42,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <BrandThemeInjector />
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

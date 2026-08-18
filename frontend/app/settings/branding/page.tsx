@@ -49,9 +49,22 @@ export default function BrandingSettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setLogoError(null);
+    // Fast, friendly client-side check first — the real enforcement is
+    // server-side (PresignLogoUploadDto), this just avoids a round trip
+    // for the common case of an obviously-wrong file.
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      setLogoError('Logo must be a PNG or JPEG image.');
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError('Logo file must be 2MB or smaller.');
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      return;
+    }
     setIsUploadingLogo(true);
     try {
-      const { uploadUrl, publicUrl } = await settingsApi.presignLogoUpload(file.name, file.type);
+      const { uploadUrl, publicUrl } = await settingsApi.presignLogoUpload(file.name, file.type, file.size);
       const putResponse = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
       if (!putResponse.ok) throw new Error('Upload to storage failed');
       await settingsApi.updateBranding({ logoUrl: publicUrl });
@@ -168,6 +181,27 @@ export default function BrandingSettingsPage() {
           <div className="mt-3">
             <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Footer Message</label>
             <textarea value={footerMessage} onChange={(e) => track(setFooterMessage)(e.target.value)} rows={2} className={`${inputClass} mt-1`} />
+          </div>
+        </div>
+      )}
+
+      {branding && (
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">Preview — how this appears on customer emails, PDFs, and the Customer Portal</p>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white p-6 text-center">
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="mx-auto max-h-16 w-auto max-w-full object-contain" />
+            ) : (
+              <p className="text-sm font-semibold text-slate-900">{estimateHeader || 'Your Company Name'}</p>
+            )}
+            <button
+              type="button"
+              disabled
+              className="mt-4 rounded-lg px-6 py-3 text-sm font-semibold text-white"
+              style={{ backgroundColor: primaryColor || '#11365F' }}
+            >
+              View & Accept Quote
+            </button>
           </div>
         </div>
       )}

@@ -35,6 +35,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
 export interface DocumentBranding {
   logoUrl: string | null;
   primaryColor: string | null;
+  secondaryColor?: string | null;
   footerMessage: string | null;
   estimateHeader?: string | null;
   invoiceHeader?: string | null;

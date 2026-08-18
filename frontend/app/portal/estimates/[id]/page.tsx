@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { portalApiFetch, portalFetchPdfObjectUrl, PortalApiError } from '../../../../lib/portal/portal-api-client';
+import { darkenHex } from '../../../../lib/theme/brand-theme-injector';
 import { StatusBadge, ESTIMATE_STATUS_COLORS } from '../../../../components/action-center/StatusBadge';
 import { SignaturePad } from '../../../../components/jobs/SignaturePad';
 import { SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS } from '../../../../lib/api/service-catalog';
@@ -35,6 +36,7 @@ interface EstimateDetail {
   lineItems: EstimateLineItem[];
   customer: { name: string; email: string | null; phone: string | null };
   property: { addressLine1: string; city: string; state: string; postalCode: string };
+  branding: { logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
 }
 
 const money = (v: string | number) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -61,6 +63,26 @@ export default function PortalEstimateDetailPage() {
     ['portal-estimate', estimateId],
     () => portalApiFetch<EstimateDetail>(`/portal/estimates/${estimateId}`),
   );
+
+  // Same per-tenant color-override technique as the staff app's
+  // BrandThemeInjector — this page has no staff auth to source
+  // branding from, so it uses the branding already included in its own
+  // fetched estimate response instead of a separate fetch.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (estimate?.branding?.primaryColor) {
+      root.style.setProperty('--color-brand', estimate.branding.primaryColor);
+      root.style.setProperty('--color-brand-dark', darkenHex(estimate.branding.primaryColor));
+    }
+    if (estimate?.branding?.secondaryColor) {
+      root.style.setProperty('--color-brand-secondary', estimate.branding.secondaryColor);
+    }
+    return () => {
+      root.style.removeProperty('--color-brand');
+      root.style.removeProperty('--color-brand-dark');
+      root.style.removeProperty('--color-brand-secondary');
+    };
+  }, [estimate?.branding?.primaryColor, estimate?.branding?.secondaryColor]);
 
   const [approveStep, setApproveStep] = useState<'none' | 'confirm' | 'sign'>('none');
   const [signatureDataUrl, setSignatureDataUrl] = useState('');
@@ -151,6 +173,15 @@ export default function PortalEstimateDetailPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 pb-28 pt-8">
       <div className="mx-auto max-w-md">
+        {estimate.branding.logoUrl && (
+          <div className="mb-4 flex justify-center">
+            <img
+              src={estimate.branding.logoUrl}
+              alt=""
+              className="max-h-16 w-auto max-w-full object-contain"
+            />
+          </div>
+        )}
         <Link href="/portal/estimates" className="text-xs text-slate-400 hover:text-slate-600">
           ← Back to Estimates
         </Link>

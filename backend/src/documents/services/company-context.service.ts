@@ -39,6 +39,7 @@ export class CompanyContextService {
         branding: {
           logoUrl: branding.logoUrl ?? null,
           primaryColor: branding.primaryColor ?? null,
+          secondaryColor: branding.secondaryColor ?? null,
           footerMessage: branding.footerMessage ?? null,
           estimateHeader: branding.estimateHeader ?? null,
           invoiceHeader: branding.invoiceHeader ?? null,

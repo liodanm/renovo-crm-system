@@ -351,6 +351,7 @@ export class InvoicesService {
         invoiceNumber: existing.invoiceNumber,
         portalUrl,
         brandColor: branding.primaryColor,
+        logoUrl: branding.logoUrl,
       },
       // No PDF attachment — the customer reviews and pays directly in
       // the portal now. The PDF is still fully available there via the
