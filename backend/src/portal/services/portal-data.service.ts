@@ -422,6 +422,33 @@ export class PortalDataService {
     );
   }
 
+  /**
+   * The Appointments tab's own list — same query as
+   * getUpcomingAppointments above (reused, not duplicated logic; this
+   * just drops the tiny limit=5 dashboard-preview cap in favor of a
+   * real page-sized limit), so the portal has a genuine "see everything
+   * scheduled" view distinct from the dashboard's short preview.
+   */
+  async getPortalAppointments(companyId: string, customerId: string) {
+    return this.getUpcomingAppointments(companyId, customerId, 50);
+  }
+
+  /**
+   * Minimal — just the contact fields a customer would expect to see on
+   * an Account page. Deliberately not the full Customer record (no
+   * internal notes, lead source, lifetime value, etc.) — this is the
+   * customer's own read-only view of their own contact info, not a
+   * staff-facing customer profile.
+   */
+  async getPortalAccount(companyId: string, customerId: string) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, companyId },
+      select: { firstName: true, lastName: true, businessName: true, email: true, phone: true },
+    });
+    if (!customer) throw new NotFoundException('Customer not found');
+    return customer;
+  }
+
   async getDashboard(companyId: string, customerId: string) {
     const [customer, { company, branding }, estimates, invoices, serviceHistory, upcomingAppointments] = await Promise.all([
       this.prisma.customer.findFirst({

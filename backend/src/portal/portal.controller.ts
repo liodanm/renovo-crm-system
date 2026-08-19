@@ -342,6 +342,20 @@ export class PortalController {
     return this.data.getInvoices(customer.companyId, customer.customerId);
   }
 
+  @Public()
+  @UseGuards(PortalCustomerGuard)
+  @Get('appointments')
+  getAppointments(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
+    return this.data.getPortalAppointments(customer.companyId, customer.customerId);
+  }
+
+  @Public()
+  @UseGuards(PortalCustomerGuard)
+  @Get('account')
+  getAccount(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
+    return this.data.getPortalAccount(customer.companyId, customer.customerId);
+  }
+
   /**
    * The one real gap the audit for this feature found: estimates could
    * be listed and approved/declined from the portal, but there was no
