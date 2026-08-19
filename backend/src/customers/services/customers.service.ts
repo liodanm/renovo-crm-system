@@ -5,6 +5,7 @@ import { CreateCustomerDto } from '../dto/create-customer.dto';
 import { UpdateCustomerDto } from '../dto/update-customer.dto';
 import { QueryCustomersDto } from '../dto/query-customers.dto';
 import { DuplicateDetectionService } from './duplicate-detection.service';
+import { SettingsService } from '../../settings/services/settings.service';
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -13,7 +14,45 @@ export class CustomersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly duplicateDetection: DuplicateDetectionService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /**
+   * Server-side enforcement of the lead-source list Settings → Lead
+   * Sources already maintains — closes the reporting-foundation audit's
+   * confirmed gap: the frontend form's dropdown was already
+   * controlled-vocabulary, but nothing stopped a direct API call (or a
+   * future integration) from writing an arbitrary string, which is
+   * exactly how "Google" / "google" / "Google Search" fragment into
+   * separate reporting buckets over time.
+   *
+   * Deliberately permissive in two specific ways, both intentional, not
+   * oversights:
+   *   1. Checks against the FULL configured list (enabled AND disabled),
+   *      not just currently-enabled options — a source a company later
+   *      disabled shouldn't retroactively become "invalid" to save.
+   *   2. On update, also allows the value to pass through unchanged from
+   *      whatever the customer's existing record already has — so
+   *      editing an existing customer never fails validation purely
+   *      because their historical source predates the current list, or
+   *      was set by a path this check doesn't cover (CSV import, the
+   *      public Quote Widget/Leads endpoints — see this feature's own
+   *      final report for why those two are deliberately NOT covered by
+   *      this same check).
+   * Empty/null source is always allowed — the field is optional.
+   */
+  private async assertValidLeadSource(companyId: string, submittedSource: string | undefined, existingSource?: string | null) {
+    if (!submittedSource) return;
+    if (existingSource !== undefined && submittedSource === existingSource) return;
+
+    const { options } = await this.settings.getLeadSources(companyId);
+    const validLabels = new Set((options as { label: string }[]).map((o) => o.label));
+    if (!validLabels.has(submittedSource)) {
+      throw new BadRequestException(
+        `'${submittedSource}' is not a configured lead source for this company. Add it under Settings → Lead Sources first, or choose an existing option.`,
+      );
+    }
+  }
 
   // ===========================================================================
   // List / search / filter
@@ -124,6 +163,26 @@ export class CustomersService {
   // ===========================================================================
   // Create
   // ===========================================================================
+
+  /**
+   * The ONLY entry point that runs assertValidLeadSource on create — the
+   * controller's direct POST /customers uses this, not create() itself.
+   * create() stays completely unvalidated on purpose: findOrCreateByEmail
+   * (the Leads and Quote Widget capture paths) calls create() internally
+   * with its own, deliberately different, already-validated vocabulary
+   * ('website', 'google', 'referral', 'other' — see leads.dto.ts and
+   * quote-widget.mappers.ts). Validating inside create() itself would
+   * incorrectly reject those values the moment they don't match the
+   * Settings → Lead Sources label list, breaking a working public-facing
+   * flow to fix an internal-form problem neither of those paths has.
+   * See this feature's own final report for the full reasoning on why
+   * those two vocabularies are being left as a flagged, not fixed,
+   * inconsistency in this pass.
+   */
+  async createValidated(companyId: string, createdByUserId: string, dto: CreateCustomerDto) {
+    await this.assertValidLeadSource(companyId, dto.source);
+    return this.create(companyId, createdByUserId, dto);
+  }
 
   async create(companyId: string, createdByUserId: string, dto: CreateCustomerDto) {
     if (!dto.businessName && !dto.firstName) {
@@ -364,11 +423,12 @@ export class CustomersService {
   }
 
   async update(companyId: string, customerId: string, dto: UpdateCustomerDto) {
-    await this.assertExists(companyId, customerId);
+    const existing = await this.assertExists(companyId, customerId);
 
     if (dto.email) {
       await this.assertNoExactEmailConflict(companyId, dto.email, dto.acknowledgedDuplicateWarning, customerId);
     }
+    await this.assertValidLeadSource(companyId, dto.source, existing.source);
 
     return this.prisma.customer.update({
       where: { id: customerId },

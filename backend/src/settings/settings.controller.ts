@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { SettingsService } from './services/settings.service';
 import { IntegrationsService } from './services/integrations.service';
 import {
@@ -17,6 +17,7 @@ import {
   UpdateLeadSourcesDto,
   UpdatePackageDiscountsDto,
   PresignLogoUploadDto,
+  UpsertChemicalCostRateDto,
 } from './dto/settings.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -114,6 +115,24 @@ export class SettingsController {
   @RequirePermissions('settings.manage')
   updateLeadSources(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateLeadSourcesDto) {
     return this.settings.updateLeadSources(user.companyId, dto);
+  }
+
+  // Chemical Cost Rates (reporting-foundation audit)
+  @Get('chemical-costs')
+  getChemicalCostRates(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.settings.getChemicalCostRates(user.companyId);
+  }
+
+  @Post('chemical-costs')
+  @RequirePermissions('settings.manage')
+  upsertChemicalCostRate(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpsertChemicalCostRateDto) {
+    return this.settings.upsertChemicalCostRate(user.companyId, dto);
+  }
+
+  @Delete('chemical-costs/:id')
+  @RequirePermissions('settings.manage')
+  deleteChemicalCostRate(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.settings.deleteChemicalCostRate(user.companyId, id);
   }
 
   // Package Discounts

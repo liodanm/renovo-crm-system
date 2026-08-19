@@ -18,6 +18,7 @@ import {
   SendTestSmsDto,
   UpdateLeadSourcesDto,
   UpdatePackageDiscountsDto,
+  UpsertChemicalCostRateDto,
 } from '../dto/settings.dto';
 
 const PROFILE_SELECT = `
@@ -460,5 +461,32 @@ export class SettingsService {
       s3: this.integrationStatus.get('s3'),
       maxUploadSizeMb: 15,
     };
+  }
+
+  // ---- Chemical Cost Rates (reporting-foundation audit) ----
+  // The "chemical/product master" — current cost-per-unit only, no
+  // history of its own. History lives on job_chemical_usage.
+  // unit_cost_snapshot, one per usage record — see migration 041.
+
+  async getChemicalCostRates(companyId: string) {
+    return this.prisma.tenant.chemicalCostRate.findMany({
+      where: { companyId },
+      orderBy: { chemicalName: 'asc' },
+    });
+  }
+
+  async upsertChemicalCostRate(companyId: string, dto: UpsertChemicalCostRateDto) {
+    return this.prisma.tenant.chemicalCostRate.upsert({
+      where: { companyId_chemicalName_unit: { companyId, chemicalName: dto.chemicalName, unit: dto.unit } },
+      create: { companyId, chemicalName: dto.chemicalName, unit: dto.unit, costPerUnit: dto.costPerUnit },
+      update: { costPerUnit: dto.costPerUnit },
+    });
+  }
+
+  async deleteChemicalCostRate(companyId: string, id: string) {
+    const existing = await this.prisma.tenant.chemicalCostRate.findFirst({ where: { id, companyId } });
+    if (!existing) throw new NotFoundException('Chemical cost rate not found');
+    await this.prisma.tenant.chemicalCostRate.delete({ where: { id } });
+    return { message: 'Chemical cost rate deleted' };
   }
 }

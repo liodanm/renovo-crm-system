@@ -318,7 +318,7 @@ export class EstimatesService {
     if (['accepted', 'declined'].includes(estimate.status)) {
       throw new BadRequestException(`Cannot mark an estimate with status '${estimate.status}' as expired`);
     }
-    const updated = await this.prisma.tenant.estimate.update({ where: { id }, data: { status: 'expired' } });
+    const updated = await this.prisma.tenant.estimate.update({ where: { id }, data: { status: 'expired', expiredAt: new Date() } });
     await this.writeStatusHistory(companyId, id, estimate.status, 'expired', userId, source, source === 'automation' ? 'Automatically expired (past valid until date)' : 'Marked expired');
     if (source === 'automation') {
       await logAutomationEvent(this.prisma, {

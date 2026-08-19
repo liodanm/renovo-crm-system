@@ -59,6 +59,7 @@ model User {
   companyUsers        CompanyUser[]
   oauthAccounts       OauthAccount[]
   assignedLineItems   EstimateLineItem[]
+  assignedJobLineItems JobLineItem[]     @relation("JobLineItemAssignedUser")
   acceptedEstimates   Estimate[]
   assignedJobs        Job[]              @relation("JobAssignedUser")
   jobStatusChanges    JobStatusHistory[]
@@ -193,6 +194,7 @@ model Customer {
   photos     Photo[]
   documents  Document[]
   calls      Call[]
+  callbacks  JobCallback[]
 
   @@map("customers")
 }
@@ -250,6 +252,10 @@ model Estimate {
   declineComments   String?   @map("decline_comments")
   acceptedVia       String?   @map("accepted_via") // 'portal' | 'staff' | 'manual'
   acceptedByUserId  String?   @map("accepted_by_user_id")
+  // Set exclusively by EstimatesService.markExpired — the one authoritative
+  // status-transition method both the manual staff action and the
+  // automation cron already call. See migration 043.
+  expiredAt         DateTime? @map("expired_at")
   notes             String?
   terms             String?
   // Staff-only — never rendered on a PDF or exposed through the
@@ -382,6 +388,8 @@ model Job {
   chemicalUsage JobChemicalUsage[]
   equipmentUsage JobEquipmentUsage[]
   auditLog      JobAuditLog[]
+  callbacksAsOriginal JobCallback[] @relation("JobCallbackOriginalJob")
+  callbacksAsNewJob   JobCallback[] @relation("JobCallbackNewJob")
 
   @@map("jobs")
 }
@@ -406,8 +414,33 @@ model JobLineItem {
   // is created via createFromEstimate, per the approved architecture.
   serviceCatalogItemId String? @map("service_catalog_item_id")
 
+  // Actual, job-level cost tracking — mirrors EstimateLineItem's
+  // estimated* fields exactly (see migration 010), same units, same
+  // rounding convention (estimate-profit.util.ts / job-profit.util.ts),
+  // deliberately NOT copied from the estimate at job-creation time (see
+  // migration 040's own comment for why: at creation nothing has
+  // actually happened yet, so there is no real "actual cost" to record).
+  // All nullable, all null by default: null means "not recorded yet,"
+  // never "zero cost" — a real, meaningful distinction the reporting
+  // layer must preserve (see docs/REPORTING_DEFINITIONS.md).
+  actualLaborHours       Decimal? @map("actual_labor_hours") @db.Decimal(10, 2)
+  actualChemicalCost     Decimal? @map("actual_chemical_cost") @db.Decimal(10, 2)
+  actualEquipmentCost    Decimal? @map("actual_equipment_cost") @db.Decimal(10, 2)
+  actualFuelCost         Decimal? @map("actual_fuel_cost") @db.Decimal(10, 2)
+  actualMiscCost         Decimal? @map("actual_misc_cost") @db.Decimal(10, 2)
+  // Server-computed, stored — see job-profit.util.ts. Null until at
+  // least one actual* cost field has been recorded (same "null means
+  // never computed" convention as EstimateLineItem.estimatedProfit).
+  actualProfit           Decimal? @map("actual_profit") @db.Decimal(12, 2)
+  actualProfitMarginPercent Decimal? @map("actual_profit_margin_percent") @db.Decimal(5, 2)
+  // Mirrors EstimateLineItem.assignedUserId — who actually performed
+  // this line item's labor, for the same future per-employee rate
+  // resolution (resolveLaborRate(), reused as-is from estimate-profit.util.ts).
+  assignedUserId         String?  @map("assigned_user_id")
+
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
   serviceCatalogItem ServiceCatalogItem? @relation(fields: [serviceCatalogItemId], references: [id])
+  assignedUser User? @relation("JobLineItemAssignedUser", fields: [assignedUserId], references: [id])
 
   @@map("job_line_items")
 }
@@ -484,12 +517,44 @@ model JobChemicalUsage {
   unit            String   // oz | gallons | liters | ml | lbs | kg
   notes           String?
   createdByUserId String?  @map("created_by_user_id")
+  // A snapshot of ChemicalCostRate.costPerUnit AT THE MOMENT this usage
+  // was recorded — see migration 041's comment for why this must never
+  // be recalculated from today's rate. Null when no matching cost rate
+  // existed for this chemicalName/unit at record time (never fabricated
+  // by falling back to $0 or any other default). totalCost = quantity *
+  // unitCostSnapshot, computed once and stored alongside it, same
+  // "generated once, trusted forever" convention as every other snapshot
+  // in this schema (see Invoice's discountSource, for example).
+  unitCostSnapshot Decimal? @map("unit_cost_snapshot") @db.Decimal(10, 4)
+  totalCost        Decimal? @map("total_cost") @db.Decimal(10, 2)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@map("job_chemical_usage")
+}
+
+// A maintained, per-company reference list — the "chemical/product
+// master" the reporting audit asked for. Deliberately its own small
+// table rather than another key inside companies.settings JSONB
+// (unlike leadSources): this is genuinely structured, queryable,
+// numeric data with its own natural identity (name + unit), not a
+// small config blob. Matches the "smallest clean architecture" the
+// approval doc asked for — no versioning, no history table of its own;
+// JobChemicalUsage.unitCostSnapshot is what preserves history, this
+// table only ever holds the CURRENT rate.
+model ChemicalCostRate {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  chemicalName String   @map("chemical_name")
+  unit         String   // same unit vocabulary as JobChemicalUsage.unit
+  costPerUnit  Decimal  @map("cost_per_unit") @db.Decimal(10, 4)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, chemicalName, unit])
+  @@map("chemical_cost_rates")
 }
 
 model JobEquipmentUsage {
@@ -504,6 +569,45 @@ model JobEquipmentUsage {
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@map("job_equipment_usage")
+}
+
+// Deliberately small — "identify return/rework work separately from
+// normal jobs," not a customer-support ticketing system (per the
+// approval doc's own explicit scope limit). originalJobId is the one
+// required relationship the Callback Rate metric depends on
+// (Callback Jobs / Completed Jobs, grouped by originalJobId's company
+// and completion date); newJobId is optional because not every callback
+// becomes its own schedulable Job record — some are resolved as a note
+// on the same visit or a quick unscheduled fix.
+model JobCallback {
+  id                    String    @id @default(uuid())
+  companyId             String    @map("company_id")
+  originalJobId         String    @map("original_job_id")
+  // Set only if the callback was actually scheduled/tracked as its own
+  // Job record — null is a completely valid state (e.g. resolved by a
+  // phone call, or logged after the fact with no separate visit).
+  newJobId              String?   @map("new_job_id")
+  customerId            String    @map("customer_id")
+  reason                String    // 'callback' | 're_clean' | 'warranty' | 'complaint' | 'customer_requested_return' | 'internal_qc_return'
+  status                String    @default("open") @map("status") // 'open' | 'resolved' | 'cancelled'
+  resolution            String?
+  // Snapshotted dollar amounts, same convention as every other cost
+  // field in this schema — not a live calculation, since a callback's
+  // true cost is whatever it actually took to make right, not something
+  // ever recomputed later.
+  additionalLaborCost    Decimal?  @map("additional_labor_cost") @db.Decimal(10, 2)
+  additionalMaterialCost Decimal?  @map("additional_material_cost") @db.Decimal(10, 2)
+  refundAmount           Decimal?  @map("refund_amount") @db.Decimal(10, 2)
+  notes                  String?
+  createdByUserId         String?  @map("created_by_user_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  originalJob Job  @relation("JobCallbackOriginalJob", fields: [originalJobId], references: [id], onDelete: Cascade)
+  newJob      Job? @relation("JobCallbackNewJob", fields: [newJobId], references: [id], onDelete: SetNull)
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("job_callbacks")
 }
 
 model JobAuditLog {

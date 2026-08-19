@@ -11,8 +11,10 @@ import { DuplicateDetectionService } from './services/duplicate-detection.servic
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
+  imports: [SettingsModule],
   controllers: [CustomersController, CustomFieldsController],
   providers: [
     PrismaService,

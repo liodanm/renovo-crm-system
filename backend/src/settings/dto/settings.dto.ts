@@ -382,6 +382,29 @@ export class UpdateLeadSourcesDto {
   options!: LeadSourceOptionDto[];
 }
 
+/**
+ * Upsert semantics on (companyId, chemicalName, unit) — the same
+ * unique key migration 041 gives the table — so setting a rate for a
+ * chemical/unit that already has one simply updates it, rather than
+ * needing a separate create-vs-update distinction the frontend would
+ * have to track. chemicalName/unit here identify WHICH rate; costPerUnit
+ * is the only field ever actually changing on a re-submit.
+ */
+export class UpsertChemicalCostRateDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(200)
+  chemicalName!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  unit!: string;
+
+  @IsNumber()
+  @Min(0)
+  costPerUnit!: number;
+}
+
 const ALLOWED_LOGO_MIME_TYPES = ['image/png', 'image/jpeg'];
 const MAX_LOGO_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB — no existing established limit found elsewhere in this codebase for image uploads, so using the requested default.
 

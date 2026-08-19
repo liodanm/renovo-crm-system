@@ -1,9 +1,19 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { UpdateJobDto, PauseJobDto, CancelJobDto, QueryJobsDto } from '../dto/job.dto';
+import { UpdateJobDto, PauseJobDto, CancelJobDto, QueryJobsDto, UpdateJobLineItemActualCostsDto } from '../dto/job.dto';
 import { CompleteJobDetailsDto, GpsCoordinatesDto } from '../dto/field-ops.dto';
 import { assertValidTransition, calculateLaborHours } from './job-status.util';
 import { JobFieldOpsService } from './job-field-ops.service';
+import { computeJobLineItemActualProfit } from './job-profit.util';
+import { resolveLaborRate } from '../../estimates/services/estimate-profit.util';
+
+// Mirrors PROFITABILITY_LINE_ITEM_FIELDS in estimates.service.ts exactly
+// — the actual enforcement point for "job cost/profit is admin-only,
+// never customer-visible, and not even visible to every staff role."
+const JOB_PROFITABILITY_LINE_ITEM_FIELDS = [
+  'actualLaborHours', 'actualChemicalCost', 'actualEquipmentCost', 'actualFuelCost', 'actualMiscCost',
+  'actualProfit', 'actualProfitMarginPercent', 'assignedUserId',
+] as const;
 
 @Injectable()
 export class JobsService {
@@ -108,7 +118,7 @@ export class JobsService {
     `);
   }
 
-  async findOne(companyId: string, id: string, txOverride?: { $queryRaw: any }) {
+  async findOne(companyId: string, id: string, txOverride?: { $queryRaw: any }, canViewProfitability = false) {
     const run = async (client: { $queryRaw: any }) => {
       const jobRows = await client.$queryRaw`
         SELECT j.*, j.job_number AS "jobNumber", j.customer_id AS "customerId", j.property_id AS "propertyId",
@@ -136,7 +146,11 @@ export class JobsService {
       const lineItems = await client.$queryRaw`
         SELECT id, description, quantity, unit_price AS "unitPrice", total, service_type AS "serviceType", custom_service_name AS "customServiceName",
                unit_of_measure AS "unitOfMeasure", service_details AS "serviceDetails", notes,
-               service_catalog_item_id AS "serviceCatalogItemId"
+               service_catalog_item_id AS "serviceCatalogItemId",
+               actual_labor_hours AS "actualLaborHours", actual_chemical_cost AS "actualChemicalCost",
+               actual_equipment_cost AS "actualEquipmentCost", actual_fuel_cost AS "actualFuelCost",
+               actual_misc_cost AS "actualMiscCost", actual_profit AS "actualProfit",
+               actual_profit_margin_percent AS "actualProfitMarginPercent", assigned_user_id AS "assignedUserId"
         FROM job_line_items WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC
       `;
       const statusHistory = await client.$queryRaw`
@@ -144,7 +158,7 @@ export class JobsService {
         FROM job_status_history WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid ORDER BY changed_at DESC
       `;
 
-      return { ...job, lineItems, statusHistory };
+      return this.applyJobProfitabilityVisibility({ ...job, lineItems, statusHistory }, canViewProfitability);
     };
 
     // Same fix as every other findOne in this codebase: raw $queryRaw
@@ -153,6 +167,169 @@ export class JobsService {
     // withTenantContext transaction already set the session variable.
     if (txOverride) return run(txOverride);
     return this.prisma.withTenantContext(companyId, run);
+  }
+
+  /**
+   * The job-side equivalent of EstimatesService.applyProfitabilityVisibility
+   * — same reasoning, same enforcement point (every findOne response
+   * passes through this, not left to each call site to remember), same
+   * "strip per-line fields, only ever attach the aggregate when the
+   * detail is already visible" structure. Defaults to false (strip) at
+   * every internal findOne call site in this file that doesn't
+   * explicitly pass true — secure by default, not opt-out.
+   */
+  private applyJobProfitabilityVisibility<T extends { lineItems?: any[] }>(job: T, canViewProfitability: boolean): T {
+    if (!job.lineItems) return job;
+
+    if (!canViewProfitability) {
+      return {
+        ...job,
+        lineItems: job.lineItems.map((li) => {
+          const stripped = { ...li };
+          for (const field of JOB_PROFITABILITY_LINE_ITEM_FIELDS) delete stripped[field];
+          return stripped;
+        }),
+      };
+    }
+
+    const totalRevenue = job.lineItems.reduce((sum, li) => sum + Number(li.total), 0);
+    // Only lines with actual cost recorded count toward the aggregate —
+    // a job that's only 2 of 5 line items' costs entered so far reports
+    // an aggregate over those 2, not a false "complete" figure padded
+    // with zeros for the other 3. hasCompleteActualCostData tells the
+    // caller whether every line contributed, so a report can visually
+    // flag a partial figure rather than presenting it as final.
+    const linesWithCost = job.lineItems.filter((li) => li.actualProfit !== null && li.actualProfit !== undefined);
+    const totalActualProfit = linesWithCost.reduce((sum, li) => sum + Number(li.actualProfit ?? 0), 0);
+    const revenueWithCost = linesWithCost.reduce((sum, li) => sum + Number(li.total), 0);
+    const overallActualProfitMarginPercent = revenueWithCost > 0 ? Math.round((totalActualProfit / revenueWithCost) * 10000) / 100 : null;
+
+    return {
+      ...job,
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      totalActualProfit: linesWithCost.length > 0 ? Math.round(totalActualProfit * 100) / 100 : null,
+      overallActualProfitMarginPercent,
+      hasCompleteActualCostData: linesWithCost.length === job.lineItems.length,
+    };
+  }
+
+  /**
+   * The job-side equivalent of EstimatesService.computeAndSaveLineItemProfitability
+   * — same trigger point (called after any actual-cost write), same
+   * rate-resolution reuse (resolveLaborRate, imported directly from
+   * estimate-profit.util.ts, not reimplemented). The one real
+   * difference: a job line item with NO actual cost recorded at all
+   * skips computation entirely and leaves actual_profit/
+   * actual_profit_margin_percent as NULL — never overwritten with a
+   * confident-looking $0, per job-profit.util.ts's own null-handling
+   * design.
+   */
+  private async computeAndSaveJobLineItemProfitability(tx: any, companyId: string, jobId: string) {
+    const company = await tx.company.findUnique({ where: { id: companyId }, select: { defaultLaborRate: true } });
+    const defaultLaborRate = Number(company?.defaultLaborRate ?? 0);
+
+    const lineItems: Array<{
+      id: string;
+      total: unknown;
+      actual_labor_hours: unknown;
+      actual_chemical_cost: unknown;
+      actual_equipment_cost: unknown;
+      actual_fuel_cost: unknown;
+      actual_misc_cost: unknown;
+      assigned_user_id: string | null;
+    }> = await tx.$queryRaw`
+      SELECT id, total, actual_labor_hours, actual_chemical_cost, actual_equipment_cost, actual_fuel_cost, actual_misc_cost, assigned_user_id
+      FROM job_line_items WHERE job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
+    `;
+
+    for (const li of lineItems) {
+      let assignedUserRate: number | null = null;
+      if (li.assigned_user_id) {
+        const user = await tx.user.findUnique({ where: { id: li.assigned_user_id }, select: { hourlyLaborRate: true } });
+        assignedUserRate = user?.hourlyLaborRate != null ? Number(user.hourlyLaborRate) : null;
+      }
+
+      const { rate } = resolveLaborRate(defaultLaborRate, assignedUserRate);
+      const profit = computeJobLineItemActualProfit(
+        {
+          lineTotal: Number(li.total),
+          actualLaborHours: li.actual_labor_hours != null ? Number(li.actual_labor_hours) : null,
+          actualChemicalCost: li.actual_chemical_cost != null ? Number(li.actual_chemical_cost) : null,
+          actualEquipmentCost: li.actual_equipment_cost != null ? Number(li.actual_equipment_cost) : null,
+          actualFuelCost: li.actual_fuel_cost != null ? Number(li.actual_fuel_cost) : null,
+          actualMiscCost: li.actual_misc_cost != null ? Number(li.actual_misc_cost) : null,
+        },
+        rate,
+      );
+
+      await tx.$executeRaw`
+        UPDATE job_line_items
+        SET actual_profit = ${profit.actualProfit}, actual_profit_margin_percent = ${profit.actualProfitMarginPercent}
+        WHERE id = ${li.id}::uuid
+      `;
+    }
+  }
+
+  /**
+   * The one real new write path this migration set needed — no such
+   * endpoint existed at all before this (JobLineItem was previously
+   * write-once, populated only by createFromEstimate). Gated behind
+   * jobs.profitability at the controller, same permission that gates
+   * reading it back — recording actual cost data is exactly as
+   * sensitive as viewing it.
+   */
+  async updateLineItemActualCosts(companyId: string, jobId: string, lineItemId: string, dto: UpdateJobLineItemActualCostsDto) {
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const existingRows: {
+        actualLaborHours: unknown; actualChemicalCost: unknown; actualEquipmentCost: unknown;
+        actualFuelCost: unknown; actualMiscCost: unknown; assignedUserId: string | null;
+      }[] = await tx.$queryRaw`
+        SELECT actual_labor_hours AS "actualLaborHours", actual_chemical_cost AS "actualChemicalCost",
+               actual_equipment_cost AS "actualEquipmentCost", actual_fuel_cost AS "actualFuelCost",
+               actual_misc_cost AS "actualMiscCost", assigned_user_id AS "assignedUserId"
+        FROM job_line_items WHERE id = ${lineItemId}::uuid AND job_id = ${jobId}::uuid AND company_id = ${companyId}::uuid
+      `;
+      if (existingRows.length === 0) throw new NotFoundException('Job line item not found');
+      const existing = existingRows[0];
+
+      const resolvedAssignedUserId = 'assignedUserId' in dto ? dto.assignedUserId ?? null : existing.assignedUserId;
+      if (resolvedAssignedUserId) {
+        const belongs: { id: string }[] = await tx.$queryRaw`
+          SELECT id FROM company_users WHERE user_id = ${resolvedAssignedUserId}::uuid AND company_id = ${companyId}::uuid
+        `;
+        if (belongs.length === 0) throw new ForbiddenException('That user is not a member of this company');
+      }
+
+      // `'field' in dto ? dto.field ?? null : existing.field` — distinct
+      // from the plain `dto.field ?? existing.field` pattern used
+      // elsewhere in this file: that simpler pattern can't tell "field
+      // omitted" apart from "field explicitly sent as null," which is
+      // fine for text fields but wrong here, where an explicit null is
+      // a meaningful, deliberate "clear this back to not-yet-known."
+      const next = {
+        actualLaborHours: 'actualLaborHours' in dto ? dto.actualLaborHours ?? null : existing.actualLaborHours,
+        actualChemicalCost: 'actualChemicalCost' in dto ? dto.actualChemicalCost ?? null : existing.actualChemicalCost,
+        actualEquipmentCost: 'actualEquipmentCost' in dto ? dto.actualEquipmentCost ?? null : existing.actualEquipmentCost,
+        actualFuelCost: 'actualFuelCost' in dto ? dto.actualFuelCost ?? null : existing.actualFuelCost,
+        actualMiscCost: 'actualMiscCost' in dto ? dto.actualMiscCost ?? null : existing.actualMiscCost,
+        assignedUserId: resolvedAssignedUserId,
+      };
+
+      await tx.$executeRaw`
+        UPDATE job_line_items SET
+          actual_labor_hours = ${next.actualLaborHours},
+          actual_chemical_cost = ${next.actualChemicalCost},
+          actual_equipment_cost = ${next.actualEquipmentCost},
+          actual_fuel_cost = ${next.actualFuelCost},
+          actual_misc_cost = ${next.actualMiscCost},
+          assigned_user_id = ${next.assignedUserId}::uuid
+        WHERE id = ${lineItemId}::uuid AND company_id = ${companyId}::uuid
+      `;
+
+      await this.computeAndSaveJobLineItemProfitability(tx, companyId, jobId);
+
+      return this.findOne(companyId, jobId, tx, true);
+    });
   }
 
   async update(companyId: string, id: string, dto: UpdateJobDto) {

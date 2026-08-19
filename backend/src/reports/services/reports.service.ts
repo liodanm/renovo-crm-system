@@ -196,13 +196,27 @@ export class ReportsService {
   // =========================================================================
 
   /**
-   * Repeat rate, CLV, and average time between services are genuinely
-   * new calculations (nothing upstream computes these today), but every
-   * input is a column that already exists — invoices.total_amount,
-   * jobs.actual_end, jobs.customer_id. Point-in-time across the whole
-   * customer base, not range-bound: "is this customer a repeat customer"
-   * has one real answer regardless of what date range a report happens to
-   * be viewed with.
+   * Repeat rate and average time between services are genuinely new
+   * calculations (nothing upstream computes these today), but every
+   * input is a column that already exists — jobs.actual_end,
+   * jobs.customer_id. Point-in-time across the whole customer base, not
+   * range-bound: "is this customer a repeat customer" has one real
+   * answer regardless of what date range a report happens to be viewed
+   * with.
+   *
+   * Lifetime Value here reads customers.lifetime_value directly — the
+   * SAME maintained, payments-based column getLeadSourceAnalytics()
+   * already correctly uses. This method previously computed its own
+   * separate, invoice-based figure (SUM(invoices.total_amount)) instead
+   * — a real, confirmed correctness bug found during the reporting-
+   * foundation audit: two methods in this same file disagreeing about
+   * what "lifetime value" means, one representing money billed, the
+   * other money actually collected. Per the approved authoritative
+   * definition (see docs/REPORTING_DEFINITIONS.md), Customer Lifetime
+   * Value means collected revenue, net of refunds/voids — exactly what
+   * customers.lifetime_value already tracks (see payments.service.ts's
+   * three increment/decrement call sites). Fixed here, not left as a
+   * second inconsistent implementation.
    */
   async getCustomerAnalytics(companyId: string) {
     return this.prisma.withTenantContext(companyId, async (tx) => {
@@ -211,18 +225,13 @@ export class ReportsService {
           SELECT customer_id, COUNT(*) AS job_count
           FROM jobs WHERE company_id = ${companyId}::uuid AND status = 'completed'
           GROUP BY customer_id
-        ),
-        customer_revenue AS (
-          SELECT customer_id, SUM(total_amount) AS lifetime_value
-          FROM invoices WHERE company_id = ${companyId}::uuid AND status != 'void'
-          GROUP BY customer_id
         )
         SELECT
-          COUNT(*) FILTER (WHERE job_count > 1) AS "repeatCustomerCount",
+          COUNT(*) FILTER (WHERE cjc.job_count > 1) AS "repeatCustomerCount",
           COUNT(*) AS "totalActiveCustomers",
-          COALESCE(AVG(cr.lifetime_value), 0) AS "averageLifetimeValue"
+          COALESCE(AVG(c.lifetime_value), 0) AS "averageLifetimeValue"
         FROM customer_job_counts cjc
-        LEFT JOIN customer_revenue cr ON cr.customer_id = cjc.customer_id
+        JOIN customers c ON c.id = cjc.customer_id AND c.company_id = ${companyId}::uuid
       `;
 
       // Average days between consecutive completed jobs for the same

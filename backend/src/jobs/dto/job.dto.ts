@@ -71,3 +71,102 @@ export class QueryJobsDto {
   @IsIn(['normal', 'follow_up', 'high', 'emergency'])
   priority?: string;
 }
+
+const CALLBACK_REASONS = ['callback', 're_clean', 'warranty', 'complaint', 'customer_requested_return', 'internal_qc_return'] as const;
+const CALLBACK_STATUSES = ['open', 'resolved', 'cancelled'] as const;
+
+/**
+ * customerId is deliberately NOT on this DTO — always derived server-side
+ * from the original job's own customer, never trusted from the client,
+ * same reasoning as every other "don't let the client assert a
+ * relationship the server can already prove" boundary in this app.
+ */
+export class CreateJobCallbackDto {
+  @IsIn(CALLBACK_REASONS)
+  reason!: (typeof CALLBACK_REASONS)[number];
+
+  @IsOptional()
+  @IsUUID()
+  newJobId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+}
+
+export class UpdateJobCallbackDto {
+  @IsOptional()
+  @IsIn(CALLBACK_STATUSES)
+  status?: (typeof CALLBACK_STATUSES)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  resolution?: string;
+
+  @IsOptional()
+  @IsUUID()
+  newJobId?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  additionalLaborCost?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  additionalMaterialCost?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  refundAmount?: number | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+}
+
+/**
+ * Deliberately every field optional and independently nullable-settable
+ * — a tech or office staff member records whichever cost categories are
+ * actually known at the time (e.g. labor hours right after completion,
+ * chemical cost once an invoice from the supplier arrives days later),
+ * not all five at once. Sending an explicit `null` clears a
+ * previously-recorded value back to "not known" (distinct from omitting
+ * the field, which leaves the existing stored value untouched) — same
+ * PATCH semantics UpdateJobDto already uses elsewhere in this file.
+ */
+export class UpdateJobLineItemActualCostsDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  actualLaborHours?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  actualChemicalCost?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  actualEquipmentCost?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  actualFuelCost?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  actualMiscCost?: number | null;
+
+  @IsOptional()
+  @IsUUID()
+  assignedUserId?: string | null;
+}

@@ -94,7 +94,7 @@ export class CustomersController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: CreateCustomerDto) {
-    return this.customersService.create(user.companyId, user.userId, dto);
+    return this.customersService.createValidated(user.companyId, user.userId, dto);
   }
 
   @Get(':id')

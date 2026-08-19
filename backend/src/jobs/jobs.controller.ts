@@ -4,7 +4,8 @@ import type { Response } from 'express';
 import { JobsService } from './services/jobs.service';
 import { JobFieldOpsService } from './services/job-field-ops.service';
 import { JobPhotosService } from './services/job-photos.service';
-import { UpdateJobDto, PauseJobDto, CancelJobDto, QueryJobsDto } from './dto/job.dto';
+import { JobCallbacksService } from './services/job-callbacks.service';
+import { UpdateJobDto, PauseJobDto, CancelJobDto, QueryJobsDto, UpdateJobLineItemActualCostsDto, CreateJobCallbackDto, UpdateJobCallbackDto } from './dto/job.dto';
 import { StartJobDto, CompleteJobDetailsDto, CreateChemicalUsageDto, UpdateChemicalUsageDto, CreateEquipmentUsageDto, GpsCoordinatesDto } from './dto/field-ops.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
@@ -17,6 +18,7 @@ export class JobsController {
     private readonly jobsService: JobsService,
     private readonly fieldOps: JobFieldOpsService,
     private readonly photos: JobPhotosService,
+    private readonly callbacks: JobCallbacksService,
   ) {}
 
   // ---- Core (Phase 1) ----
@@ -28,7 +30,7 @@ export class JobsController {
 
   @Get(':id')
   findOne(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
-    return this.jobsService.findOne(user.companyId, id);
+    return this.jobsService.findOne(user.companyId, id, undefined, this.canViewProfitability(user));
   }
 
   @Patch(':id')
@@ -159,5 +161,44 @@ export class JobsController {
   @Get(':id/audit-log')
   listAuditLog(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
     return this.fieldOps.listAuditLog(user.companyId, id);
+  }
+
+  // ---- Actual cost / profitability (reporting-foundation audit) ----
+
+  @Patch(':id/line-items/:lineItemId/actual-costs')
+  @RequirePermissions('jobs.profitability')
+  updateLineItemActualCosts(
+    @CurrentUser() user: AuthenticatedRequestUser,
+    @Param('id') id: string,
+    @Param('lineItemId') lineItemId: string,
+    @Body() dto: UpdateJobLineItemActualCostsDto,
+  ) {
+    return this.jobsService.updateLineItemActualCosts(user.companyId, id, lineItemId, dto);
+  }
+
+  // ---- Callbacks (reporting-foundation audit) ----
+
+  @Get(':id/callbacks')
+  listCallbacksForJob(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.callbacks.list(user.companyId, id);
+  }
+
+  @Post(':id/callbacks')
+  @RequirePermissions('jobs.callbacks')
+  createCallback(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: CreateJobCallbackDto) {
+    return this.callbacks.create(user.companyId, id, user.userId, dto);
+  }
+
+  @Patch(':id/callbacks/:callbackId')
+  @RequirePermissions('jobs.callbacks')
+  updateCallback(@CurrentUser() user: AuthenticatedRequestUser, @Param('callbackId') callbackId: string, @Body() dto: UpdateJobCallbackDto) {
+    return this.callbacks.update(user.companyId, callbackId, dto);
+  }
+
+  // Same reasoning as EstimatesController.canViewProfitability — a real
+  // permission check, not a role-name check, mirroring that method
+  // exactly so the two stay obviously in sync if either ever changes.
+  private canViewProfitability(user: AuthenticatedRequestUser): boolean {
+    return user.permissions.includes('jobs.profitability');
   }
 }
