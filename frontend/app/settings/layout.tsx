@@ -10,16 +10,18 @@ import { AppShell } from '../../components/layout/AppShell';
  * own full-width screen rather than living inside a permanent two-pane
  * layout.
  *
- * max-w-5xl is a deliberate middle ground: wide enough for the landing
- * page's two-column card grid, still a comfortable reading width for
- * the narrower single-column settings forms nested inside it — none of
- * those forms use their full available width anyway (they cap their own
- * fields at sensible sizes internally).
+ * max-w-[1600px] matches the Dashboard's content width exactly (see
+ * app/page.tsx) — a deliberate consistency choice so every top-level
+ * screen in the app shares the same outer width instead of Settings
+ * alone reading narrower. The individual settings forms nested inside
+ * still don't use the full available width (they cap their own fields
+ * at sensible sizes internally, same as before) — this only widens the
+ * outer frame, not the forms themselves.
  */
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">{children}</div>
+      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:py-8">{children}</div>
     </AppShell>
   );
 }
