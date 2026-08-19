@@ -5,10 +5,16 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { portalApiFetch, portalFetchPdfObjectUrl, PortalApiError } from '../../../../lib/portal/portal-api-client';
+import { clearPortalToken, getPortalCompanySlug } from '../../../../lib/portal/portal-token-storage';
 import { darkenHex } from '../../../../lib/theme/brand-theme-injector';
 import { StatusBadge, ESTIMATE_STATUS_COLORS } from '../../../../components/action-center/StatusBadge';
 import { SignaturePad } from '../../../../components/jobs/SignaturePad';
 import { SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS } from '../../../../lib/api/service-catalog';
+import { PortalShell } from '../../../../components/portal/PortalShell';
+
+interface DashboardHeader {
+  company: { name: string; logoUrl: string | null };
+}
 
 interface EstimateLineItem {
   description: string | null;
@@ -63,6 +69,17 @@ export default function PortalEstimateDetailPage() {
     ['portal-estimate', estimateId],
     () => portalApiFetch<EstimateDetail>(`/portal/estimates/${estimateId}`),
   );
+
+  // Same shared SWR key every other portal page already uses for the
+  // shell's company name/logo — this fetch is deduped against those,
+  // not a new independent request every time a customer navigates here.
+  const { data: dashboardHeader } = useSWR<DashboardHeader>('portal-dashboard-header', () => portalApiFetch<DashboardHeader>('/portal/dashboard'));
+
+  function handleSignOut() {
+    const slug = getPortalCompanySlug();
+    clearPortalToken();
+    window.location.href = slug ? `/portal/${slug}/login` : '/';
+  }
 
   // Same per-tenant color-override technique as the staff app's
   // BrandThemeInjector — this page has no staff auth to source
@@ -139,13 +156,13 @@ export default function PortalEstimateDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-8">
-        <div className="mx-auto max-w-md space-y-3">
+      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+        <div className="mx-auto max-w-2xl space-y-3">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-200" />
           ))}
         </div>
-      </main>
+      </PortalShell>
     );
   }
 
@@ -156,14 +173,14 @@ export default function PortalEstimateDetailPage() {
     // response rather than something more specific we don't actually
     // know.
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
-          <p className="text-sm text-slate-600">We couldn't find that estimate.</p>
-          <Link href="/portal/estimates" className="mt-3 inline-block text-sm font-medium text-[var(--color-brand)]">
-            Back to Estimates
+      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+        <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
+          <p className="text-sm text-slate-600">We couldn't find that quote.</p>
+          <Link href="/portal/dashboard" className="mt-3 inline-block text-sm font-medium text-[var(--color-brand)]">
+            Back to Quotes
           </Link>
         </div>
-      </main>
+      </PortalShell>
     );
   }
 
@@ -171,19 +188,10 @@ export default function PortalEstimateDetailPage() {
   const canDecline = !DECLINE_BLOCKED_STATUSES.has(estimate.status);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 pb-28 pt-8">
-      <div className="mx-auto max-w-md">
-        {estimate.branding.logoUrl && (
-          <div className="mb-4 flex justify-center">
-            <img
-              src={estimate.branding.logoUrl}
-              alt=""
-              className="max-h-16 w-auto max-w-full object-contain"
-            />
-          </div>
-        )}
-        <Link href="/portal/estimates" className="text-xs text-slate-400 hover:text-slate-600">
-          ← Back to Estimates
+    <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+      <div className="mx-auto max-w-2xl">
+        <Link href="/portal/dashboard" className="text-xs text-slate-400 hover:text-slate-600">
+          ← Back to Quotes
         </Link>
 
         {successMessage && (
@@ -399,6 +407,6 @@ export default function PortalEstimateDetailPage() {
           </div>
         </div>
       )}
-    </main>
+    </PortalShell>
   );
 }

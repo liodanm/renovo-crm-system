@@ -7,8 +7,14 @@ import useSWR from 'swr';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { portalApiFetch, portalFetchPdfObjectUrl, PortalApiError } from '../../../../lib/portal/portal-api-client';
+import { clearPortalToken, getPortalCompanySlug } from '../../../../lib/portal/portal-token-storage';
 import { darkenHex } from '../../../../lib/theme/brand-theme-injector';
 import { StatusBadge, INVOICE_STATUS_COLORS } from '../../../../components/action-center/StatusBadge';
+import { PortalShell } from '../../../../components/portal/PortalShell';
+
+interface DashboardHeader {
+  company: { name: string; logoUrl: string | null };
+}
 
 interface InvoiceLineItem {
   description: string | null;
@@ -71,6 +77,14 @@ export default function PortalInvoiceDetailPage() {
     () => portalApiFetch<InvoiceDetail>(`/portal/invoices/${invoiceId}`),
   );
 
+  const { data: dashboardHeader } = useSWR<DashboardHeader>('portal-dashboard-header', () => portalApiFetch<DashboardHeader>('/portal/dashboard'));
+
+  function handleSignOut() {
+    const slug = getPortalCompanySlug();
+    clearPortalToken();
+    window.location.href = slug ? `/portal/${slug}/login` : '/';
+  }
+
   // Same per-tenant color-override technique as the Estimate portal
   // page and the staff app's BrandThemeInjector.
   useEffect(() => {
@@ -106,48 +120,39 @@ export default function PortalInvoiceDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-8">
-        <div className="mx-auto max-w-md space-y-3">
+      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+        <div className="mx-auto max-w-2xl space-y-3">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-200" />
           ))}
         </div>
-      </main>
+      </PortalShell>
     );
   }
 
   if (error || !invoice) {
-    // Same honest generic message as the Estimate page — the backend
+    // Same honest generic message as the Quote page — the backend
     // returns a plain 404 either way, never distinguishing "doesn't
     // exist" from "not yours."
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
+      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+        <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
           <p className="text-sm text-slate-600">We couldn't find that invoice.</p>
-          <Link href="/portal/estimates" className="mt-3 inline-block text-sm font-medium text-[var(--color-brand)]">
-            Back to Portal
+          <Link href="/portal/invoices" className="mt-3 inline-block text-sm font-medium text-[var(--color-brand)]">
+            Back to Invoices
           </Link>
         </div>
-      </main>
+      </PortalShell>
     );
   }
 
   const canPay = PAYABLE_STATUSES.has(invoice.status) && invoice.balanceDue > 0;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 pb-28 pt-8">
-      <div className="mx-auto max-w-md">
-        {invoice.branding.logoUrl && (
-          <div className="mb-4 flex justify-center">
-            <img
-              src={invoice.branding.logoUrl}
-              alt=""
-              className="max-h-16 w-auto max-w-full object-contain"
-            />
-          </div>
-        )}
-        <Link href="/portal/estimates" className="text-xs text-slate-400 hover:text-slate-600">
-          ← Back to Portal
+    <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+      <div className="mx-auto max-w-2xl">
+        <Link href="/portal/invoices" className="text-xs text-slate-400 hover:text-slate-600">
+          ← Back to Invoices
         </Link>
 
         {successMessage && (
@@ -306,7 +311,7 @@ export default function PortalInvoiceDetailPage() {
           }}
         />
       )}
-    </main>
+    </PortalShell>
   );
 }
 
