@@ -1,108 +1,107 @@
-# Renovo CRM — Roadmap
+# ROADMAP.md
 
-Living document for features that are **deliberately deferred**, not
-forgotten. Distinct from `PROJECT_STATUS.md` (a regenerated snapshot of
-what's built right now) and `CHANGELOG.md` (what's already shipped) —
-this is where a planned-but-not-yet-built item gets recorded so it
-doesn't get lost between sessions, and isn't accidentally re-proposed as
-if it were new.
-
-Entries move from here into `CHANGELOG.md` once actually built.
+This document does not select a next feature. It lays out current state,
+known hardening needs, potential future directions, and questions that
+require a product decision from the project owner. See
+`PROJECT_STATUS.md` for the evidence behind every claim here.
 
 ---
 
-## Current Approved Priority Order (as of the v1.0 readiness audit)
+## Current State
 
-Full detail in `V1_READINESS_AUDIT.md` and `ROADMAP_PHASE_2_PLAN.md` —
-this is the short version so it's not lost in a longer document.
-
-1. UI Standardization (StatusBadge consolidation, ConfirmDialog everywhere) + production readiness (real pagination, empty/loading/error state consistency)
-2. Real business integrations live (Postmark/Stripe/Twilio credentials — config only, no code)
-3. **Lead Management** — new module, new `leads` table
-4. **Property Management** — mostly extends what already exists (`photos.property_id` already supports this)
-5. **Automation settings UI** — the real engine (follow-ups, recurring reminders, review requests) already exists and already runs on a daily cron; this phase is mostly surfacing it through settings UI
+The core operational loop — Lead/Customer → Estimate → Job → Schedule →
+Complete → Invoice → Payment — is fully built, connected, and verified
+against source at every step (Section: Workflow 1 & 2 in
+`WORKFLOW_MAP.md`). Customer Portal covers Estimates and Invoices, not
+Jobs. AI Receptionist has a real backend with no way to configure or
+test it yet. SaaS billing/tenant-management infrastructure does not
+exist beyond data-layer tenant isolation. Automated test coverage is
+narrow — 5 unit tests total, no integration or e2e tests anywhere.
 
 ---
 
-## Future Module: Release Management & Versioning
+## Hardening Queue
 
-**Status:** Recorded, not started. Explicitly deferred until the CRM
-reaches its first production-ready milestone (v1.0.0) — this is
-intentional, not an oversight, per direct instruction.
+Ordered roughly by leverage (small effort / real risk reduction), not by
+urgency ranking — see Section 8 (Real Open Issues) for severity.
 
-**Trigger to begin work:** When Claude (or whoever picks this up next)
-believes the application is genuinely ready for v1.0.0, that should be
-raised explicitly before starting this module — not assumed silently.
+1. **Route Invoice Void and Payment Void through `ConfirmDialog`**
+   instead of browser `confirm()`. Small, contained, closes a
+   long-standing consistency gap (ADR-010 exception).
+2. **Add automated test coverage for the Stripe webhook path**
+   (`handleStripeWebhook`, both success and failure events) — this is
+   the highest-stakes untested path in the app (money + external
+   signature-verified webhook) and currently has zero test coverage.
+3. **Clarify or remove the vestigial `prisma:migrate` npm script**
+   (`backend/package.json`) — it claims `prisma migrate deploy` but
+   nothing about the project's actual migration path uses Prisma's
+   migration engine. Leaving it risks a future session trusting it.
+4. **Confirm Railway's Pre-Deploy Command is actually wired to
+   `scripts/run-migrations.sh`** — the script is real and correct, but
+   its production wiring isn't verifiable from the repo alone.
+5. **Audit Customer Portal auth routing specifically** — not because
+   anything is currently broken, but because this exact area (staff auth
+   intercepting portal routes, a DTO missing validation decorators) has
+   produced multiple real bugs recently. A deliberate pass now is cheaper
+   than the next bug report.
+6. **Resolve the several UNKNOWN items in `PROJECT_STATUS.md`** with
+   direct verification rather than leaving them ambiguous: Calendar
+   day/week/month completeness, Maps UI, Job GPS capture, Refunds vs.
+   voids, Support settings section, whether scheduling triggers a
+   customer notification, and whether the AI integration (Anthropic API
+   calls) degrades gracefully when unconfigured like every other
+   integration does.
 
-### Requirements as specified
+---
 
-Semantic Versioning (MAJOR.MINOR.PATCH):
-- MAJOR — breaking changes or major platform updates
-- MINOR — new features or modules
-- PATCH — bug fixes, security fixes, performance improvements
+## Product Opportunities
 
-Scope:
-1. A single source of truth for the application version, shared by
-   frontend, backend, and API — not three independently-maintained
-   version strings that can drift apart.
-2. Settings → About page: Current Version, Build Number, Build Date,
-   Environment (Development/Staging/Production).
-3. Automatic version display in the application footer.
-4. Automatic CHANGELOG generation per release.
-5. Release Notes for every version.
-6. Build metadata included in application logs.
-7. Git tag and release workflow integrated with GitHub.
-8. Optional CI automation to increment versions during official
-   releases.
-9. A release checklist: testing, deployment, backups, rollback
-   procedures.
-10. A Release History page for administrators to review previous
-    versions and release notes.
+Listed as *possibilities* only — not a recommendation, not ranked, not a
+decision. Each would need explicit sign-off before any work starts.
 
-### Notes for whoever builds this later
+- Extend the Customer Portal to include Job information (currently
+  Estimates + Invoices only).
+- Build a settings UI and live-call validation path for the AI
+  Receptionist, unlocking a backend that already exists.
+- Locate or build a frontend/embed for the Quote Widget backend, which
+  currently has no confirmed consumer.
+- Add broader automated test coverage beyond the 5 existing unit tests —
+  particularly integration tests around tenant isolation and portal
+  ownership checks, given how much of the app's security model depends
+  on both being correct everywhere.
+- If SaaS resale is still the direction, design and build actual
+  subscription/billing infrastructure — today's `Company.status` field
+  is a placeholder, not a working state machine.
+- Build a Users & Roles settings UI to expose the backend permission
+  system that already exists but has no staff-facing screen.
+- Give `appointments` a real Prisma model, closing the type-safety gap
+  that the rest of the app doesn't have — would need careful handling
+  given the volume of existing raw SQL against it.
 
-A few things already exist in the codebase that this module should
-**reuse, not duplicate**, once it's built:
+---
 
-- `CHANGELOG.md` and `RELEASE_NOTES.md` already exist at the project
-  root, hand-maintained. Requirement #4/#5 above should extend these
-  real files (or formalize their existing format), not introduce a
-  second, parallel changelog system.
-- `.github/workflows/ci.yml` already exists (build/type-check/test gate
-  on PRs into `main`). Requirement #7/#8 should extend this real
-  workflow, not stand up a second one.
-- The Settings Framework (`SettingsSectionShell`, the nav config in
-  `lib/settings-nav-config.ts`) already exists and is the correct place
-  for the About page (#2) and Release History page (#10) — both should
-  be built as real settings pages using that existing shell, matching
-  every other settings page in the app, not a one-off layout.
-- `IntegrationStatusService` (`common/integrations/`) is a working
-  example of "one shared service, read by both boot-time logging and a
-  Settings page" — the version/build-metadata service this module needs
-  should follow the same shape.
+## Pending Product Decisions
 
-### Current honest assessment — is this near v1.0.0 yet?
+Questions that cannot be resolved technically — they need your call.
 
-Not quite, as of the last Production Hardening pass (readiness scored
-82%). What's genuinely solid: CI, Docker, health checks, structured
-logging, RLS/tenant isolation (fully audited), rate limiting, and every
-core business module (Customers, Estimates, Jobs, Scheduling, Service
-Catalog, Settings, Invoices, Payments, PDF/Email, Reports) built, tested,
-and connected end-to-end.
-
-What's still open before v1.0.0 would be honest to call itself
-"production-ready" rather than "production-capable":
-- Real Postmark/Stripe/Twilio credentials aren't live anywhere yet —
-  the code is correct and tested, but nothing has actually sent a real
-  email, processed a real card, or texted a real customer in production.
-- No monitoring/error-reporting service (no Sentry/APM) — structured
-  logs exist, nothing aggregates or alerts on them yet.
-- No optimistic locking anywhere in the schema.
-- List-endpoint pagination is partial (Customers has real page/pageSize
-  pagination; Invoices/Jobs/Payments have a safety-net `LIMIT 200` but
-  not full pagination yet).
-
-Recommendation: treat these four items as the real pre-v1.0.0 checklist,
-separate from this Release Management module itself. Once they're
-closed, that's the moment to flag v1.0.0 readiness explicitly and
-propose starting this module.
+1. **ADR-007 — the manual `convert-to-job` endpoint.** Deprecate it now
+   that acceptance auto-creates the job, or keep it intentionally as a
+   manual override/repair path? This has carried unresolved across
+   three documentation audits now. It's a five-minute decision, not a
+   technical unknown.
+2. **Is SaaS resale (to other pressure-washing companies) still the
+   actual direction**, or is this now purpose-built for Relentless
+   Pressure Wash specifically? This materially changes whether the
+   billing/subscription gap in Section 3 of `PROJECT_CONTEXT.md` is an
+   urgent gap or irrelevant scope that shouldn't be built at all.
+3. **Does the Quote Widget need a frontend built**, or does one already
+   exist outside this repository (a separate marketing site, a
+   third-party embed host, etc.)? Determines whether "build the embed"
+   belongs on any future list at all.
+4. **Is a customer-facing Job-status view in the Portal wanted**, or is
+   Estimates + Invoices the intended full scope of the portal?
+5. **How much automated test coverage is actually wanted going
+   forward?** The project has clearly prioritized manual/live-database
+   verification over automated tests so far (per its own stated
+   practice) — worth confirming whether that's a deliberate ongoing
+   choice or something to invest in changing now that the app is larger.
