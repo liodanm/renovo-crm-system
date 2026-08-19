@@ -11,13 +11,16 @@ import { clearPortalToken, getPortalCompanySlug } from '../../../../lib/portal/p
 import { darkenHex } from '../../../../lib/theme/brand-theme-injector';
 import { StatusBadge, INVOICE_STATUS_COLORS } from '../../../../components/action-center/StatusBadge';
 import { PortalShell } from '../../../../components/portal/PortalShell';
+import { SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS } from '../../../../lib/api/service-catalog';
 
 interface DashboardHeader {
-  company: { name: string; logoUrl: string | null };
+  company: { name: string; logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
 }
 
 interface InvoiceLineItem {
   description: string | null;
+  serviceType?: string | null;
+  customServiceName?: string | null;
   quantity: string;
   unitOfMeasure: string;
   unitPrice: string;
@@ -120,7 +123,7 @@ export default function PortalInvoiceDetailPage() {
 
   if (isLoading) {
     return (
-      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} primaryColor={dashboardHeader?.company.primaryColor} secondaryColor={dashboardHeader?.company.secondaryColor} onSignOut={handleSignOut}>
         <div className="mx-auto max-w-2xl space-y-3">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-200" />
@@ -135,7 +138,7 @@ export default function PortalInvoiceDetailPage() {
     // returns a plain 404 either way, never distinguishing "doesn't
     // exist" from "not yours."
     return (
-      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} primaryColor={dashboardHeader?.company.primaryColor} secondaryColor={dashboardHeader?.company.secondaryColor} onSignOut={handleSignOut}>
         <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
           <p className="text-sm text-slate-600">We couldn't find that invoice.</p>
           <Link href="/portal/invoices" className="mt-3 inline-block text-sm font-medium text-[var(--color-brand)]">
@@ -149,7 +152,7 @@ export default function PortalInvoiceDetailPage() {
   const canPay = PAYABLE_STATUSES.has(invoice.status) && invoice.balanceDue > 0;
 
   return (
-    <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+    <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} primaryColor={dashboardHeader?.company.primaryColor} secondaryColor={dashboardHeader?.company.secondaryColor} onSignOut={handleSignOut}>
       <div className="mx-auto max-w-2xl">
         <Link href="/portal/invoices" className="text-xs text-slate-400 hover:text-slate-600">
           ← Back to Invoices
@@ -198,15 +201,34 @@ export default function PortalInvoiceDetailPage() {
           <div className="border-t border-slate-100 p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Services</p>
             <div className="mt-3 divide-y divide-slate-100">
-              {invoice.lineItems.map((li, i) => (
-                <div key={i} className="py-3 first:pt-0 last:pb-0 text-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="min-w-0 break-words font-medium text-slate-900">{li.description || 'Service'}</span>
-                    <span className="shrink-0 font-medium text-slate-900">{money(li.total)}</span>
+              {/* Same service-name-above-description pattern as the Quote
+                  detail page — service_type/custom_service_name were
+                  already real columns on invoice_line_items, just not
+                  selected/returned before now (see portal-data.service.ts's
+                  getInvoiceForPdf). Quantity × unit price is intentionally
+                  no longer shown here — the line total is the number that
+                  matters to a customer; the pricing math behind it belongs
+                  on the estimate/quote, not restated on every invoice. */}
+              {invoice.lineItems.map((li, i) => {
+                const Icon = li.serviceType ? SERVICE_TYPE_ICONS[li.serviceType] ?? SERVICE_TYPE_ICONS.other : null;
+                const serviceLabel = li.customServiceName || (li.serviceType ? SERVICE_TYPE_LABELS[li.serviceType] ?? li.serviceType : null);
+                const primaryText = serviceLabel || li.description || 'Service';
+                const showDescriptionBelow = !!li.description && li.description !== primaryText;
+                return (
+                  <div key={i} className="py-3 first:pt-0 last:pb-0 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-1.5 break-words font-semibold text-slate-900">
+                        {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" />}
+                        {primaryText}
+                      </span>
+                      <span className="shrink-0 font-medium text-slate-900">{money(li.total)}</span>
+                    </div>
+                    {showDescriptionBelow && (
+                      <p className="mt-1 pl-[22px] text-sm leading-relaxed text-slate-500">{li.description}</p>
+                    )}
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-500">{li.quantity} {li.unitOfMeasure} × {money(li.unitPrice)}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

@@ -459,6 +459,8 @@ export class PortalController {
         unitOfMeasure: li.unitOfMeasure,
         unitPrice: li.unitPrice,
         total: li.total,
+        serviceType: li.serviceType,
+        customServiceName: li.customServiceName,
       })),
       payments: payments.map((p: any) => ({
         amount: p.amount,

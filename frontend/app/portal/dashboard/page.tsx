@@ -11,7 +11,7 @@ import { StatusBadge, ESTIMATE_STATUS_COLORS } from '../../../components/action-
 
 interface DashboardResponse {
   customer: { name: string };
-  company: { name: string; logoUrl: string | null };
+  company: { name: string; logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
 }
 
 interface EstimateListItem {
@@ -54,7 +54,7 @@ export default function PortalDashboardPage() {
   }
 
   return (
-    <PortalShell companyName={dashboard?.company.name} logoUrl={dashboard?.company.logoUrl} onSignOut={handleSignOut}>
+    <PortalShell companyName={dashboard?.company.name} logoUrl={dashboard?.company.logoUrl} primaryColor={dashboard?.company.primaryColor} secondaryColor={dashboard?.company.secondaryColor} onSignOut={handleSignOut}>
       <h1 className="text-2xl font-semibold text-slate-900">
         {greeting()}{dashboard?.customer.name ? `, ${dashboard.customer.name.split(' ')[0]}` : ''}
       </h1>

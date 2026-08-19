@@ -13,7 +13,7 @@ import { SERVICE_TYPE_ICONS, SERVICE_TYPE_LABELS } from '../../../../lib/api/ser
 import { PortalShell } from '../../../../components/portal/PortalShell';
 
 interface DashboardHeader {
-  company: { name: string; logoUrl: string | null };
+  company: { name: string; logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
 }
 
 interface EstimateLineItem {
@@ -156,7 +156,7 @@ export default function PortalEstimateDetailPage() {
 
   if (isLoading) {
     return (
-      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} primaryColor={dashboardHeader?.company.primaryColor} secondaryColor={dashboardHeader?.company.secondaryColor} onSignOut={handleSignOut}>
         <div className="mx-auto max-w-2xl space-y-3">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-200" />
@@ -173,7 +173,7 @@ export default function PortalEstimateDetailPage() {
     // response rather than something more specific we don't actually
     // know.
     return (
-      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+      <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} primaryColor={dashboardHeader?.company.primaryColor} secondaryColor={dashboardHeader?.company.secondaryColor} onSignOut={handleSignOut}>
         <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
           <p className="text-sm text-slate-600">We couldn't find that quote.</p>
           <Link href="/portal/dashboard" className="mt-3 inline-block text-sm font-medium text-[var(--color-brand)]">
@@ -188,7 +188,7 @@ export default function PortalEstimateDetailPage() {
   const canDecline = !DECLINE_BLOCKED_STATUSES.has(estimate.status);
 
   return (
-    <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} onSignOut={handleSignOut}>
+    <PortalShell companyName={dashboardHeader?.company.name} logoUrl={dashboardHeader?.company.logoUrl} primaryColor={dashboardHeader?.company.primaryColor} secondaryColor={dashboardHeader?.company.secondaryColor} onSignOut={handleSignOut}>
       <div className="mx-auto max-w-2xl">
         <Link href="/portal/dashboard" className="text-xs text-slate-400 hover:text-slate-600">
           ← Back to Quotes

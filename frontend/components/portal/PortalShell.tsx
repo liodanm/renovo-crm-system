@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Building2 } from 'lucide-react';
 import { portalNavItems } from '../../lib/portal/portal-nav';
+import { darkenHex } from '../../lib/theme/brand-theme-injector';
 import { cn } from '../../lib/utils';
 
 /**
@@ -15,19 +17,49 @@ import { cn } from '../../lib/utils';
  * shared shell for every portal page from here forward, matching this
  * feature's own explicit design reference — not a parallel shell built
  * out of habit.
+ *
+ * Brand-color injection lives here now, not duplicated per-page — same
+ * technique the Quote/Invoice detail pages already used individually
+ * (setting --color-brand/-dark/-secondary on the document root), just
+ * centralized since every portal page renders through this shell.
+ * Those two detail pages still also run their own copy (sourced from
+ * their own estimate/invoice response's branding, which arrives before
+ * this shell's dashboard-header fetch typically resolves) — both set
+ * the same real color for the same company, so this is redundant-but-
+ * harmless there, not a second conflicting source of truth.
  */
 export function PortalShell({
   children,
   companyName,
   logoUrl,
+  primaryColor,
+  secondaryColor,
   onSignOut,
 }: {
   children: React.ReactNode;
   companyName?: string;
   logoUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
   onSignOut: () => void;
 }) {
   const pathname = usePathname();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (primaryColor) {
+      root.style.setProperty('--color-brand', primaryColor);
+      root.style.setProperty('--color-brand-dark', darkenHex(primaryColor));
+    }
+    if (secondaryColor) {
+      root.style.setProperty('--color-brand-secondary', secondaryColor);
+    }
+    return () => {
+      root.style.removeProperty('--color-brand');
+      root.style.removeProperty('--color-brand-dark');
+      root.style.removeProperty('--color-brand-secondary');
+    };
+  }, [primaryColor, secondaryColor]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -41,7 +73,7 @@ export function PortalShell({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt={companyName ?? 'Company logo'} className="h-7 w-7 shrink-0 rounded object-contain" />
             ) : (
-              <Building2 className="h-6 w-6 shrink-0 text-[#11365F]" aria-hidden="true" />
+              <Building2 className="h-6 w-6 shrink-0 text-[var(--color-brand)]" aria-hidden="true" />
             )}
             <span className="truncate text-sm font-semibold text-slate-900">{companyName ?? 'Loading…'}</span>
           </div>
@@ -56,7 +88,7 @@ export function PortalShell({
                   href={item.href}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                    active ? 'bg-[#11365F]/[0.06] text-[#11365F]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700',
+                    active ? 'bg-[var(--color-brand)]/[0.06] text-[var(--color-brand)]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700',
                   )}
                 >
                   <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
@@ -97,7 +129,7 @@ export function PortalShell({
                   href={item.href}
                   className={cn(
                     'shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium',
-                    active ? 'bg-[#11365F]/[0.08] text-[#11365F]' : 'text-slate-500',
+                    active ? 'bg-[var(--color-brand)]/[0.08] text-[var(--color-brand)]' : 'text-slate-500',
                   )}
                 >
                   {item.label}

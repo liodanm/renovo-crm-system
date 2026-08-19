@@ -149,11 +149,17 @@ export class PortalDataService {
 
   /** Full data for PDF generation — invoice_line_items isn't wired as a
    * typed Prisma relation on Invoice yet, so line items are fetched with
-   * one small raw query rather than left out of the customer's PDF. */
+   * one small raw query rather than left out of the customer's PDF.
+   * serviceType/customServiceName added so the portal's invoice view can
+   * show a real service name above the description, matching how the
+   * Estimate portal page already does — those two columns already exist
+   * on invoice_line_items (see migration 038), this just selects them;
+   * no schema change. */
   async getInvoiceForPdf(companyId: string, customerId: string, invoiceId: string) {
     const invoice = await this.getOwnedInvoice(companyId, customerId, invoiceId);
     const lineItems = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw<any[]>`
-      SELECT description, quantity, unit_price AS "unitPrice", total, unit_of_measure AS "unitOfMeasure"
+      SELECT description, quantity, unit_price AS "unitPrice", total, unit_of_measure AS "unitOfMeasure",
+             service_type AS "serviceType", custom_service_name AS "customServiceName"
       FROM invoice_line_items WHERE invoice_id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid ORDER BY sort_order ASC
     `);
     return { ...invoice, lineItems };
@@ -476,7 +482,7 @@ export class PortalDataService {
       customer: {
         name: customer.businessName || [customer.firstName, customer.lastName].filter(Boolean).join(' ') || 'there',
       },
-      company: { name: company.dba || company.name, logoUrl: branding.logoUrl },
+      company: { name: company.dba || company.name, logoUrl: branding.logoUrl, primaryColor: branding.primaryColor, secondaryColor: branding.secondaryColor },
       outstandingBalance,
       openEstimatesCount: openEstimates.length,
       openInvoicesCount: openInvoices.length,

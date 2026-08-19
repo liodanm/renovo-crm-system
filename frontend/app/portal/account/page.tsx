@@ -7,7 +7,7 @@ import { PortalShell } from '../../../components/portal/PortalShell';
 
 interface DashboardResponse {
   customer: { name: string };
-  company: { name: string; logoUrl: string | null };
+  company: { name: string; logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
 }
 
 interface Account {
@@ -31,7 +31,7 @@ export default function PortalAccountPage() {
   const displayName = account ? (account.businessName || [account.firstName, account.lastName].filter(Boolean).join(' ')) : null;
 
   return (
-    <PortalShell companyName={dashboard?.company.name} logoUrl={dashboard?.company.logoUrl} onSignOut={handleSignOut}>
+    <PortalShell companyName={dashboard?.company.name} logoUrl={dashboard?.company.logoUrl} primaryColor={dashboard?.company.primaryColor} secondaryColor={dashboard?.company.secondaryColor} onSignOut={handleSignOut}>
       <h1 className="text-2xl font-semibold text-slate-900">Account</h1>
 
       <div className="mt-6 max-w-md rounded-xl border border-slate-200 bg-white p-5">

@@ -10,7 +10,7 @@ import { StatusBadge, INVOICE_STATUS_COLORS } from '../../../components/action-c
 
 interface DashboardResponse {
   customer: { name: string };
-  company: { name: string; logoUrl: string | null };
+  company: { name: string; logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
 }
 
 interface InvoiceListItem {
@@ -36,7 +36,7 @@ export default function PortalInvoicesPage() {
   }
 
   return (
-    <PortalShell companyName={dashboard?.company.name} logoUrl={dashboard?.company.logoUrl} onSignOut={handleSignOut}>
+    <PortalShell companyName={dashboard?.company.name} logoUrl={dashboard?.company.logoUrl} primaryColor={dashboard?.company.primaryColor} secondaryColor={dashboard?.company.secondaryColor} onSignOut={handleSignOut}>
       <h1 className="text-2xl font-semibold text-slate-900">Invoices</h1>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
