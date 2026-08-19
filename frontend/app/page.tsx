@@ -49,7 +49,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:py-8">
         <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
           Good {timeOfDayGreeting()}
           {user.email ? `, ${user.email.split('@')[0]}` : ''}
