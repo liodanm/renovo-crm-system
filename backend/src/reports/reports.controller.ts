@@ -4,11 +4,15 @@ import { QueryReportsDto } from './dto/query-reports.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
+import { JobCallbacksService } from '../jobs/services/job-callbacks.service';
 
 @Controller('reports')
 @RequirePermissions('estimates.read') // reads across Invoices/Payments/Estimates/Jobs — same baseline-read reasoning as every other cross-module controller in this app
 export class ReportsController {
-  constructor(private readonly reports: ReportsService) {}
+  constructor(
+    private readonly reports: ReportsService,
+    private readonly callbacks: JobCallbacksService,
+  ) {}
 
   @Get('snapshot')
   getSnapshot(@CurrentUser() user: AuthenticatedRequestUser) {
@@ -95,5 +99,35 @@ export class ReportsController {
   @Get('lead-source-trend')
   getLeadSourceTrend(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
     return this.reports.getLeadSourceTrend(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  // ---- Job Cost & Gross Margin (Reporting Center Phase 2) ----
+  // Real business cost/profit data — same gate as every other
+  // profitability-adjacent figure in this controller, reusing the exact
+  // permission Estimates/Jobs already established rather than a third
+  // check.
+
+  @Get('job-cost-summary')
+  getJobCostSummary(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    if (!user.permissions.includes('jobs.profitability')) return null;
+    return this.reports.getJobCostSummary(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('job-cost-detail')
+  getJobCostDetail(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    if (!user.permissions.includes('jobs.profitability')) return [];
+    return this.reports.getJobCostDetail(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  // ---- Owner Scorecard supporting endpoints ----
+
+  @Get('callback-rate')
+  getCallbackRate(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.callbacks.getCallbackRate(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('customer-satisfaction')
+  getCustomerSatisfaction(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getCustomerSatisfactionSummary(user.companyId, new Date(query.start), new Date(query.end));
   }
 }

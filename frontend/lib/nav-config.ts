@@ -63,10 +63,16 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Reports',
+    items: [
+      { label: 'Owner Scorecard', href: '/reports', icon: BarChart3 },
+      { label: 'Job Cost & Margin', href: '/reports/job-cost', icon: BarChart3 },
+    ],
+  },
+  {
     label: 'Operations',
     items: [
       { label: 'Service Catalog', href: '/service-catalog', icon: BookOpen },
-      { label: 'Reports', href: '/reports', icon: BarChart3 },
       { label: 'Settings', href: '/settings', icon: Settings },
       { label: 'Support', href: '/support', icon: LifeBuoy, comingSoon: true },
     ],

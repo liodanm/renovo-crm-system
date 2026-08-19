@@ -2,6 +2,32 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 /**
+ * Mirrors the exact aliased columns in getJobCostDetail's SELECT below.
+ * Raw $queryRaw results come back as strings/Decimals for numeric
+ * Postgres columns (never real JS numbers) — every numeric field here
+ * is typed as the string Prisma actually hands back, matching the same
+ * convention every other interface in frontend/lib/api/reports.ts
+ * already uses (e.g. RevenueByCustomer.revenue: string). Callers convert
+ * via Number() at the point of use, same as everywhere else in this file.
+ */
+interface JobCostDetailRow {
+  jobId: string;
+  jobNumber: string;
+  customerName: string;
+  completedAt: Date;
+  revenue: string;
+  actualCost: string;
+  laborCost: string;
+  chemicalCost: string;
+  equipmentCost: string;
+  fuelCost: string;
+  miscCost: string;
+  grossProfit: string;
+  grossMarginPercent: string | null;
+  isComplete: boolean;
+}
+
+/**
  * Every number here is a read-only aggregate over data that already
  * exists — Invoices, Payments, Estimates, Jobs, Service Catalog. No
  * calculation is reinvented: "Profit" reuses the exact profitability
@@ -414,5 +440,137 @@ export class ReportsService {
       WHERE company_id = ${companyId}::uuid AND created_at >= ${start} AND created_at < ${end}
       GROUP BY 1, 2 ORDER BY 1 ASC
     `);
+  }
+
+  // =========================================================================
+  // Job Cost & Gross Margin — the one report this module genuinely could
+  // NOT honestly support until the reporting-foundation phase added
+  // job_line_items.actual_* columns. getSnapshotKpis/getMonthlyProfitTrend
+  // above still intentionally use estimate_line_items.estimated_profit —
+  // that's correct for THOSE endpoints (a forward-looking snapshot of
+  // what's been quoted), left untouched here. This section is the actual,
+  // completed-work figure: real dollars spent, only for jobs where
+  // someone has actually recorded them.
+  // =========================================================================
+
+  /**
+   * Per-job actual cost/profit, restricted to completed jobs with real
+   * actual-cost data recorded on at least one line item — a job with
+   * zero actual-cost entries is completely absent from this list, never
+   * shown with a fabricated $0 cost. Reflects the exact CRITICAL COST
+   * RULE from the approval doc: no estimated cost ever appears here
+   * relabeled as actual.
+   *
+   * Explicitly typed via the JobCostDetailRow generic on $queryRaw —
+   * without it, TypeScript infers `unknown` for the raw query result,
+   * which only surfaces as a real tsc error at the ONE place that
+   * calls .length/.filter/.reduce on this method's return value
+   * (getJobCostSummary below). Confirmed by a real `tsc --noEmit` run;
+   * not caught in this sandbox since Prisma's client couldn't be
+   * regenerated here to verify against.
+   */
+  async getJobCostDetail(companyId: string, start: Date, end: Date): Promise<JobCostDetailRow[]> {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw<JobCostDetailRow[]>`
+      WITH job_costs AS (
+        SELECT
+          jli.job_id,
+          SUM(jli.total) AS revenue,
+          SUM(COALESCE(jli.actual_labor_hours, 0) *
+              COALESCE((SELECT hourly_labor_rate FROM users WHERE id = jli.assigned_user_id), (SELECT default_labor_rate FROM companies WHERE id = ${companyId}::uuid), 0)
+          ) AS labor_cost,
+          SUM(COALESCE(jli.actual_chemical_cost, 0)) AS chemical_cost,
+          SUM(COALESCE(jli.actual_equipment_cost, 0)) AS equipment_cost,
+          SUM(COALESCE(jli.actual_fuel_cost, 0)) AS fuel_cost,
+          SUM(COALESCE(jli.actual_misc_cost, 0)) AS misc_cost,
+          -- "Has real data" means at least one line item on the job has
+          -- at least one actual_* field recorded — matches
+          -- JobsService.applyJobProfitabilityVisibility's own
+          -- linesWithCost definition exactly, not a second definition
+          -- of "complete" invented here.
+          BOOL_OR(jli.actual_labor_hours IS NOT NULL OR jli.actual_chemical_cost IS NOT NULL OR jli.actual_equipment_cost IS NOT NULL
+                  OR jli.actual_fuel_cost IS NOT NULL OR jli.actual_misc_cost IS NOT NULL) AS has_actual_cost_data,
+          COUNT(*) AS line_item_count,
+          COUNT(*) FILTER (WHERE jli.actual_labor_hours IS NOT NULL OR jli.actual_chemical_cost IS NOT NULL OR jli.actual_equipment_cost IS NOT NULL
+                  OR jli.actual_fuel_cost IS NOT NULL OR jli.actual_misc_cost IS NOT NULL) AS line_items_with_cost
+        FROM job_line_items jli
+        WHERE jli.company_id = ${companyId}::uuid
+        GROUP BY jli.job_id
+      )
+      SELECT
+        j.id AS "jobId", j.job_number AS "jobNumber",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName",
+        j.actual_end AS "completedAt",
+        jc.revenue,
+        (jc.labor_cost + jc.chemical_cost + jc.equipment_cost + jc.fuel_cost + jc.misc_cost) AS "actualCost",
+        jc.labor_cost AS "laborCost", jc.chemical_cost AS "chemicalCost", jc.equipment_cost AS "equipmentCost",
+        jc.fuel_cost AS "fuelCost", jc.misc_cost AS "miscCost",
+        (jc.revenue - (jc.labor_cost + jc.chemical_cost + jc.equipment_cost + jc.fuel_cost + jc.misc_cost)) AS "grossProfit",
+        CASE WHEN jc.revenue > 0 THEN ROUND((jc.revenue - (jc.labor_cost + jc.chemical_cost + jc.equipment_cost + jc.fuel_cost + jc.misc_cost)) / jc.revenue * 100, 2) ELSE NULL END AS "grossMarginPercent",
+        (jc.line_items_with_cost = jc.line_item_count) AS "isComplete"
+      FROM job_costs jc
+      JOIN jobs j ON j.id = jc.job_id
+      JOIN customers c ON c.id = j.customer_id
+      WHERE j.status = 'completed' AND j.actual_end >= ${start} AND j.actual_end < ${end} AND jc.has_actual_cost_data = true
+      ORDER BY "grossProfit" ASC
+    `);
+  }
+
+  /**
+   * The summary card for the Job Cost & Gross Margin report — same
+   * "only count jobs with real data, state the completeness fraction
+   * plainly" rule as the detail query above, aggregated. completedJobs
+   * in this period vs. jobsWithCostData directly implements the
+   * approval doc's own example: "Actual cost available for 83 of 91
+   * completed jobs."
+   */
+  async getJobCostSummary(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const completed: any[] = await tx.$queryRaw`
+        SELECT COUNT(*) AS "completedJobs" FROM jobs
+        WHERE company_id = ${companyId}::uuid AND status = 'completed' AND actual_end >= ${start} AND actual_end < ${end}
+      `;
+
+      const detail: JobCostDetailRow[] = await this.getJobCostDetail(companyId, start, end);
+      const jobsWithCostData = detail.length;
+      const completeJobs = detail.filter((j) => j.isComplete).length;
+      const totalRevenue = detail.reduce((sum, j) => sum + Number(j.revenue), 0);
+      const totalActualCost = detail.reduce((sum, j) => sum + Number(j.actualCost), 0);
+      const totalGrossProfit = totalRevenue - totalActualCost;
+
+      return {
+        completedJobs: Number(completed[0]?.completedJobs ?? 0),
+        jobsWithCostData,
+        completeJobs, // has actual cost on every line item, not just at least one
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        totalActualCost: Math.round(totalActualCost * 100) / 100,
+        totalGrossProfit: jobsWithCostData > 0 ? Math.round(totalGrossProfit * 100) / 100 : null,
+        grossMarginPercent: jobsWithCostData > 0 && totalRevenue > 0 ? Math.round((totalGrossProfit / totalRevenue) * 10000) / 100 : null,
+      };
+    });
+  }
+
+  /**
+   * Minimal — Report #10 (Satisfaction & Callbacks) needs this for the
+   * Owner Scorecard's Customer Rating KPI. Reviews with no rating
+   * (platform submitted text-only feedback, or a review sync that
+   * hasn't captured a star value) are correctly excluded from the
+   * average rather than counted as a 0-star review.
+   */
+  async getCustomerSatisfactionSummary(companyId: string, start: Date, end: Date) {
+    const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT
+        COUNT(*) FILTER (WHERE rating IS NOT NULL) AS "ratedReviewCount",
+        COALESCE(AVG(rating) FILTER (WHERE rating IS NOT NULL), 0) AS "averageRating",
+        COUNT(*) FILTER (WHERE rating = 5) AS "fiveStarCount"
+      FROM reviews
+      WHERE company_id = ${companyId}::uuid AND COALESCE(review_date, created_at) >= ${start} AND COALESCE(review_date, created_at) < ${end}
+    `);
+    const ratedReviewCount = Number(rows[0]?.ratedReviewCount ?? 0);
+    const fiveStarCount = Number(rows[0]?.fiveStarCount ?? 0);
+    return {
+      ratedReviewCount,
+      averageRating: ratedReviewCount > 0 ? Math.round(Number(rows[0]?.averageRating ?? 0) * 10) / 10 : null,
+      fiveStarPercent: ratedReviewCount > 0 ? Math.round((fiveStarCount / ratedReviewCount) * 1000) / 10 : null,
+    };
   }
 }
