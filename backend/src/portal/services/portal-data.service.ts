@@ -423,17 +423,34 @@ export class PortalDataService {
    * appointment types have none), and a job with zero line items should
    * still return its appointment rather than being silently dropped.
    */
+  /**
+   * Adds jobs.service_type as a second, more reliable fallback layer,
+   * on top of the job_line_items-based resolution added in the previous
+   * pass. Real gap found after that fix shipped: some jobs' line items
+   * apparently don't carry service_type/custom_service_name (both null
+   * on every line), which made resolveServiceNames() on the frontend
+   * fall all the way through to the appointment's own title —
+   * indistinguishable from "no service name available" even when the
+   * job DOES have a real primary service type recorded. jobs.service_type
+   * is set once at job creation directly from the first estimate line
+   * item's service type (JobsService.createFromEstimate) and doesn't
+   * depend on job_line_items still carrying that data — a single,
+   * simpler, more robust source for exactly this fallback case.
+   */
   async getUpcomingAppointments(companyId: string, customerId: string, limit = 5) {
     return this.prisma.withTenantContext(companyId, (tx) =>
       tx.$queryRawUnsafe<
         {
           id: string; jobId: string | null; title: string; startsAt: Date; endsAt: Date; status: string;
+          jobServiceType: string | null;
           services: { serviceType: string | null; customServiceName: string | null }[];
         }[]
       >(
         `SELECT a.id, a.job_id AS "jobId", a.title, a.starts_at AS "startsAt", a.ends_at AS "endsAt", a.status,
+                j.service_type AS "jobServiceType",
                 COALESCE(svc.services, '[]'::json) AS services
          FROM appointments a
+         LEFT JOIN jobs j ON j.id = a.job_id AND j.company_id = $1::uuid
          LEFT JOIN LATERAL (
            SELECT json_agg(json_build_object('serviceType', jli.service_type, 'customServiceName', jli.custom_service_name) ORDER BY jli.sort_order) AS services
            FROM job_line_items jli WHERE jli.job_id = a.job_id AND jli.company_id = $1::uuid

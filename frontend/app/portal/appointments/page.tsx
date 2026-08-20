@@ -24,21 +24,29 @@ interface Appointment {
   startsAt: string;
   endsAt: string;
   status: string;
+  jobServiceType: string | null;
   services: AppointmentService[];
 }
 
 /** Same fallback order as every other line-item label resolution in the
  * portal (Quote/Invoice detail): custom name first, then the real
  * predefined label, joined with a comma when a job has more than one
- * service. Falls back to the appointment's own title only if no line
- * items resolved to anything — keeps a real heading either way instead
- * of an empty one. */
-function resolveServiceNames(services: AppointmentService[], fallbackTitle: string): string {
+ * service. Second fallback layer (job.serviceType) added after a real
+ * gap was found: some jobs' line items don't carry service_type/
+ * custom_service_name at all, which made this fall straight through to
+ * the appointment's own title/description with no service name shown.
+ * jobs.service_type is a single, simpler, more reliable source for
+ * exactly that case — set once at job creation, doesn't depend on line
+ * items still carrying the data. Falls back to the appointment's own
+ * title only if genuinely nothing else resolves to anything. */
+function resolveServiceNames(services: AppointmentService[], jobServiceType: string | null, fallbackTitle: string): string {
   const names = services
     .map((s) => s.customServiceName || (s.serviceType ? SERVICE_TYPE_LABELS[s.serviceType] ?? s.serviceType : null))
     .filter((n): n is string => !!n);
   const unique = Array.from(new Set(names));
-  return unique.length > 0 ? unique.join(', ') : fallbackTitle;
+  if (unique.length > 0) return unique.join(', ');
+  if (jobServiceType) return SERVICE_TYPE_LABELS[jobServiceType] ?? jobServiceType;
+  return fallbackTitle;
 }
 
 export default function PortalAppointmentsPage() {
@@ -75,7 +83,7 @@ export default function PortalAppointmentsPage() {
         {!isLoading && !error && appointments && appointments.length > 0 && (
           <div className="divide-y divide-slate-100">
             {appointments.map((a) => {
-              const serviceNames = resolveServiceNames(a.services, a.title);
+              const serviceNames = resolveServiceNames(a.services, a.jobServiceType, a.title);
               const showTitleBelow = serviceNames !== a.title;
               return (
                 <div key={a.id} className="py-4 first:pt-0 last:pb-0">
