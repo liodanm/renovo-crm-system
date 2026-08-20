@@ -81,6 +81,7 @@ export class MailProcessor extends WorkerHost {
     }
 
     try {
+      const fromHeader = companyId ? await this.buildFromHeader(companyId, fromAddress) : fromAddress;
       const response = await fetch('https://api.postmarkapp.com/email', {
         method: 'POST',
         headers: {
@@ -89,7 +90,7 @@ export class MailProcessor extends WorkerHost {
           'X-Postmark-Server-Token': serverToken,
         },
         body: JSON.stringify({
-          From: fromAddress,
+          From: fromHeader,
           To: to,
           Subject: rendered.subject,
           HtmlBody: rendered.html,
@@ -120,6 +121,42 @@ export class MailProcessor extends WorkerHost {
         await this.updateEmailLog(companyId, emailLogId, 'failed', undefined, err.message);
       }
       throw err;
+    }
+  }
+
+  /**
+   * Postmark (and every real mail provider) accepts From as a plain
+   * address OR as `"Display Name" <address>` — this is what was
+   * actually missing, not a Postmark-side setting. Every document email
+   * (estimate/invoice send) always carries companyId, so this always
+   * resolves for the exact case that matters (a customer should see
+   * "Relentless Pressure Wash," not "no-reply@renovocrm.com"). Platform
+   * emails with no companyId (verification, password reset, invites,
+   * security alerts — see MailJobData's own comment on why those never
+   * carry one) fall back to the bare address unchanged, since there's
+   * no single tenant's brand to attach to an account-level email.
+   * dba || name mirrors the exact same fallback PortalDataService.
+   * getDashboard already uses for the customer-facing company name —
+   * one convention, not a second one invented here.
+   */
+  private async buildFromHeader(companyId: string, fromAddress: string): Promise<string> {
+    try {
+      // Raw SQL, not tx.company.findFirst() — `dba` is a real column on
+      // the companies table but is NOT declared in schema.prisma (same
+      // gap CompanyContextService.getCompanyAndBranding already works
+      // around the same way); the typed Prisma Client has no way to
+      // select a field it doesn't know exists.
+      const rows = await this.prisma.withTenantContext(companyId, (tx) =>
+        tx.$queryRawUnsafe(`SELECT name, dba FROM companies WHERE id = $1::uuid`, companyId),
+      ) as { name: string; dba: string | null }[];
+      const displayName = (rows[0]?.dba || rows[0]?.name)?.replace(/"/g, '').trim();
+      return displayName ? `"${displayName}" <${fromAddress}>` : fromAddress;
+    } catch (err) {
+      // A lookup failure here should never block the email itself —
+      // worst case it sends from the bare address, same as before this
+      // change existed.
+      this.logger.warn(`Could not resolve company name for From header (companyId ${companyId}): ${(err as Error).message}`);
+      return fromAddress;
     }
   }
 
