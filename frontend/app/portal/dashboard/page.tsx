@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Calculator, FileEdit } from 'lucide-react';
+import { FileEdit } from 'lucide-react';
 import { portalApiFetch } from '../../../lib/portal/portal-api-client';
 import { clearPortalToken, getPortalCompanySlug } from '../../../lib/portal/portal-token-storage';
 import { PortalShell } from '../../../components/portal/PortalShell';
@@ -60,30 +60,17 @@ export default function PortalDashboardPage() {
       </h1>
 
       {/*
-        The reference has two distinct action cards ("Get Instant Quote"
-        / "Request a Quote"), implying real-time self-service pricing.
-        Renovo doesn't have that today — pricing genuinely requires a
-        staff estimate, not a fabricated instant number. Both cards below
-        route to the same real, working request flow
-        (POST /portal/service-requests, already built and backend-tested)
-        rather than faking a second capability Renovo doesn't have. If
-        real instant pricing is ever built, "Get Instant Quote" should
-        point at that instead — this is an honest placeholder, not a
-        finished distinct feature.
+        "Get Instant Quote" removed at the owner's request — Renovo has
+        no real-time self-service pricing engine, and the card was an
+        honest-but-still-fake placeholder pointing at the same request
+        form as "Request a Quote" below. If real instant pricing is ever
+        built, a card like this belongs back here pointing at that real
+        feature, not before then.
       */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Link href="/portal/request-quote" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-[#11365F]/30 hover:bg-slate-50">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#11365F]/[0.08]">
-            <Calculator className="h-5 w-5 text-[#11365F]" aria-hidden="true" />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold text-slate-900">Get Instant Quote</span>
-            <span className="block text-xs text-slate-500">See pricing right away</span>
-          </span>
-        </Link>
-        <Link href="/portal/request-quote" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-[#11365F]/30 hover:bg-slate-50">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#11365F]/[0.08]">
-            <FileEdit className="h-5 w-5 text-[#11365F]" aria-hidden="true" />
+      <div className="mt-6 max-w-sm">
+        <Link href="/portal/request-quote" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-[var(--color-brand)]/30 hover:bg-slate-50">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-brand)]/[0.08]">
+            <FileEdit className="h-5 w-5 text-[var(--color-brand)]" aria-hidden="true" />
           </span>
           <span>
             <span className="block text-sm font-semibold text-slate-900">Request a Quote</span>
