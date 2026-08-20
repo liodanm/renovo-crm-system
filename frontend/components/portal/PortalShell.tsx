@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Building2 } from 'lucide-react';
-import { portalNavItems } from '../../lib/portal/portal-nav';
+import { portalNavItems, portalRequestQuoteItem } from '../../lib/portal/portal-nav';
 import { darkenHex } from '../../lib/theme/brand-theme-injector';
 import { cn } from '../../lib/utils';
 
@@ -109,10 +109,13 @@ export function PortalShell({
           </div>
         </aside>
 
-        {/* Mobile top bar — the sidebar collapses entirely below md
-            rather than becoming a squeezed rail, matching the reference's
-            own apparent desktop-first design; a full mobile nav treatment
-            (drawer, bottom tabs) is real follow-up work, not built here. */}
+        {/* Mobile: sidebar collapses entirely below md in favor of a real
+            fixed bottom tab bar (icon over label, evenly spaced, active
+            item highlighted) — not the sidebar squeezed into a rail, and
+            not the earlier horizontally-scrolling pill row this replaced.
+            A full mobile drawer/hamburger treatment is still real
+            follow-up work if ever needed; this matches the specific
+            native-app-style tab bar reference this shell is built to. */}
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
             <span className="text-sm font-semibold text-slate-900">{companyName ?? 'Loading…'}</span>
@@ -120,32 +123,37 @@ export function PortalShell({
               Sign out
             </button>
           </div>
-          <nav className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2 md:hidden" aria-label="Portal navigation">
-            {portalNavItems.map((item) => {
+
+          {/* Bottom padding (pb-24) on the content area reserves room for
+              the fixed bar below so the last card on any page is never
+              hidden behind it — md:pb-0 since the bar itself doesn't
+              exist above that breakpoint. */}
+          <main className="flex-1 px-6 py-8 pb-24 md:px-10 md:py-10 md:pb-10">
+            <div className="mx-auto max-w-[1100px]">{children}</div>
+          </main>
+
+          <nav
+            className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+            aria-label="Portal navigation"
+          >
+            {[...portalNavItems, portalRequestQuoteItem].map((item) => {
               const active = pathname?.startsWith(item.href);
+              const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium',
-                    active ? 'bg-[var(--color-brand)]/[0.08] text-[var(--color-brand)]' : 'text-slate-500',
+                    'flex flex-1 flex-col items-center justify-center gap-1 py-2.5 text-center',
+                    active ? 'text-[var(--color-brand)]' : 'text-slate-400',
                   )}
                 >
-                  {item.label}
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-[11px] font-medium">{item.label}</span>
                 </Link>
               );
             })}
           </nav>
-
-          {/* Content width matches the reference's spacious, centered
-              proportions — NOT the staff app's max-w-[1600px] full-bleed
-              layout, and NOT the old portal's max-w-md mobile-card stack
-              either. A portal page reads more like a document than a
-              dense dashboard. */}
-          <main className="flex-1 px-6 py-8 md:px-10 md:py-10">
-            <div className="mx-auto max-w-[1100px]">{children}</div>
-          </main>
         </div>
       </div>
     </div>

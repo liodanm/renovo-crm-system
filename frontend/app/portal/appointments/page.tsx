@@ -5,10 +5,16 @@ import { CalendarDays } from 'lucide-react';
 import { portalApiFetch } from '../../../lib/portal/portal-api-client';
 import { clearPortalToken, getPortalCompanySlug } from '../../../lib/portal/portal-token-storage';
 import { PortalShell } from '../../../components/portal/PortalShell';
+import { SERVICE_TYPE_LABELS } from '../../../lib/api/service-catalog';
 
 interface DashboardResponse {
   customer: { name: string };
   company: { name: string; logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
+}
+
+interface AppointmentService {
+  serviceType: string | null;
+  customServiceName: string | null;
 }
 
 interface Appointment {
@@ -18,6 +24,21 @@ interface Appointment {
   startsAt: string;
   endsAt: string;
   status: string;
+  services: AppointmentService[];
+}
+
+/** Same fallback order as every other line-item label resolution in the
+ * portal (Quote/Invoice detail): custom name first, then the real
+ * predefined label, joined with a comma when a job has more than one
+ * service. Falls back to the appointment's own title only if no line
+ * items resolved to anything — keeps a real heading either way instead
+ * of an empty one. */
+function resolveServiceNames(services: AppointmentService[], fallbackTitle: string): string {
+  const names = services
+    .map((s) => s.customServiceName || (s.serviceType ? SERVICE_TYPE_LABELS[s.serviceType] ?? s.serviceType : null))
+    .filter((n): n is string => !!n);
+  const unique = Array.from(new Set(names));
+  return unique.length > 0 ? unique.join(', ') : fallbackTitle;
 }
 
 export default function PortalAppointmentsPage() {
@@ -53,16 +74,21 @@ export default function PortalAppointmentsPage() {
 
         {!isLoading && !error && appointments && appointments.length > 0 && (
           <div className="divide-y divide-slate-100">
-            {appointments.map((a) => (
-              <div key={a.id} className="py-4 first:pt-0 last:pb-0">
-                <p className="font-semibold text-slate-900">{a.title}</p>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  {new Date(a.startsAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} ·{' '}
-                  {new Date(a.startsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} –{' '}
-                  {new Date(a.endsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                </p>
-              </div>
-            ))}
+            {appointments.map((a) => {
+              const serviceNames = resolveServiceNames(a.services, a.title);
+              const showTitleBelow = serviceNames !== a.title;
+              return (
+                <div key={a.id} className="py-4 first:pt-0 last:pb-0">
+                  <p className="font-semibold text-slate-900">{serviceNames}</p>
+                  {showTitleBelow && <p className="mt-0.5 text-sm text-slate-500">{a.title}</p>}
+                  <p className="mt-1 text-sm text-slate-500">
+                    {new Date(a.startsAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} ·{' '}
+                    {new Date(a.startsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} –{' '}
+                    {new Date(a.endsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

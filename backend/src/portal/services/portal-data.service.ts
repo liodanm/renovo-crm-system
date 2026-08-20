@@ -410,16 +410,37 @@ export class PortalDataService {
    * method in this file already enforces). This is a read-only query;
    * it introduces no new write path and no second scheduling concept.
    */
+  /**
+   * Adds each appointment's real service name(s), pulled from the
+   * associated job's line items (job_line_items.service_type /
+   * custom_service_name — the same two columns Quote/Invoice detail
+   * already resolve into a label). appointments.title is a separate,
+   * pre-existing free-text field (often the job's own auto-generated
+   * title, which is itself built by joining line-item descriptions —
+   * not a clean short service name), so this is genuinely new
+   * information, not a duplicate of title. LEFT JOIN, not INNER: an
+   * appointment's job_id is nullable (estimate_visit/consultation
+   * appointment types have none), and a job with zero line items should
+   * still return its appointment rather than being silently dropped.
+   */
   async getUpcomingAppointments(companyId: string, customerId: string, limit = 5) {
     return this.prisma.withTenantContext(companyId, (tx) =>
       tx.$queryRawUnsafe<
-        { id: string; jobId: string | null; title: string; startsAt: Date; endsAt: Date; status: string }[]
+        {
+          id: string; jobId: string | null; title: string; startsAt: Date; endsAt: Date; status: string;
+          services: { serviceType: string | null; customServiceName: string | null }[];
+        }[]
       >(
-        `SELECT id, job_id AS "jobId", title, starts_at AS "startsAt", ends_at AS "endsAt", status
-         FROM appointments
-         WHERE company_id = $1::uuid AND customer_id = $2::uuid
-           AND status IN ('scheduled', 'confirmed') AND starts_at >= now()
-         ORDER BY starts_at ASC
+        `SELECT a.id, a.job_id AS "jobId", a.title, a.starts_at AS "startsAt", a.ends_at AS "endsAt", a.status,
+                COALESCE(svc.services, '[]'::json) AS services
+         FROM appointments a
+         LEFT JOIN LATERAL (
+           SELECT json_agg(json_build_object('serviceType', jli.service_type, 'customServiceName', jli.custom_service_name) ORDER BY jli.sort_order) AS services
+           FROM job_line_items jli WHERE jli.job_id = a.job_id
+         ) svc ON true
+         WHERE a.company_id = $1::uuid AND a.customer_id = $2::uuid
+           AND a.status IN ('scheduled', 'confirmed') AND a.starts_at >= now()
+         ORDER BY a.starts_at ASC
          LIMIT $3`,
         companyId,
         customerId,
