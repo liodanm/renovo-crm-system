@@ -31,8 +31,17 @@ export default function OwnerScorecardPage() {
 
   const { data: kpis } = useSWR(['scorecard-kpis', startIso, endIso], () => reportsApi.getPeriodKpis(startIso, endIso));
   const { data: prevKpis } = useSWR(['scorecard-kpis-prev', prevStartIso, prevEndIso], () => reportsApi.getPeriodKpis(prevStartIso, prevEndIso));
-  const { data: revenueTrend } = useSWR(['scorecard-revenue', startIso, endIso], () => reportsApi.getRevenueTrend(startIso, endIso));
-  const { data: prevRevenueTrend } = useSWR(['scorecard-revenue-prev', prevStartIso, prevEndIso], () => reportsApi.getRevenueTrend(prevStartIso, prevEndIso));
+  // Reporting verification gate, Decision 2: the Owner Scorecard's
+  // primary revenue KPI is Collected Revenue (successfully collected
+  // payments), never Invoiced Revenue (money billed but not
+  // necessarily paid) — getPaymentTrend() already implements exactly
+  // this (status='succeeded', date = COALESCE(payment_date,
+  // processed_at)), reused here rather than a second implementation.
+  // getRevenueTrend() (invoice-based) remains available in /reports/all
+  // for whoever specifically wants Invoiced Revenue — untouched, not
+  // deleted, just no longer what the Owner Scorecard's "Revenue" card means.
+  const { data: collectedTrend } = useSWR(['scorecard-collected', startIso, endIso], () => reportsApi.getPaymentTrend(startIso, endIso));
+  const { data: prevCollectedTrend } = useSWR(['scorecard-collected-prev', prevStartIso, prevEndIso], () => reportsApi.getPaymentTrend(prevStartIso, prevEndIso));
   const { data: jobCost } = useSWR(['scorecard-jobcost', startIso, endIso], () => reportsApi.getJobCostSummary(startIso, endIso));
   const { data: prevJobCost } = useSWR(['scorecard-jobcost-prev', prevStartIso, prevEndIso], () => reportsApi.getJobCostSummary(prevStartIso, prevEndIso));
   const { data: customerAnalytics } = useSWR('scorecard-customers', () => reportsApi.getCustomerAnalytics());
@@ -41,8 +50,8 @@ export default function OwnerScorecardPage() {
   const { data: prevCallbackRate } = useSWR(['scorecard-callbacks-prev', prevStartIso, prevEndIso], () => reportsApi.getCallbackRate(prevStartIso, prevEndIso));
   const { data: satisfaction } = useSWR(['scorecard-satisfaction', startIso, endIso], () => reportsApi.getCustomerSatisfaction(startIso, endIso));
 
-  const revenue = revenueTrend?.reduce((sum, p) => sum + Number(p.revenue ?? 0), 0) ?? null;
-  const prevRevenue = prevRevenueTrend?.reduce((sum, p) => sum + Number(p.revenue ?? 0), 0) ?? null;
+  const revenue = collectedTrend?.reduce((sum, p) => sum + Number(p.amount ?? 0), 0) ?? null;
+  const prevRevenue = prevCollectedTrend?.reduce((sum, p) => sum + Number(p.amount ?? 0), 0) ?? null;
   const agingData = aging?.[0];
   const arOutstanding = agingData ? Number(agingData.current) + Number(agingData.days1To30) + Number(agingData.days31To60) + Number(agingData.days60Plus) : null;
   const arOverdue = agingData ? Number(agingData.days1To30) + Number(agingData.days31To60) + Number(agingData.days60Plus) : null;
@@ -79,10 +88,10 @@ export default function OwnerScorecardPage() {
           </div>
         </div>
 
-        {/* Priority order matches the approval doc exactly: Revenue, Gross Profit, Gross Margin, Jobs, Average Ticket, Estimate Conversion, Repeat Customer %, Recurring Revenue, Callback Rate, AR Outstanding. */}
+        {/* Priority order matches the approval doc exactly: Collected Revenue, Gross Profit, Gross Margin, Jobs, Average Ticket, Estimate Conversion, Repeat Customer %, Recurring Revenue, Callback Rate, AR Outstanding. */}
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <ScorecardKpi
-            label="Revenue"
+            label="Collected Revenue"
             value={money(revenue)}
             current={revenue}
             previous={prevRevenue}

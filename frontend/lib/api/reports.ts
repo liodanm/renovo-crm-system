@@ -15,7 +15,8 @@ export interface SnapshotKpis {
 
 export interface PeriodKpis {
   estimateConversionRatePercent: number | null;
-  averageTicket: string;
+  averageTicket: string; // Completed Job Revenue ÷ Completed Jobs — see REPORTING_DEFINITIONS.md. Fixed by the reporting verification gate; previously sourced from accepted estimates.
+  averageAcceptedEstimateValue: string; // The metric averageTicket used to be — preserved under its own honest name, not deleted.
   jobsCompleted: string;
   jobsScheduled: string;
   averageJobDurationHours: string;

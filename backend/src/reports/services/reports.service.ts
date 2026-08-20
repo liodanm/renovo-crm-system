@@ -116,13 +116,31 @@ export class ReportsService {
   }
 
   /** Sales + Operations KPIs for a caller-supplied date range. */
+  /**
+   * Reporting verification gate, Decision 1: "Average Ticket" was
+   * previously sourced from accepted estimate value — confirmed wrong
+   * against the authoritative definition (Completed Job Revenue ÷
+   * Completed Jobs). Fixed here. The old calculation is preserved, not
+   * deleted, under its own honest name (averageAcceptedEstimateValue)
+   * — a real, useful number, just never "Average Ticket."
+   * jobs.price is the source for job revenue: set once at job creation
+   * directly from the originating estimate's post-tax total (see
+   * JobsService.createFromEstimate) and never modified afterward, since
+   * job line items are write-once. Deliberately NOT
+   * SUM(job_line_items.total) — that's a pre-tax subtotal, the exact
+   * figure Job Cost & Gross Margin's own "revenue" already uses for its
+   * own (separate, approved, unchanged) purpose. Average Ticket and Job
+   * Cost's "revenue" are allowed to differ in basis; both are
+   * documented explicitly in REPORTING_DEFINITIONS.md so neither reads
+   * as a silent inconsistency.
+   */
   async getPeriodKpis(companyId: string, start: Date, end: Date) {
     return this.prisma.withTenantContext(companyId, async (tx) => {
       const estimates: any[] = await tx.$queryRaw`
         SELECT
           COUNT(*) FILTER (WHERE status IN ('sent','viewed','accepted','declined','expired')) AS "estimatesSent",
           COUNT(*) FILTER (WHERE status = 'accepted') AS "estimatesAccepted",
-          COALESCE(AVG(total_amount) FILTER (WHERE status = 'accepted'), 0) AS "averageTicket"
+          COALESCE(AVG(total_amount) FILTER (WHERE status = 'accepted'), 0) AS "averageAcceptedEstimateValue"
         FROM estimates WHERE company_id = ${companyId}::uuid AND created_at >= ${start} AND created_at < ${end}
       `;
       const sentCount = Number(estimates[0]?.estimatesSent ?? 0);
@@ -133,13 +151,14 @@ export class ReportsService {
           COUNT(*) FILTER (WHERE status = 'completed' AND actual_end >= ${start} AND actual_end < ${end}) AS "jobsCompleted",
           COUNT(*) FILTER (WHERE scheduled_start >= ${start} AND scheduled_start < ${end}) AS "jobsScheduled",
           COALESCE(AVG(EXTRACT(EPOCH FROM (actual_end - actual_start)) / 3600) FILTER (WHERE status = 'completed' AND actual_end >= ${start} AND actual_end < ${end}), 0) AS "averageJobDurationHours",
-          COALESCE(SUM(billable_labor_hours) FILTER (WHERE status = 'completed' AND actual_end >= ${start} AND actual_end < ${end}), 0) AS "totalLaborHours"
+          COALESCE(SUM(billable_labor_hours) FILTER (WHERE status = 'completed' AND actual_end >= ${start} AND actual_end < ${end}), 0) AS "totalLaborHours",
+          COALESCE(AVG(price) FILTER (WHERE status = 'completed' AND actual_end >= ${start} AND actual_end < ${end}), 0) AS "averageTicket"
         FROM jobs WHERE company_id = ${companyId}::uuid
       `;
 
       return {
         estimateConversionRatePercent: sentCount > 0 ? Math.round((acceptedCount / sentCount) * 10000) / 100 : null,
-        averageTicket: Number(estimates[0]?.averageTicket ?? 0),
+        averageAcceptedEstimateValue: Number(estimates[0]?.averageAcceptedEstimateValue ?? 0),
         ...jobs[0],
       };
     });
