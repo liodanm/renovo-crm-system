@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { estimatesApi, type Estimate } from '../../lib/api/estimates';
 import { AppShell } from '../../components/layout/AppShell';
@@ -25,9 +26,15 @@ function applyStatusFilter(estimates: Estimate[], filter: StatusFilter): Estimat
   return estimates.filter((e) => NEEDS_RESPONSE_STATUSES.has(e.status));
 }
 
-export default function EstimatesPage() {
+function EstimatesPageInner() {
   const { data: allEstimates, error, isLoading } = useSWR('estimates', () => estimatesApi.list());
-  const [filter, setFilter] = useState<StatusFilter>('all');
+  // Reads ?status=accepted from a drill-down link (e.g. the Estimate
+  // Conversion report) as the initial filter — the existing 3-way
+  // toggle below still works exactly as before for anyone navigating
+  // here directly; this only changes what filter is pre-selected on
+  // load, not the filtering logic itself.
+  const searchParams = useSearchParams();
+  const [filter, setFilter] = useState<StatusFilter>(searchParams.get('status') === 'accepted' ? 'accepted' : 'all');
 
   const estimates = useMemo(() => (allEstimates ? applyStatusFilter(allEstimates, filter) : undefined), [allEstimates, filter]);
 
@@ -137,5 +144,13 @@ export default function EstimatesPage() {
         </div>
       </main>
     </AppShell>
+  );
+}
+
+export default function EstimatesPage() {
+  return (
+    <Suspense fallback={null}>
+      <EstimatesPageInner />
+    </Suspense>
   );
 }

@@ -130,4 +130,31 @@ export class ReportsController {
   getCustomerSatisfaction(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
     return this.reports.getCustomerSatisfactionSummary(user.companyId, new Date(query.start), new Date(query.end));
   }
+
+  // ---- Reporting Center Phase 3, Group 1 ----
+
+  @Get('revenue-by-technician')
+  getRevenueByTechnician(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getRevenueByTechnician(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('estimate-conversion-detail')
+  getEstimateConversionDetail(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getEstimateConversionDetail(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('estimate-conversion-by-service')
+  getEstimateConversionByService(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getEstimateConversionByService(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('average-ticket-detail')
+  getAverageTicketDetail(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getAverageTicketDetail(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('average-ticket-by-service')
+  getAverageTicketByService(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getAverageTicketByService(user.companyId, new Date(query.start), new Date(query.end));
+  }
 }

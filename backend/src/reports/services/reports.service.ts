@@ -140,7 +140,8 @@ export class ReportsService {
         SELECT
           COUNT(*) FILTER (WHERE status IN ('sent','viewed','accepted','declined','expired')) AS "estimatesSent",
           COUNT(*) FILTER (WHERE status = 'accepted') AS "estimatesAccepted",
-          COALESCE(AVG(total_amount) FILTER (WHERE status = 'accepted'), 0) AS "averageAcceptedEstimateValue"
+          COALESCE(AVG(total_amount) FILTER (WHERE status = 'accepted'), 0) AS "averageAcceptedEstimateValue",
+          COALESCE(SUM(total_amount) FILTER (WHERE status = 'accepted'), 0) AS "acceptedEstimateValue"
         FROM estimates WHERE company_id = ${companyId}::uuid AND created_at >= ${start} AND created_at < ${end}
       `;
       const sentCount = Number(estimates[0]?.estimatesSent ?? 0);
@@ -158,7 +159,10 @@ export class ReportsService {
 
       return {
         estimateConversionRatePercent: sentCount > 0 ? Math.round((acceptedCount / sentCount) * 10000) / 100 : null,
+        estimatesSent: sentCount,
+        estimatesAccepted: acceptedCount,
         averageAcceptedEstimateValue: Number(estimates[0]?.averageAcceptedEstimateValue ?? 0),
+        acceptedEstimateValue: Number(estimates[0]?.acceptedEstimateValue ?? 0),
         ...jobs[0],
       };
     });
@@ -591,5 +595,141 @@ export class ReportsService {
       averageRating: ratedReviewCount > 0 ? Math.round(Number(rows[0]?.averageRating ?? 0) * 10) / 10 : null,
       fiveStarPercent: ratedReviewCount > 0 ? Math.round((fiveStarCount / ratedReviewCount) * 1000) / 10 : null,
     };
+  }
+
+  // =========================================================================
+  // Reporting Center Phase 3, Group 1 — Revenue & Sales, Estimate Conversion,
+  // Average Ticket. Every new method here reuses the exact conventions
+  // already established: jobs.price as the Average Ticket revenue basis
+  // (see REPORTING_DEFINITIONS.md), withTenantContext + explicit
+  // company_id filtering (never RLS alone), null-vs-zero preserved for
+  // any incomplete-data case.
+  // =========================================================================
+
+  /**
+   * Revenue by Technician — mirrors getRevenueByService/getRevenueByCustomer
+   * exactly, but sourced from jobs.price (Average Ticket's revenue basis),
+   * not invoice_line_items — a technician's "revenue" here means the jobs
+   * they actually completed, not an invoice-line attribution that doesn't
+   * exist at the per-technician level anywhere else in this schema.
+   */
+  async getRevenueByTechnician(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT u.id AS "technicianId", u.first_name AS "firstName", u.last_name AS "lastName",
+             COUNT(*) AS "jobsCompleted", COALESCE(SUM(j.price), 0) AS "revenue",
+             COALESCE(AVG(j.price), 0) AS "averageTicket"
+      FROM jobs j
+      JOIN users u ON u.id = j.assigned_user_id
+      WHERE j.company_id = ${companyId}::uuid AND j.status = 'completed'
+        AND j.actual_end >= ${start} AND j.actual_end < ${end} AND j.assigned_user_id IS NOT NULL
+      GROUP BY u.id, u.first_name, u.last_name
+      ORDER BY "revenue" DESC
+    `);
+  }
+
+  /**
+   * Estimate Conversion detail. Date basis note (flagged, not silently
+   * resolved, per the audit's explicit instruction): "average time to
+   * acceptance" is computed as accepted_at - created_at — the estimate's
+   * full lifecycle from creation to acceptance, not sent_at - accepted_at
+   * (which would measure only "time since the customer actually saw the
+   * offer"). Both are defensible; created_at was chosen because it's the
+   * same date basis every other figure on this page already uses
+   * (Total/Accepted/Declined/Pending/Expired all bucket by created_at),
+   * so a mixed-basis "time to acceptance" next to them would be its own
+   * silent inconsistency. If sent-to-accepted turns out to be the more
+   * useful number for a future iteration, it's a one-column addition, not
+   * a rework — flagged here rather than picked in either direction
+   * without saying so.
+   */
+  async getEstimateConversionDetail(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const rows: any[] = await tx.$queryRaw`
+        SELECT
+          COUNT(*) AS "total",
+          COUNT(*) FILTER (WHERE status = 'accepted') AS "accepted",
+          COUNT(*) FILTER (WHERE status = 'declined') AS "declined",
+          COUNT(*) FILTER (WHERE status IN ('sent', 'viewed')) AS "pending",
+          COUNT(*) FILTER (WHERE status = 'expired') AS "expired",
+          COALESCE(SUM(total_amount) FILTER (WHERE status = 'accepted'), 0) AS "acceptedValue",
+          COALESCE(SUM(total_amount) FILTER (WHERE status IN ('declined', 'expired')), 0) AS "lostValue",
+          COALESCE(AVG(total_amount) FILTER (WHERE status = 'accepted'), 0) AS "averageAcceptedValue",
+          COALESCE(AVG(EXTRACT(EPOCH FROM (accepted_at - created_at)) / 86400) FILTER (WHERE status = 'accepted' AND accepted_at IS NOT NULL), 0) AS "averageDaysToAcceptance"
+        FROM estimates
+        WHERE company_id = ${companyId}::uuid AND created_at >= ${start} AND created_at < ${end}
+      `;
+      const r = rows[0] ?? {};
+      const total = Number(r.total ?? 0);
+      const accepted = Number(r.accepted ?? 0);
+      return {
+        total,
+        accepted,
+        declined: Number(r.declined ?? 0),
+        pending: Number(r.pending ?? 0),
+        expired: Number(r.expired ?? 0),
+        conversionRatePercent: total > 0 ? Math.round((accepted / total) * 10000) / 100 : null,
+        acceptedValue: Number(r.acceptedValue ?? 0),
+        lostValue: Number(r.lostValue ?? 0),
+        averageAcceptedValue: Number(r.averageAcceptedValue ?? 0),
+        averageDaysToAcceptance: Math.round(Number(r.averageDaysToAcceptance ?? 0) * 10) / 10,
+      };
+    });
+  }
+
+  /** Estimate Conversion by service — which services convert best, not just which sell for the most. */
+  async getEstimateConversionByService(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT COALESCE(sci.name, eli.service_type, 'Other') AS "serviceName",
+             COUNT(DISTINCT e.id) AS "total",
+             COUNT(DISTINCT e.id) FILTER (WHERE e.status = 'accepted') AS "accepted"
+      FROM estimate_line_items eli
+      JOIN estimates e ON e.id = eli.estimate_id AND e.company_id = ${companyId}::uuid
+      LEFT JOIN service_catalog_items sci ON sci.id = eli.service_catalog_item_id
+      WHERE eli.company_id = ${companyId}::uuid AND e.created_at >= ${start} AND e.created_at < ${end}
+      GROUP BY 1 ORDER BY "total" DESC
+      LIMIT 15
+    `);
+  }
+
+  /**
+   * Average Ticket detail — overall stats plus min/max/median. Uses the
+   * same jobs.price basis as getPeriodKpis's averageTicket (see
+   * REPORTING_DEFINITIONS.md) — one calculation, reused, not
+   * reimplemented with different math on this dedicated page.
+   */
+  async getAverageTicketDetail(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const rows: any[] = await tx.$queryRaw`
+        SELECT
+          COUNT(*) AS "completedJobs",
+          COALESCE(SUM(price), 0) AS "totalRevenue",
+          COALESCE(AVG(price), 0) AS "averageTicket",
+          COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price), 0) AS "medianTicket",
+          COALESCE(MAX(price), 0) AS "highestTicket",
+          COALESCE(MIN(price), 0) AS "lowestTicket"
+        FROM jobs
+        WHERE company_id = ${companyId}::uuid AND status = 'completed' AND actual_end >= ${start} AND actual_end < ${end}
+      `;
+      const r = rows[0] ?? {};
+      return {
+        completedJobs: Number(r.completedJobs ?? 0),
+        totalRevenue: Number(r.totalRevenue ?? 0),
+        averageTicket: Number(r.averageTicket ?? 0),
+        medianTicket: Number(r.medianTicket ?? 0),
+        highestTicket: Number(r.highestTicket ?? 0),
+        lowestTicket: Number(r.lowestTicket ?? 0),
+      };
+    });
+  }
+
+  /** Average Ticket by service — jobs.price attributed via the job's primary service_type, the same field JobsService sets at creation from the first line item. Not a per-line-item split (a job's price is one number, not divisible cleanly across services within it). */
+  async getAverageTicketByService(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT COALESCE(service_type, 'Other') AS "serviceName", COUNT(*) AS "jobsCompleted",
+             COALESCE(AVG(price), 0) AS "averageTicket", COALESCE(SUM(price), 0) AS "totalRevenue"
+      FROM jobs
+      WHERE company_id = ${companyId}::uuid AND status = 'completed' AND actual_end >= ${start} AND actual_end < ${end}
+      GROUP BY 1 ORDER BY "totalRevenue" DESC
+    `);
   }
 }

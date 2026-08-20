@@ -15,8 +15,11 @@ export interface SnapshotKpis {
 
 export interface PeriodKpis {
   estimateConversionRatePercent: number | null;
+  estimatesSent: number;
+  estimatesAccepted: number;
   averageTicket: string; // Completed Job Revenue ÷ Completed Jobs — see REPORTING_DEFINITIONS.md. Fixed by the reporting verification gate; previously sourced from accepted estimates.
   averageAcceptedEstimateValue: string; // The metric averageTicket used to be — preserved under its own honest name, not deleted.
+  acceptedEstimateValue: string;
   jobsCompleted: string;
   jobsScheduled: string;
   averageJobDurationHours: string;
@@ -124,7 +127,42 @@ export const reportsApi = {
   getJobCostDetail: (start: string, end: string) => apiFetch<JobCostDetailRow[]>(`/reports/job-cost-detail?${range(start, end)}`),
   getCallbackRate: (start: string, end: string) => apiFetch<CallbackRate>(`/reports/callback-rate?${range(start, end)}`),
   getCustomerSatisfaction: (start: string, end: string) => apiFetch<CustomerSatisfaction>(`/reports/customer-satisfaction?${range(start, end)}`),
+  getRevenueByTechnician: (start: string, end: string) => apiFetch<RevenueByTechnician[]>(`/reports/revenue-by-technician?${range(start, end)}`),
+  getEstimateConversionDetail: (start: string, end: string) => apiFetch<EstimateConversionDetail>(`/reports/estimate-conversion-detail?${range(start, end)}`),
+  getEstimateConversionByService: (start: string, end: string) => apiFetch<EstimateConversionByService[]>(`/reports/estimate-conversion-by-service?${range(start, end)}`),
+  getAverageTicketDetail: (start: string, end: string) => apiFetch<AverageTicketDetail>(`/reports/average-ticket-detail?${range(start, end)}`),
+  getAverageTicketByService: (start: string, end: string) => apiFetch<AverageTicketByService[]>(`/reports/average-ticket-by-service?${range(start, end)}`),
 };
+
+// ---- Reporting Center Phase 3, Group 1 ----
+
+export interface RevenueByTechnician { technicianId: string; firstName: string; lastName: string; jobsCompleted: string; revenue: string; averageTicket: string }
+
+export interface EstimateConversionDetail {
+  total: number;
+  accepted: number;
+  declined: number;
+  pending: number;
+  expired: number;
+  conversionRatePercent: number | null;
+  acceptedValue: number;
+  lostValue: number;
+  averageAcceptedValue: number;
+  averageDaysToAcceptance: number;
+}
+
+export interface EstimateConversionByService { serviceName: string; total: string; accepted: string }
+
+export interface AverageTicketDetail {
+  completedJobs: number;
+  totalRevenue: number;
+  averageTicket: number;
+  medianTicket: number;
+  highestTicket: number;
+  lowestTicket: number;
+}
+
+export interface AverageTicketByService { serviceName: string; jobsCompleted: string; averageTicket: string; totalRevenue: string }
 
 export const DATE_PRESETS = [
   'Today', 'Yesterday', 'This Week', 'Last Week', 'This Month', 'Last Month',
