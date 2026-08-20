@@ -140,7 +140,7 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
             `<p>Hi ${escape(data.customerFirstName)},</p>` +
             `<p>Your quote from ${escape(data.companyName)}${data.serviceAddress ? ` for services at ${escape(data.serviceAddress)}` : ''} is ready for review.</p>` +
             `<p>Click the button below to view your quote and review the details:</p>` +
-            ctaButton(data.portalUrl, 'View & Accept Quote', data.brandColor as string | null | undefined),
+            ctaButton(data.portalUrl, 'View Estimate', data.brandColor as string | null | undefined),
         ),
       };
     case 'invoice-send':

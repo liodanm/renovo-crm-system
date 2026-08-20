@@ -14,6 +14,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { MailModule } from '../mail/mail.module';
+import { SecurityEventsModule } from '../security/security-events.module';
 import { PrismaService } from '../common/prisma/prisma.service';
 
 /**
@@ -39,6 +40,7 @@ const optionalOAuthProviders = [
     PassportModule,
     JwtModule.register({}), // secrets are passed per-call (access vs refresh use different secrets)
     MailModule,
+    SecurityEventsModule, // exports SecurityEventsService — AuthService records login/registration/invite events through it
   ],
   controllers: [AuthController],
   providers: [

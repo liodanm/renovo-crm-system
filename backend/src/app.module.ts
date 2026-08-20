@@ -22,6 +22,7 @@ import { TenantContextInterceptor } from './common/tenant/tenant-context.interce
 import { EstimatesModule } from './estimates/estimates.module';
 import { AdminDataModule } from './admin-data/admin-data.module';
 import { JobsModule } from './jobs/jobs.module';
+import { SecurityEventsModule } from './security/security-events.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { ServiceCatalogModule } from './service-catalog/service-catalog.module';
 import { SettingsModule } from './settings/settings.module';
@@ -59,6 +60,7 @@ import { SmsModule } from './sms/sms.module';
     EstimatesModule,
     AdminDataModule,
     JobsModule,
+    SecurityEventsModule,
     SchedulingModule,
     ServiceCatalogModule,
     SettingsModule,

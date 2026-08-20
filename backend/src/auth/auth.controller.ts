@@ -49,8 +49,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } }) // resists automated mass account creation
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  register(@Body() dto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(dto, this.extractDevice(req));
   }
 
   @Public()
@@ -83,17 +83,19 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@CurrentUser() user: AuthenticatedRequestUser, @Body() body: { jti?: string }) {
+  logout(@CurrentUser() user: AuthenticatedRequestUser, @Body() body: { jti?: string }, @Req() req: Request) {
     // In practice the frontend passes the jti it received at login; if
     // omitted, we fall back to revoking nothing here and rely on access
     // token expiry (15 min) — the frontend SHOULD always send it.
-    return body.jti ? this.authService.logout(user.userId, body.jti) : { message: 'Logged out (local session cleared)' };
+    return body.jti
+      ? this.authService.logout(user.userId, body.jti, this.extractDevice(req))
+      : { message: 'Logged out (local session cleared)' };
   }
 
   @Post('logout-all')
   @HttpCode(HttpStatus.OK)
-  logoutAll(@CurrentUser() user: AuthenticatedRequestUser) {
-    return this.authService.logoutAllDevices(user.userId);
+  logoutAll(@CurrentUser() user: AuthenticatedRequestUser, @Req() req: Request) {
+    return this.authService.logoutAllDevices(user.userId, this.extractDevice(req));
   }
 
   @Get('sessions')
@@ -134,15 +136,15 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 60_000 } }) // an outage-grade abuse vector otherwise: repeatedly emailing someone's inbox
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto.email);
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.authService.forgotPassword(dto.email, this.extractDevice(req));
   }
 
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto.token, dto.newPassword);
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.authService.resetPassword(dto.token, dto.newPassword, this.extractDevice(req));
   }
 
   // ===========================================================================

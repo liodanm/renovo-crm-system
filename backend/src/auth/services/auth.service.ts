@@ -9,6 +9,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { PasswordService } from './password.service';
 import { TokenService, DeviceInfo } from './token.service';
 import { MailService } from '../../mail/mail.service';
+import { SecurityEventsService } from '../../security/services/security-events.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { AccessTokenPayload } from '../interfaces/jwt-payload.interface';
@@ -22,15 +23,29 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly mailService: MailService,
+    private readonly securityEvents: SecurityEventsService,
   ) {}
 
   // =========================================================================
   // REGISTRATION — always creates a new company with the user as `owner`
   // =========================================================================
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, device?: DeviceInfo) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
     if (existing) {
+      // No companyId here on purpose — this request never reached the
+      // point of creating (or joining) a company, so there's nothing
+      // real to attribute the event to. Still recorded (companyId
+      // null), per this feature's "retain for future platform-level
+      // visibility" design — see migration 044.
+      await this.securityEvents.recordEvent({
+        eventType: 'registration_duplicate_attempt',
+        success: false,
+        identifier: dto.email,
+        ipAddress: device?.ipAddress,
+        userAgent: device?.userAgent,
+        reason: 'duplicate_email',
+      });
       // Same message whether the email exists or not would be ideal for
       // enumeration resistance, but registration UX generally needs to tell
       // the user their email is taken so they can log in instead — we accept
@@ -75,6 +90,15 @@ export class AuthService {
     const verificationToken = await this.tokenService.createEmailVerificationToken(user.id);
     await this.mailService.sendVerificationEmail(user.email, user.firstName, verificationToken);
 
+    await this.securityEvents.recordEvent({
+      companyId: company.id,
+      userId: user.id,
+      eventType: 'registration_success',
+      success: true,
+      ipAddress: device?.ipAddress,
+      userAgent: device?.userAgent,
+    });
+
     return {
       message: 'Account created. Check your email to verify your address.',
       userId: user.id,
@@ -88,6 +112,15 @@ export class AuthService {
 
   async login(dto: LoginDto, device: DeviceInfo) {
     if (await this.tokenService.isLoginLocked(dto.email)) {
+      // Still worth attribution if the email matches a real user — an
+      // owner should see repeated attempts against an already-locked
+      // account, not just the single moment it first locked. This
+      // lookup doesn't touch the password-comparison timing at all
+      // (no password check happens on this branch either way), so it
+      // doesn't weaken the constant-time behavior the rest of this
+      // method is careful about.
+      const lockedUser = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
+      await this.recordLoginFailureForUser(lockedUser, dto.email, device, 'account_locked');
       throw new ForbiddenException('Too many failed login attempts. Try again in 15 minutes.');
     }
 
@@ -102,7 +135,26 @@ export class AuthService {
       : await this.passwordService.verify('$argon2id$v=19$m=19456,t=2,p=1$dummysaltdummysalt$dummyhash', dto.password); // dummy verify to keep timing constant
 
     if (!user || !passwordValid) {
-      await this.tokenService.recordFailedLoginAttempt(dto.email);
+      const justLockedOut = await this.tokenService.recordFailedLoginAttempt(dto.email);
+      await this.recordLoginFailureForUser(user, dto.email, device, user ? 'invalid_credentials' : 'account_not_found');
+      if (justLockedOut && user) {
+        const companies = await this.getUserCompanyMemberships(user.id);
+        await Promise.all(
+          companies.map((c) =>
+            this.securityEvents.recordEvent({
+              companyId: c.companyId,
+              userId: user.id,
+              eventType: 'account_locked',
+              success: false,
+              identifier: dto.email,
+              ipAddress: device.ipAddress,
+              userAgent: device.userAgent,
+              reason: 'too_many_attempts',
+              metadata: { lockoutDurationSeconds: 900 },
+            }),
+          ),
+        );
+      }
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -118,6 +170,19 @@ export class AuthService {
     }
 
     await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+    await Promise.all(
+      companies.map((c) =>
+        this.securityEvents.recordEvent({
+          companyId: c.companyId,
+          userId: user.id,
+          eventType: 'login_success',
+          success: true,
+          ipAddress: device.ipAddress,
+          userAgent: device.userAgent,
+        }),
+      ),
+    );
 
     // Single company → log straight in. Multiple companies → the frontend
     // shows a "choose a workspace" screen and calls /auth/switch-company,
@@ -178,14 +243,32 @@ export class AuthService {
     return this.issueTokensForCompanyMembership(userId, user.email, membership, device);
   }
 
-  async logout(userId: string, jti: string) {
+  async logout(userId: string, jti: string, device?: DeviceInfo) {
     await this.tokenService.revokeSession(userId, jti);
+    await this.recordLogoutEvent(userId, device);
     return { message: 'Logged out' };
   }
 
-  async logoutAllDevices(userId: string) {
+  async logoutAllDevices(userId: string, device?: DeviceInfo) {
     await this.tokenService.revokeAllSessionsForUser(userId);
+    await this.recordLogoutEvent(userId, device);
     return { message: 'Logged out of all devices' };
+  }
+
+  private async recordLogoutEvent(userId: string, device?: DeviceInfo) {
+    const companies = await this.getUserCompanyMemberships(userId);
+    await Promise.all(
+      companies.map((c) =>
+        this.securityEvents.recordEvent({
+          companyId: c.companyId,
+          userId,
+          eventType: 'logout',
+          success: true,
+          ipAddress: device?.ipAddress,
+          userAgent: device?.userAgent,
+        }),
+      ),
+    );
   }
 
   // =========================================================================
@@ -217,17 +300,35 @@ export class AuthService {
   // PASSWORD RESET
   // =========================================================================
 
-  async forgotPassword(email: string) {
+  async forgotPassword(email: string, device?: DeviceInfo) {
     const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (user) {
       const token = await this.tokenService.createPasswordResetToken(user.id);
       await this.mailService.sendPasswordResetEmail(user.email, user.firstName, token);
+      const companies = await this.getUserCompanyMemberships(user.id);
+      await Promise.all(
+        companies.map((c) =>
+          this.securityEvents.recordEvent({
+            companyId: c.companyId,
+            userId: user.id,
+            eventType: 'password_reset_request',
+            success: true,
+            ipAddress: device?.ipAddress,
+            userAgent: device?.userAgent,
+          }),
+        ),
+      );
     }
     // Generic response either way — do not reveal whether the email exists.
+    // No event recorded for the "email doesn't exist" case — there's
+    // nothing here that represents a real security action (no token was
+    // created, no email was sent), just an inbound request against an
+    // address with no account, which forgot-password's own 3/min
+    // throttle already covers as an abuse vector.
     return { message: 'If an account exists for that email, a password reset link has been sent.' };
   }
 
-  async resetPassword(rawToken: string, newPassword: string) {
+  async resetPassword(rawToken: string, newPassword: string, device?: DeviceInfo) {
     const userId = await this.tokenService.consumePasswordResetToken(rawToken);
     if (!userId) {
       throw new UnauthorizedException('This reset link is invalid or has expired');
@@ -239,6 +340,20 @@ export class AuthService {
     // Resetting a password is a strong security event — kill every existing
     // session so a potentially-compromised device is immediately logged out.
     await this.tokenService.revokeAllSessionsForUser(userId);
+
+    const companies = await this.getUserCompanyMemberships(userId);
+    await Promise.all(
+      companies.map((c) =>
+        this.securityEvents.recordEvent({
+          companyId: c.companyId,
+          userId,
+          eventType: 'password_reset_completed',
+          success: true,
+          ipAddress: device?.ipAddress,
+          userAgent: device?.userAgent,
+        }),
+      ),
+    );
 
     return { message: 'Password reset successfully. Please log in again.' };
   }
@@ -384,6 +499,15 @@ export class AuthService {
 
     await this.mailService.sendCompanyInviteEmail(email, company.name, `${inviter.firstName} ${inviter.lastName}`, token);
 
+    await this.securityEvents.recordEvent({
+      companyId,
+      userId: invitedByUserId,
+      eventType: 'invitation_sent',
+      success: true,
+      identifier: email,
+      metadata: { roleId },
+    });
+
     return { message: `Invitation sent to ${email}` };
   }
 
@@ -442,6 +566,18 @@ export class AuthService {
 
     const memberships = await this.getUserCompanyMemberships(user.id);
     const membership = memberships.find((m) => m.companyId === invite.companyId)!;
+
+    await this.securityEvents.recordEvent({
+      companyId: invite.companyId,
+      userId: user.id,
+      eventType: 'invitation_accepted',
+      success: true,
+      identifier: user.email,
+      ipAddress: device.ipAddress,
+      userAgent: device.userAgent,
+      metadata: { roleId: invite.roleId, invitedByUserId: invite.invitedByUserId },
+    });
+
     return this.issueTokensForCompanyMembership(user.id, user.email, membership, device);
   }
 
@@ -468,6 +604,44 @@ export class AuthService {
     };
 
     return this.tokenService.issueTokenPair(payload, device);
+  }
+
+  /**
+   * Shared by both login-failure branches (already-locked, and
+   * wrong-password) — attributes a login_failure event to every company
+   * the matched user belongs to, or records it unattributed (companyId
+   * null) if the email doesn't match any real user at all. Never
+   * throws — recordEvent() already guarantees that on its own, but
+   * kept as a thin wrapper here so both call sites share one place to
+   * change this attribution logic.
+   */
+  private async recordLoginFailureForUser(user: { id: string } | null, email: string, device: DeviceInfo, reason: string) {
+    if (!user) {
+      await this.securityEvents.recordEvent({
+        eventType: 'login_failure',
+        success: false,
+        identifier: email,
+        ipAddress: device.ipAddress,
+        userAgent: device.userAgent,
+        reason,
+      });
+      return;
+    }
+    const companies = await this.getUserCompanyMemberships(user.id);
+    await Promise.all(
+      companies.map((c) =>
+        this.securityEvents.recordEvent({
+          companyId: c.companyId,
+          userId: user.id,
+          eventType: 'login_failure',
+          success: false,
+          identifier: email,
+          ipAddress: device.ipAddress,
+          userAgent: device.userAgent,
+          reason,
+        }),
+      ),
+    );
   }
 
   private async getUserCompanyMemberships(userId: string): Promise<CompanyMembership[]> {

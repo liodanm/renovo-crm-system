@@ -30,6 +30,7 @@ model Company {
 
   companyUsers CompanyUser[]
   roles        Role[]
+  securityEvents SecurityEvent[]
 
   @@map("companies")
 }
@@ -63,6 +64,7 @@ model User {
   acceptedEstimates   Estimate[]
   assignedJobs        Job[]              @relation("JobAssignedUser")
   jobStatusChanges    JobStatusHistory[]
+  securityEvents      SecurityEvent[]
 
   @@map("users")
 }
@@ -608,6 +610,33 @@ model JobCallback {
   customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@map("job_callbacks")
+}
+
+// Generic security/audit event log — see migration 044 for the full
+// design reasoning (nullable companyId, masked identifiers only, why
+// this is one table not a login-specific one). Real Prisma model here
+// (not raw-SQL-only like Appointment) since this table has many INSERT
+// call sites across auth.service.ts/token.service.ts, and typed inserts
+// catch a field-name typo at compile time — worth the model for that
+// alone, unlike Appointment's more bespoke, harder-to-generalize access
+// pattern.
+model SecurityEvent {
+  id                String    @id @default(uuid())
+  companyId         String?   @map("company_id")
+  userId            String?   @map("user_id")
+  eventType         String    @map("event_type")
+  success           Boolean
+  identifierMasked  String?   @map("identifier_masked")
+  ipAddress         String?   @map("ip_address")
+  userAgent         String?   @map("user_agent")
+  reason            String?
+  metadata          Json?
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("security_events")
 }
 
 model JobAuditLog {

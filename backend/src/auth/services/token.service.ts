@@ -250,7 +250,13 @@ export class TokenService {
   // Login throttling — protects against credential-stuffing / brute force
   // ---------------------------------------------------------------------
 
-  async recordFailedLoginAttempt(email: string): Promise<void> {
+  /** Returns true only on the exact call that crosses the lockout
+   * threshold — lets the caller (AuthService.login) emit a single
+   * ACCOUNT_LOCKED event at the moment lockout actually begins, not on
+   * every subsequent attempt while already locked (that path is
+   * covered separately as a login_failure with reason='account_locked'
+   * before this function is ever called again). */
+  async recordFailedLoginAttempt(email: string): Promise<boolean> {
     const window = this.getNumber('auth.security.loginLockoutWindowSeconds', 900);
     const max = this.getNumber('auth.security.maxLoginAttemptsPerWindow', 5);
     const key = LOGIN_ATTEMPTS_KEY(email);
@@ -263,7 +269,9 @@ export class TokenService {
     if (attempts >= max) {
       const lockoutDuration = this.getNumber('auth.security.loginLockoutDurationSeconds', 900);
       await this.redis.set(LOGIN_LOCKOUT_KEY(email), '1', 'EX', lockoutDuration as number);
+      return attempts === max; // only true the exact call that crossed the line
     }
+    return false;
   }
 
   async clearFailedLoginAttempts(email: string): Promise<void> {

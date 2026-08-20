@@ -24,6 +24,7 @@ import {
   HelpCircle,
   Trash2,
   Info,
+  Shield,
 } from 'lucide-react';
 
 export interface SettingsNavItem {
@@ -96,6 +97,7 @@ export const settingsNavGroups: SettingsNavGroup[] = [
     label: 'Team & Access',
     items: [
       { key: 'users-roles', label: 'Users & Roles', description: 'Team members and permissions', comingSoon: true, icon: Users },
+      { key: 'security', label: 'Security Activity', description: 'Logins, lockouts, registrations, and staff access changes', icon: Shield, ownerOnly: true },
     ],
   },
   {
