@@ -436,7 +436,7 @@ export class PortalDataService {
          FROM appointments a
          LEFT JOIN LATERAL (
            SELECT json_agg(json_build_object('serviceType', jli.service_type, 'customServiceName', jli.custom_service_name) ORDER BY jli.sort_order) AS services
-           FROM job_line_items jli WHERE jli.job_id = a.job_id
+           FROM job_line_items jli WHERE jli.job_id = a.job_id AND jli.company_id = $1::uuid
          ) svc ON true
          WHERE a.company_id = $1::uuid AND a.customer_id = $2::uuid
            AND a.status IN ('scheduled', 'confirmed') AND a.starts_at >= now()

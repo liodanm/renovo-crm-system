@@ -134,7 +134,7 @@ export class JobCallbacksService {
       )
       SELECT
         (SELECT COUNT(*) FROM completed) AS "completedJobs",
-        (SELECT COUNT(DISTINCT jc.original_job_id) FROM job_callbacks jc JOIN completed c ON c.id = jc.original_job_id) AS "callbackJobs"
+        (SELECT COUNT(DISTINCT jc.original_job_id) FROM job_callbacks jc JOIN completed c ON c.id = jc.original_job_id WHERE jc.company_id = ${companyId}::uuid) AS "callbackJobs"
     `);
     const completedJobs = Number(rows[0]?.completedJobs ?? 0);
     const callbackJobs = Number(rows[0]?.callbackJobs ?? 0);

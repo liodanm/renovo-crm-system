@@ -508,8 +508,8 @@ export class ReportsService {
         CASE WHEN jc.revenue > 0 THEN ROUND((jc.revenue - (jc.labor_cost + jc.chemical_cost + jc.equipment_cost + jc.fuel_cost + jc.misc_cost)) / jc.revenue * 100, 2) ELSE NULL END AS "grossMarginPercent",
         (jc.line_items_with_cost = jc.line_item_count) AS "isComplete"
       FROM job_costs jc
-      JOIN jobs j ON j.id = jc.job_id
-      JOIN customers c ON c.id = j.customer_id
+      JOIN jobs j ON j.id = jc.job_id AND j.company_id = ${companyId}::uuid
+      JOIN customers c ON c.id = j.customer_id AND c.company_id = ${companyId}::uuid
       WHERE j.status = 'completed' AND j.actual_end >= ${start} AND j.actual_end < ${end} AND jc.has_actual_cost_data = true
       ORDER BY "grossProfit" ASC
     `);

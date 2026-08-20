@@ -160,21 +160,54 @@ export function resolvePreset(preset: DatePreset, customStart?: Date, customEnd?
 }
 
 /**
- * The comparison period for a given preset/range — "logically
- * equivalent," per the brief's own explicit requirement: August 1–19
- * compares against July 1–19, never against the whole of July. Computed
- * as the immediately-preceding period of the SAME LENGTH as
- * [start, end), which is correct for both a named preset (This Month
- * while partway through the month) and a fully custom range — one
- * formula handles both without a preset-specific special case.
+ * Fixed during the reporting verification gate — the original
+ * implementation shifted back by the elapsed *duration* of the current
+ * period (end − start), not by one calendar unit. For "This Month" on
+ * Aug 19 (Aug 1–19, an 18-day-old partial month), that produced
+ * Jul 14–Aug 1 as the comparison window — not Jul 1–19, which is
+ * exactly the example the original spec worked through by hand. A
+ * duration-based shift is only correct for Custom, where there's no
+ * calendar unit to anchor to; every preset needs its own calendar-unit
+ * subtraction (1 day/week/month/quarter/year back, same day-of-unit
+ * cutoff preserved) to actually produce a "logically equivalent" period.
  */
-export function resolveComparisonPeriod(start: Date, end: Date): { start: Date; end: Date } {
-  const durationMs = end.getTime() - start.getTime();
-  return { start: new Date(start.getTime() - durationMs), end: new Date(start.getTime()) };
+function subtractMonths(d: Date, months: number): Date {
+  // new Date(y, m - n, day) — JS Date normalizes an out-of-range month
+  // by rolling the year, e.g. new Date(2026, -1, 1) correctly becomes
+  // December 2025. Verified by hand for the Last-Quarter-in-Q1 case
+  // (month index -3) during this same verification pass.
+  return new Date(d.getFullYear(), d.getMonth() - months, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
 }
 
-/** Percent change, handling the zero-previous-period case explicitly
- * rather than returning Infinity/NaN to a KPI card. */
+export function resolveComparisonPeriod(start: Date, end: Date, preset: DatePreset = 'Custom'): { start: Date; end: Date } {
+  switch (preset) {
+    case 'Today':
+    case 'Yesterday':
+      return { start: new Date(start.getTime() - 86400000), end: new Date(end.getTime() - 86400000) };
+    case 'This Week':
+    case 'Last Week':
+      return { start: new Date(start.getTime() - 7 * 86400000), end: new Date(end.getTime() - 7 * 86400000) };
+    case 'This Month':
+    case 'Last Month':
+      return { start: subtractMonths(start, 1), end: subtractMonths(end, 1) };
+    case 'This Quarter':
+    case 'Last Quarter':
+      return { start: subtractMonths(start, 3), end: subtractMonths(end, 3) };
+    case 'This Year':
+    case 'Last Year':
+      return { start: new Date(start.getFullYear() - 1, start.getMonth(), start.getDate()), end: new Date(end.getFullYear() - 1, end.getMonth(), end.getDate()) };
+    case 'Custom':
+    default: {
+      // No calendar unit to anchor a custom range to — a trailing
+      // window of the same duration immediately before it is the only
+      // defensible default here, and was the ONLY case the original
+      // (buggy) implementation happened to be correct for.
+      const durationMs = end.getTime() - start.getTime();
+      return { start: new Date(start.getTime() - durationMs), end: new Date(start.getTime()) };
+    }
+  }
+}
+
 export function percentChange(current: number, previous: number): number | null {
   if (previous === 0) return current === 0 ? 0 : null; // null = "not a meaningful percentage," e.g. $0 -> $500 isn't "infinity% up," it's a new number entirely — a KPI card should show that as "New" rather than a percent.
   return Math.round(((current - previous) / previous) * 10000) / 100;

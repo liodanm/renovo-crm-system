@@ -19,7 +19,7 @@ export default function OwnerScorecardPage() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const { start, end } = resolvePreset(preset, customStart ? new Date(customStart) : undefined, customEnd ? new Date(customEnd) : undefined);
-  const { start: prevStart, end: prevEnd } = resolveComparisonPeriod(start, end);
+  const { start: prevStart, end: prevEnd } = resolveComparisonPeriod(start, end, preset);
   const startIso = start.toISOString();
   const endIso = end.toISOString();
   const prevStartIso = prevStart.toISOString();
