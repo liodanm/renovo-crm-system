@@ -7,7 +7,14 @@ import { PasswordService } from '../../auth/services/password.service'; // reuse
 import { MailService } from '../../mail/mail.service';
 import { PortalTokenPayload } from '../interfaces/portal-token.interface';
 
-const MAGIC_LINK_TTL_SECONDS = 15 * 60; // short-lived — this is a bearer credential emailed in plaintext
+// 72 hours (259200s) — extended from the original 15-minute default per
+// the portal link expiration audit. Configurable via
+// PORTAL_MAGIC_LINK_TTL_SECONDS, mirroring the same env-var pattern
+// PORTAL_JWT_TTL_SECONDS already uses below — not a second hardcoded
+// constant with no way to tune it without a redeploy. Still genuinely
+// short-lived relative to the 30-day portal session it exchanges for:
+// this only governs how long the single-use email link itself stays
+// clickable, not how long the resulting authenticated session lasts.
 
 /**
  * No password, ever — a customer portal account holds nothing worth a
@@ -55,7 +62,7 @@ export class PortalAuthService {
       `portal:magic-link:${this.passwordService.hashToken(rawToken)}`,
       JSON.stringify({ customerId: customer.id, companyId, email: customer.email, redirectTo: safeRedirectTo }),
       'EX',
-      MAGIC_LINK_TTL_SECONDS,
+      Number(this.config.get<string>('PORTAL_MAGIC_LINK_TTL_SECONDS', '259200')), // 259200 = 72 hours
     );
     const portalUrl = this.config.get<string>('PORTAL_URL', 'https://portal.renovocrm.com');
     return `${portalUrl}/${companySlug}/verify?token=${rawToken}`;
