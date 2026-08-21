@@ -4,7 +4,7 @@ import { EstimatesService } from './services/estimates.service';
 import { CreateEstimateDto } from './dto/create-estimate.dto';
 import { UpdateEstimateDto } from './dto/update-estimate.dto';
 import { QueryEstimatesDto } from './dto/query-estimates.dto';
-import { SendEstimateEmailDto, DeclineEstimateDto } from './dto/send-email.dto';
+import { SendEstimateEmailDto, SendEstimateSmsDto, DeclineEstimateDto } from './dto/send-email.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -59,6 +59,18 @@ export class EstimatesController {
   @RequirePermissions('estimates.write')
   resendEmail(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: SendEstimateEmailDto) {
     return this.estimatesService.sendEmail(user.companyId, id, user.userId, dto.toEmail);
+  }
+
+  @Post(':id/send-sms')
+  @RequirePermissions('estimates.write')
+  sendSms(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: SendEstimateSmsDto) {
+    return this.estimatesService.sendSms(user.companyId, id, user.userId, dto.toPhone);
+  }
+
+  @Post(':id/resend-sms')
+  @RequirePermissions('estimates.write')
+  resendSms(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: SendEstimateSmsDto) {
+    return this.estimatesService.sendSms(user.companyId, id, user.userId, dto.toPhone);
   }
 
   @Get(':id/email-history')

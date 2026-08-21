@@ -10,6 +10,18 @@ export class SendEstimateEmailDto {
   toEmail?: string;
 }
 
+export class SendEstimateSmsDto {
+  // Same override reasoning as SendEstimateEmailDto's toEmail — no
+  // format validation here beyond "is a string," matching how
+  // customer.phone itself is stored and how the existing automation
+  // engine already sends SMS to it (see AutomationService) without any
+  // E.164 normalization. Not introducing new phone validation this
+  // feature doesn't need to solve.
+  @IsOptional()
+  @IsString()
+  toPhone?: string;
+}
+
 export class DeclineEstimateDto {
   @IsOptional()
   @IsString()

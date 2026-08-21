@@ -7,9 +7,10 @@ import { DocumentsModule } from '../documents/documents.module';
 import { MailModule } from '../mail/mail.module';
 import { CustomersModule } from '../customers/customers.module';
 import { PortalModule } from '../portal/portal.module';
+import { SmsModule } from '../sms/sms.module';
 
 @Module({
-  imports: [JobsModule, DocumentsModule, MailModule, CustomersModule, PortalModule], // JobsModule: convertToJob -> JobsService.createFromEstimate; DocumentsModule: PDF + email logging; MailModule: real send; CustomersModule: the shared lead->active auto-transition on acceptance; PortalModule: PortalAuthService, for the authenticated portal link in send emails. Automation event logging goes through the standalone logAutomationEvent utility, no module import needed.
+  imports: [JobsModule, DocumentsModule, MailModule, CustomersModule, PortalModule, SmsModule], // JobsModule: convertToJob -> JobsService.createFromEstimate; DocumentsModule: PDF + email logging; MailModule: real send; CustomersModule: the shared lead->active auto-transition on acceptance; PortalModule: PortalAuthService, for the authenticated portal link in send emails; SmsModule: the same real Twilio-calling SmsService automation reminders already use, for sendSms().
   controllers: [EstimatesController],
   providers: [PrismaService, EstimatesService],
   exports: [EstimatesService], // AutomationService.runEstimateExpiration reuses markExpired directly rather than a second implementation

@@ -16,6 +16,7 @@ import { PortalAuthService } from '../../portal/services/portal-auth.service';
 import { ConfigService } from '@nestjs/config';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
 import { CustomersService } from '../../customers/services/customers.service';
+import { SmsService } from '../../sms/sms.service';
 
 // Fields only estimates.profitability holders should ever see — stripped
 // from every response otherwise, not just hidden client-side (which
@@ -38,6 +39,7 @@ export class EstimatesService {
     private readonly config: ConfigService,
     private readonly customersService: CustomersService,
     private readonly portalAuthService: PortalAuthService,
+    private readonly smsService: SmsService,
   ) {}
 
   async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean) {
@@ -538,6 +540,63 @@ export class EstimatesService {
     });
 
     return { success: true, emailLogId, recipientEmail };
+  }
+
+  /**
+   * Mirrors sendEmail's structure exactly (same status-transition guard,
+   * same portal link generation, same log-then-send-then-update-status
+   * shape) — deliberately not a parallel implementation with its own
+   * logic for any of that. The one real difference: SmsService.send()
+   * is synchronous (no Postmark-style async queue/worker), so status is
+   * updated immediately after the send attempt rather than by a
+   * background processor.
+   */
+  async sendSms(companyId: string, id: string, userId?: string, toPhoneOverride?: string) {
+    const existing = await this.findOne(companyId, id, true);
+    if (existing.status === 'draft') {
+      await this.send(companyId, id);
+    } else if (['declined', 'expired'].includes(existing.status)) {
+      throw new BadRequestException(`Cannot text an estimate with status '${existing.status}'`);
+    }
+
+    const recipientPhone = toPhoneOverride || existing.customer.phone;
+    if (!recipientPhone) throw new BadRequestException('This customer has no phone number on file');
+
+    const { company } = await this.companyContext.getCompanyAndBranding(companyId);
+    const portalUrl = (await this.portalAuthService.generatePortalLink(companyId, existing.customerId, `/portal/estimates/${id}`))
+      ?? `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
+
+    // No price anywhere in this message — same rule sendEmail's own data
+    // object follows, for the same reason: the customer should see
+    // pricing only after clicking through to the authenticated portal,
+    // never in the plaintext notification itself. Matches the exact
+    // wording style already approved in this company's registered A2P
+    // 10DLC campaign (sample message #1: "...has sent you an estimate
+    // for [Service]. View your estimate here: [Link]. Reply STOP to
+    // opt out."), not a new, uncoordinated message format.
+    const body = `${company.dba || company.name}: Hi ${existing.customer.firstName || 'there'}, your estimate ${existing.estimateNumber} is ready. View it here: ${portalUrl}. Reply STOP to opt out.`;
+
+    const logId = await this.emailLogService.create({
+      companyId,
+      relatedType: 'estimate',
+      relatedId: id,
+      recipientPhone,
+      channel: 'sms',
+      subject: `Your Quote Is Ready – ${existing.estimateNumber} (SMS)`,
+      template: 'estimate-send-sms',
+      sentByUserId: userId,
+    });
+
+    const result = await this.smsService.send(recipientPhone, body);
+    await this.emailLogService.updateStatus(companyId, logId, result.sent ? 'sent' : 'failed', result.error);
+
+    if (!result.sent) {
+      throw new BadRequestException(result.error === 'twilio_not_configured'
+        ? 'SMS is not configured for this account yet — set up Twilio in Settings first.'
+        : 'Could not send the text message. Please try again or use email instead.');
+    }
+
+    return { success: true, logId, recipientPhone };
   }
 
   async getEmailHistory(companyId: string, id: string) {

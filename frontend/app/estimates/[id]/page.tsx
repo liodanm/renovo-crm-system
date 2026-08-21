@@ -311,9 +311,11 @@ export default function EstimateDetailPage() {
               <DocumentEmailSection
                 documentLabel="Estimate"
                 customerEmail={estimate.customer.email}
+                customerPhone={estimate.customer.phone}
                 hasBeenSent={estimate.status !== 'draft'}
                 pdfPath={estimatesApi.pdfPath(estimate.id)}
                 onSendEmail={(toEmail) => estimatesApi.sendEmail(estimate.id, toEmail).then(async (r) => { await mutate(); return r; })}
+                onSendSms={(toPhone) => estimatesApi.sendSms(estimate.id, toPhone).then(async (r) => { await mutate(); return r; })}
                 onGetHistory={() => estimatesApi.getEmailHistory(estimate.id)}
                 historyKey={`estimate-email-history-${estimate.id}`}
               />

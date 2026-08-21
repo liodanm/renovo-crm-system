@@ -132,6 +132,12 @@ export const estimatesApi = {
   resendEmail: (id: string, toEmail?: string) =>
     apiFetch<{ success: boolean; emailLogId: string; recipientEmail: string }>(`/estimates/${id}/resend-email`, { method: 'POST', body: JSON.stringify({ toEmail }) }),
 
+  sendSms: (id: string, toPhone?: string) =>
+    apiFetch<{ success: boolean; logId: string; recipientPhone: string }>(`/estimates/${id}/send-sms`, { method: 'POST', body: JSON.stringify({ toPhone }) }),
+
+  resendSms: (id: string, toPhone?: string) =>
+    apiFetch<{ success: boolean; logId: string; recipientPhone: string }>(`/estimates/${id}/resend-sms`, { method: 'POST', body: JSON.stringify({ toPhone }) }),
+
   getEmailHistory: (id: string) => apiFetch<EmailLogEntry[]>(`/estimates/${id}/email-history`),
 
   pdfPath: (id: string) => `/estimates/${id}/pdf`,
@@ -149,7 +155,9 @@ export const estimatesApi = {
 
 export interface EmailLogEntry {
   id: string;
-  recipientEmail: string;
+  recipientEmail: string | null;
+  recipientPhone: string | null;
+  channel: 'email' | 'sms';
   subject: string;
   status: 'queued' | 'sent' | 'delivered' | 'failed' | 'bounced';
   errorMessage: string | null;
