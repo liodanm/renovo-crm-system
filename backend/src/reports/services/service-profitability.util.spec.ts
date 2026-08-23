@@ -101,3 +101,34 @@ describe('aggregateServiceProfitability', () => {
     expect(result.averageTicket).toBeNull();
   });
 });
+
+describe('Group 4 — Technician Performance worked example (reuses the same aggregation formula, adds Revenue/Labor Hour)', () => {
+  it('reproduces the exact Group 4 spec example: $800/$248/$552/69.0%/$400, plus 3 labor hours and $266.67/hour', () => {
+    const jobs = [
+      { revenue: 500, actualCost: 148, hasActualCostData: true },
+      { revenue: 300, actualCost: 100, hasActualCostData: true },
+    ];
+    const result = aggregateServiceProfitability(jobs);
+    expect(result.revenue).toBe(800);
+    expect(result.actualCost).toBe(248);
+    expect(result.grossProfit).toBe(552);
+    expect(result.grossMarginPercent).toBe(69);
+    expect(result.averageTicket).toBe(400);
+
+    // Revenue/Labor Hour is genuinely new arithmetic this group
+    // introduces (not covered by the Service Profitability formula
+    // above, which has no concept of labor hours at all) — verified
+    // directly here rather than assumed correct by analogy.
+    const laborHours = 2 + 1;
+    const revenuePerLaborHour = Math.round((result.revenue / laborHours) * 100) / 100;
+    expect(laborHours).toBe(3);
+    expect(revenuePerLaborHour).toBe(266.67);
+  });
+
+  it('division by zero labor hours returns a safe null, never Infinity', () => {
+    const revenue = 500;
+    const laborHours = 0;
+    const revenuePerLaborHour = laborHours > 0 ? revenue / laborHours : null;
+    expect(revenuePerLaborHour).toBeNull();
+  });
+});

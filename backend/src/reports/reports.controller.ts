@@ -205,4 +205,30 @@ export class ReportsController {
   getReviewList(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
     return this.reports.getReviewList(user.companyId, new Date(query.start), new Date(query.end));
   }
+
+  // ---- Reporting Center Phase 3, Group 4 ----
+
+  @Get('technician-performance-detail')
+  getTechnicianPerformanceDetail(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getTechnicianPerformanceDetail(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('technician-performance-detail/job')
+  getTechnicianPerformanceDrilldown(
+    @CurrentUser() user: AuthenticatedRequestUser,
+    @Query() query: QueryReportsDto,
+    @Query('technicianId') technicianId: string,
+  ) {
+    return this.reports.getTechnicianPerformanceDrilldown(user.companyId, new Date(query.start), new Date(query.end), technicianId);
+  }
+
+  @Get('route-efficiency')
+  getRouteEfficiencySummary(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getRouteEfficiencySummary(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('route-efficiency/by-day')
+  getRouteEfficiencyByDay(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getRouteEfficiencyByDay(user.companyId, new Date(query.start), new Date(query.end));
+  }
 }

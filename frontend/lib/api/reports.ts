@@ -141,7 +141,75 @@ export const reportsApi = {
   getRepeatCustomersSummary: () => apiFetch<RepeatCustomersSummary>('/reports/repeat-customers/summary'),
   getCallbackList: (start: string, end: string) => apiFetch<CallbackRow[]>(`/reports/callbacks?${range(start, end)}`),
   getReviewList: (start: string, end: string) => apiFetch<ReviewRow[]>(`/reports/reviews?${range(start, end)}`),
+  getTechnicianPerformanceDetail: (start: string, end: string) => apiFetch<TechnicianPerformanceRow[]>(`/reports/technician-performance-detail?${range(start, end)}`),
+  getTechnicianPerformanceDrilldown: (start: string, end: string, technicianId: string) =>
+    apiFetch<TechnicianJobRow[]>(`/reports/technician-performance-detail/job?${range(start, end)}&technicianId=${encodeURIComponent(technicianId)}`),
+  getRouteEfficiencySummary: (start: string, end: string) => apiFetch<RouteEfficiencySummary>(`/reports/route-efficiency?${range(start, end)}`),
+  getRouteEfficiencyByDay: (start: string, end: string) => apiFetch<RouteEfficiencyDayRow[]>(`/reports/route-efficiency/by-day?${range(start, end)}`),
 };
+
+// ---- Reporting Center Phase 3, Group 4 ----
+
+export interface TechnicianPerformanceRow {
+  technicianId: string;
+  firstName: string;
+  lastName: string;
+  totalJobs: string;
+  jobsWithCostData: string;
+  jobsWithLaborData: string;
+  revenue: string;
+  actualCost: string;
+  grossProfit: string;
+  grossMarginPercent: string | null;
+  averageTicket: string | null;
+  laborHours: string;
+  revenuePerLaborHour: string | null;
+  callbackJobs: string;
+  callbackRatePercent: string | null;
+}
+
+export interface TechnicianJobRow {
+  jobId: string;
+  jobNumber: string;
+  customerName: string;
+  serviceName: string;
+  completedAt: string;
+  actualStart: string | null;
+  laborHours: string | null;
+  revenue: string;
+  actualCost: string;
+  grossProfit: string | null;
+  grossMarginPercent: string | null;
+  hasActualCostData: boolean;
+  hadCallback: boolean;
+}
+
+export interface RouteEfficiencySummary {
+  completedJobs: number;
+  cancelledJobs: number;
+  cancellationRatePercent: number | null;
+  jobsWithActualDuration: number;
+  jobsWithScheduledDuration: number;
+  averageActualDurationMinutes: number | null;
+  averageScheduledDurationMinutes: number | null;
+  averageScheduleVarianceMinutes: number | null;
+  jobsWithBothDurations: number;
+  lateStartJobs: number;
+  lateStartRatePercent: number | null;
+  jobsWithStartComparison: number;
+  totalLaborHours: number;
+  revenuePerLaborHour: number | null;
+  jobsPerCalendarDay: number;
+}
+
+export interface RouteEfficiencyDayRow {
+  date: string;
+  jobs: string;
+  revenue: string;
+  laborHours: string;
+  averageDurationMinutes: string | null;
+  scheduleVarianceMinutes: string | null;
+}
 
 // ---- Reporting Center Phase 3, Group 3 ----
 

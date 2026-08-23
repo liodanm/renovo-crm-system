@@ -58,8 +58,10 @@ const categories: ReportCategory[] = [
   {
     title: 'Operations',
     description: 'Crew productivity and job scheduling efficiency.',
-    reports: [],
-    comingSoon: ['Technician Performance', 'Route & Job Efficiency'],
+    reports: [
+      { label: 'Technician Performance', href: '/reports/technician-performance', description: 'Revenue, labor hours, gross profit, and callback rate by technician' },
+      { label: 'Route & Job Efficiency', href: '/reports/route-efficiency', description: 'Job duration, schedule variance, and cancellation rate — travel/mileage not yet tracked' },
+    ],
   },
 ];
 

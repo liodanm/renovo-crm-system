@@ -1042,4 +1042,257 @@ export class ReportsService {
       ORDER BY "reviewDate" DESC
     `);
   }
+
+  // =========================================================================
+  // Reporting Center Phase 3, Group 4 — Technician Performance, Route & Job
+  // Efficiency.
+  //
+  // Labor Hours source decision, made explicit: jobs.billable_labor_hours
+  // (not SUM(job_line_items.actual_labor_hours)) is used for every "Labor
+  // Hours" figure in this group — this is the SAME field the pre-existing
+  // getTechnicianPerformance() already used, not a new choice. The two
+  // labor-hour sources in this schema serve genuinely different purposes:
+  // billable_labor_hours is job-level, time-clock-derived (actual_end -
+  // actual_start, staff-overridable at completion — see JobsService.complete),
+  // meant to answer "how many hours of work did this job take." job_line_items
+  // .actual_labor_hours is per-line-item, staff-entered specifically for
+  // cost attribution (hours x rate = labor cost within Job Cost/Service
+  // Profitability's formula), and was never meant to represent total job
+  // duration. Using billable_labor_hours for "Labor Hours" and the existing
+  // job_costs CTE for "Gross Profit/Margin" combines two already-authoritative,
+  // different-purpose sources correctly — not a new, third calculation.
+  // =========================================================================
+
+  /**
+   * Technician Performance detail — reuses the identical job_costs CTE
+   * from getJobCostDetail/getServiceProfitability (same revenue/cost
+   * basis, same has_actual_cost_data completeness rule), grouped by
+   * jobs.assigned_user_id instead of service_type. Revenue/Cost/Profit/
+   * Margin/Average Ticket are computed only from jobs with real cost
+   * data (identical resolution to Service Profitability — see that
+   * method's own comment for the full reasoning); totalJobs is the
+   * separate, unrestricted count. Labor hours and its own completeness
+   * are tracked independently, since billable_labor_hours can be
+   * missing on jobs that DO have cost data and vice versa — the two are
+   * genuinely independent completeness questions, not the same one
+   * asked twice.
+   */
+  async getTechnicianPerformanceDetail(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_costs AS (
+        SELECT
+          jli.job_id,
+          SUM(jli.total) AS revenue,
+          SUM(COALESCE(jli.actual_labor_hours, 0) *
+              COALESCE((SELECT hourly_labor_rate FROM users WHERE id = jli.assigned_user_id), (SELECT default_labor_rate FROM companies WHERE id = ${companyId}::uuid), 0)
+          ) AS labor_cost,
+          SUM(COALESCE(jli.actual_chemical_cost, 0)) AS chemical_cost,
+          SUM(COALESCE(jli.actual_equipment_cost, 0)) AS equipment_cost,
+          SUM(COALESCE(jli.actual_fuel_cost, 0)) AS fuel_cost,
+          SUM(COALESCE(jli.actual_misc_cost, 0)) AS misc_cost,
+          BOOL_OR(jli.actual_labor_hours IS NOT NULL OR jli.actual_chemical_cost IS NOT NULL OR jli.actual_equipment_cost IS NOT NULL
+                  OR jli.actual_fuel_cost IS NOT NULL OR jli.actual_misc_cost IS NOT NULL) AS has_actual_cost_data
+        FROM job_line_items jli
+        WHERE jli.company_id = ${companyId}::uuid
+        GROUP BY jli.job_id
+      ),
+      eligible_jobs AS (
+        SELECT
+          j.id, j.assigned_user_id,
+          jc.revenue, (COALESCE(jc.labor_cost,0)+COALESCE(jc.chemical_cost,0)+COALESCE(jc.equipment_cost,0)+COALESCE(jc.fuel_cost,0)+COALESCE(jc.misc_cost,0)) AS actual_cost,
+          COALESCE(jc.has_actual_cost_data, false) AS has_actual_cost_data,
+          j.billable_labor_hours
+        FROM jobs j
+        LEFT JOIN job_costs jc ON jc.job_id = j.id
+        WHERE j.company_id = ${companyId}::uuid AND j.status = 'completed'
+          AND j.actual_end >= ${start} AND j.actual_end < ${end} AND j.assigned_user_id IS NOT NULL
+      ),
+      callback_counts AS (
+        -- Same definition getCallbackRate() already uses (distinct
+        -- original_job_id from job_callbacks, joined against completed
+        -- jobs in range) — applied at technician grain here, not
+        -- redefined. Not a modification of the shared method; a
+        -- grouped variant of the same formula, same precedent as
+        -- getRevenueByTechnician vs. getRevenueTrend.
+        SELECT ej.assigned_user_id, COUNT(DISTINCT jc.original_job_id) AS callback_jobs
+        FROM eligible_jobs ej
+        JOIN job_callbacks jc ON jc.original_job_id = ej.id AND jc.company_id = ${companyId}::uuid
+        GROUP BY ej.assigned_user_id
+      )
+      SELECT
+        u.id AS "technicianId", u.first_name AS "firstName", u.last_name AS "lastName",
+        COUNT(ej.id) AS "totalJobs",
+        COUNT(ej.id) FILTER (WHERE ej.has_actual_cost_data) AS "jobsWithCostData",
+        COUNT(ej.id) FILTER (WHERE ej.billable_labor_hours IS NOT NULL) AS "jobsWithLaborData",
+        COALESCE(SUM(ej.revenue) FILTER (WHERE ej.has_actual_cost_data), 0) AS "revenue",
+        COALESCE(SUM(ej.actual_cost) FILTER (WHERE ej.has_actual_cost_data), 0) AS "actualCost",
+        COALESCE(SUM(ej.revenue - ej.actual_cost) FILTER (WHERE ej.has_actual_cost_data), 0) AS "grossProfit",
+        CASE WHEN COALESCE(SUM(ej.revenue) FILTER (WHERE ej.has_actual_cost_data), 0) > 0
+          THEN ROUND(COALESCE(SUM(ej.revenue - ej.actual_cost) FILTER (WHERE ej.has_actual_cost_data), 0) / SUM(ej.revenue) FILTER (WHERE ej.has_actual_cost_data) * 100, 2)
+          ELSE NULL END AS "grossMarginPercent",
+        CASE WHEN COUNT(ej.id) FILTER (WHERE ej.has_actual_cost_data) > 0
+          THEN ROUND(COALESCE(SUM(ej.revenue) FILTER (WHERE ej.has_actual_cost_data), 0) / COUNT(ej.id) FILTER (WHERE ej.has_actual_cost_data), 2)
+          ELSE NULL END AS "averageTicket",
+        COALESCE(SUM(ej.billable_labor_hours) FILTER (WHERE ej.billable_labor_hours IS NOT NULL), 0) AS "laborHours",
+        CASE WHEN COALESCE(SUM(ej.billable_labor_hours) FILTER (WHERE ej.billable_labor_hours IS NOT NULL), 0) > 0
+          THEN ROUND(COALESCE(SUM(ej.revenue) FILTER (WHERE ej.has_actual_cost_data AND ej.billable_labor_hours IS NOT NULL), 0)
+                     / SUM(ej.billable_labor_hours) FILTER (WHERE ej.has_actual_cost_data AND ej.billable_labor_hours IS NOT NULL), 2)
+          ELSE NULL END AS "revenuePerLaborHour",
+        COALESCE(cc.callback_jobs, 0) AS "callbackJobs",
+        CASE WHEN COUNT(ej.id) > 0 THEN ROUND(COALESCE(cc.callback_jobs, 0)::numeric / COUNT(ej.id) * 100, 2) ELSE NULL END AS "callbackRatePercent"
+      FROM eligible_jobs ej
+      JOIN users u ON u.id = ej.assigned_user_id
+      LEFT JOIN callback_counts cc ON cc.assigned_user_id = ej.assigned_user_id
+      GROUP BY u.id, u.first_name, u.last_name, cc.callback_jobs
+      ORDER BY "grossProfit" DESC NULLS LAST
+    `);
+  }
+
+  /** Drill-down: the jobs behind one technician's summary row, same reconciliation guarantee as Service Profitability's drilldown (identical CTE, identical filters). */
+  async getTechnicianPerformanceDrilldown(companyId: string, start: Date, end: Date, technicianId: string) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_costs AS (
+        SELECT
+          jli.job_id,
+          SUM(jli.total) AS revenue,
+          SUM(COALESCE(jli.actual_labor_hours, 0) *
+              COALESCE((SELECT hourly_labor_rate FROM users WHERE id = jli.assigned_user_id), (SELECT default_labor_rate FROM companies WHERE id = ${companyId}::uuid), 0)
+          ) AS labor_cost,
+          SUM(COALESCE(jli.actual_chemical_cost, 0)) AS chemical_cost,
+          SUM(COALESCE(jli.actual_equipment_cost, 0)) AS equipment_cost,
+          SUM(COALESCE(jli.actual_fuel_cost, 0)) AS fuel_cost,
+          SUM(COALESCE(jli.actual_misc_cost, 0)) AS misc_cost,
+          BOOL_OR(jli.actual_labor_hours IS NOT NULL OR jli.actual_chemical_cost IS NOT NULL OR jli.actual_equipment_cost IS NOT NULL
+                  OR jli.actual_fuel_cost IS NOT NULL OR jli.actual_misc_cost IS NOT NULL) AS has_actual_cost_data
+        FROM job_line_items jli
+        WHERE jli.company_id = ${companyId}::uuid
+        GROUP BY jli.job_id
+      )
+      SELECT
+        j.id AS "jobId", j.job_number AS "jobNumber",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName",
+        COALESCE(j.service_type, 'Other') AS "serviceName",
+        j.actual_end AS "completedAt", j.actual_start AS "actualStart",
+        j.billable_labor_hours AS "laborHours",
+        COALESCE(jc.revenue, 0) AS revenue,
+        (COALESCE(jc.labor_cost,0)+COALESCE(jc.chemical_cost,0)+COALESCE(jc.equipment_cost,0)+COALESCE(jc.fuel_cost,0)+COALESCE(jc.misc_cost,0)) AS "actualCost",
+        CASE WHEN COALESCE(jc.has_actual_cost_data, false)
+          THEN COALESCE(jc.revenue,0) - (COALESCE(jc.labor_cost,0)+COALESCE(jc.chemical_cost,0)+COALESCE(jc.equipment_cost,0)+COALESCE(jc.fuel_cost,0)+COALESCE(jc.misc_cost,0))
+          ELSE NULL END AS "grossProfit",
+        CASE WHEN COALESCE(jc.has_actual_cost_data, false) AND COALESCE(jc.revenue,0) > 0
+          THEN ROUND((COALESCE(jc.revenue,0) - (COALESCE(jc.labor_cost,0)+COALESCE(jc.chemical_cost,0)+COALESCE(jc.equipment_cost,0)+COALESCE(jc.fuel_cost,0)+COALESCE(jc.misc_cost,0))) / jc.revenue * 100, 2)
+          ELSE NULL END AS "grossMarginPercent",
+        COALESCE(jc.has_actual_cost_data, false) AS "hasActualCostData",
+        (SELECT COUNT(*) FROM job_callbacks jcb WHERE jcb.original_job_id = j.id AND jcb.company_id = ${companyId}::uuid) > 0 AS "hadCallback"
+      FROM jobs j
+      LEFT JOIN job_costs jc ON jc.job_id = j.id
+      JOIN customers c ON c.id = j.customer_id AND c.company_id = ${companyId}::uuid
+      WHERE j.company_id = ${companyId}::uuid AND j.status = 'completed' AND j.assigned_user_id = ${technicianId}::uuid
+        AND j.actual_end >= ${start} AND j.actual_end < ${end}
+      ORDER BY j.actual_end DESC
+    `);
+  }
+
+  // =========================================================================
+  // Route & Job Efficiency. Deliberately conservative — see the class-level
+  // comment above and this method's own inline notes for exactly which
+  // metrics are real vs. genuinely unavailable in this schema today.
+  // Travel time, mileage, and reschedule tracking are NOT computed anywhere
+  // in this method — confirmed absent from the schema (no travel_start/
+  // travel_end/mileage columns, no generic reschedule-event table), not
+  // silently approximated from GPS coordinates or calendar gaps.
+  // =========================================================================
+
+  async getRouteEfficiencySummary(companyId: string, start: Date, end: Date) {
+    const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_costs AS (
+        SELECT jli.job_id, SUM(jli.total) AS revenue
+        FROM job_line_items jli WHERE jli.company_id = ${companyId}::uuid GROUP BY jli.job_id
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE j.status = 'completed') AS "completedJobs",
+        COUNT(*) FILTER (WHERE j.status = 'cancelled') AS "cancelledJobs",
+        COUNT(*) FILTER (WHERE j.status IN ('completed', 'cancelled')) AS "totalEligibleJobs",
+        COUNT(*) FILTER (WHERE j.status = 'completed' AND j.actual_start IS NOT NULL AND j.actual_end IS NOT NULL) AS "jobsWithActualDuration",
+        COUNT(*) FILTER (WHERE j.status = 'completed' AND j.scheduled_start IS NOT NULL AND j.scheduled_end IS NOT NULL) AS "jobsWithScheduledDuration",
+        COUNT(*) FILTER (WHERE j.status = 'completed' AND j.actual_start IS NOT NULL AND j.actual_end IS NOT NULL AND j.scheduled_start IS NOT NULL AND j.scheduled_end IS NOT NULL) AS "jobsWithBothDurations",
+        COUNT(*) FILTER (WHERE j.status = 'completed' AND j.actual_start IS NOT NULL AND j.scheduled_start IS NOT NULL) AS "jobsWithStartComparison",
+        COUNT(*) FILTER (WHERE j.status = 'completed' AND j.actual_start IS NOT NULL AND j.scheduled_start IS NOT NULL AND j.actual_start > j.scheduled_start) AS "lateStartJobs",
+        COALESCE(AVG(EXTRACT(EPOCH FROM (j.actual_end - j.actual_start)) / 60) FILTER (WHERE j.status = 'completed' AND j.actual_start IS NOT NULL AND j.actual_end IS NOT NULL), 0) AS "averageActualDurationMinutes",
+        COALESCE(AVG(EXTRACT(EPOCH FROM (j.scheduled_end - j.scheduled_start)) / 60) FILTER (WHERE j.status = 'completed' AND j.scheduled_start IS NOT NULL AND j.scheduled_end IS NOT NULL), 0) AS "averageScheduledDurationMinutes",
+        COALESCE(AVG(EXTRACT(EPOCH FROM ((j.actual_end - j.actual_start) - (j.scheduled_end - j.scheduled_start))) / 60)
+          FILTER (WHERE j.status = 'completed' AND j.actual_start IS NOT NULL AND j.actual_end IS NOT NULL AND j.scheduled_start IS NOT NULL AND j.scheduled_end IS NOT NULL), 0) AS "averageScheduleVarianceMinutes",
+        COALESCE(SUM(j.billable_labor_hours) FILTER (WHERE j.status = 'completed'), 0) AS "totalLaborHours",
+        COALESCE(SUM(jc.revenue) FILTER (WHERE j.status = 'completed'), 0) AS "totalRevenue"
+      FROM jobs j
+      LEFT JOIN job_costs jc ON jc.job_id = j.id
+      WHERE j.company_id = ${companyId}::uuid
+        AND COALESCE(j.actual_end, j.scheduled_start, j.created_at) >= ${start} AND COALESCE(j.actual_end, j.scheduled_start, j.created_at) < ${end}
+    `);
+    const r = rows[0] ?? {};
+    const completedJobs = Number(r.completedJobs ?? 0);
+    const cancelledJobs = Number(r.cancelledJobs ?? 0);
+    const totalEligible = Number(r.totalEligibleJobs ?? 0);
+    const jobsWithBothDurations = Number(r.jobsWithBothDurations ?? 0);
+    const jobsWithStartComparison = Number(r.jobsWithStartComparison ?? 0);
+    const laborHours = Number(r.totalLaborHours ?? 0);
+    const calendarDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
+
+    return {
+      completedJobs,
+      cancelledJobs,
+      cancellationRatePercent: totalEligible > 0 ? Math.round((cancelledJobs / totalEligible) * 10000) / 100 : null,
+      jobsWithActualDuration: Number(r.jobsWithActualDuration ?? 0),
+      jobsWithScheduledDuration: Number(r.jobsWithScheduledDuration ?? 0),
+      averageActualDurationMinutes: Number(r.jobsWithActualDuration ?? 0) > 0 ? Math.round(Number(r.averageActualDurationMinutes ?? 0)) : null,
+      averageScheduledDurationMinutes: Number(r.jobsWithScheduledDuration ?? 0) > 0 ? Math.round(Number(r.averageScheduledDurationMinutes ?? 0)) : null,
+      // Only meaningful when BOTH durations exist for the same job — a
+      // job missing either side is excluded from this average entirely,
+      // never treated as zero variance.
+      averageScheduleVarianceMinutes: jobsWithBothDurations > 0 ? Math.round(Number(r.averageScheduleVarianceMinutes ?? 0)) : null,
+      jobsWithBothDurations,
+      // Late Job = actual_start later than scheduled_start — exact
+      // comparison, no invented 15/30-minute grace threshold, per this
+      // report's explicit instruction not to fabricate one.
+      lateStartJobs: Number(r.lateStartJobs ?? 0),
+      lateStartRatePercent: jobsWithStartComparison > 0 ? Math.round((Number(r.lateStartJobs ?? 0) / jobsWithStartComparison) * 10000) / 100 : null,
+      jobsWithStartComparison,
+      totalLaborHours: laborHours,
+      // Revenue here is the full completed-job revenue for the period
+      // (not restricted to cost-data-complete jobs the way Gross
+      // Profit is elsewhere) — Revenue/Labor Hour only needs revenue
+      // and hours, neither of which depends on actual-cost completeness.
+      revenuePerLaborHour: laborHours > 0 ? Math.round((Number(r.totalRevenue ?? 0) / laborHours) * 100) / 100 : null,
+      // Calendar days, not "working days" — Renovo has no stored
+      // business-hours/working-day model to divide by instead, per
+      // this report's own explicit fallback instruction.
+      jobsPerCalendarDay: Math.round((completedJobs / calendarDays) * 100) / 100,
+    };
+  }
+
+  /** Daily breakdown table for the Route & Job Efficiency page. Same duration/variance logic as the summary above, just grouped by day instead of aggregated for the whole period. */
+  async getRouteEfficiencyByDay(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_costs AS (
+        SELECT jli.job_id, SUM(jli.total) AS revenue
+        FROM job_line_items jli WHERE jli.company_id = ${companyId}::uuid GROUP BY jli.job_id
+      )
+      SELECT
+        date_trunc('day', j.actual_end)::date AS "date",
+        COUNT(*) AS "jobs",
+        COALESCE(SUM(jc.revenue), 0) AS "revenue",
+        COALESCE(SUM(j.billable_labor_hours) FILTER (WHERE j.billable_labor_hours IS NOT NULL), 0) AS "laborHours",
+        CASE WHEN COUNT(*) FILTER (WHERE j.actual_start IS NOT NULL AND j.actual_end IS NOT NULL) > 0
+          THEN ROUND(AVG(EXTRACT(EPOCH FROM (j.actual_end - j.actual_start)) / 60) FILTER (WHERE j.actual_start IS NOT NULL AND j.actual_end IS NOT NULL))
+          ELSE NULL END AS "averageDurationMinutes",
+        CASE WHEN COUNT(*) FILTER (WHERE j.actual_start IS NOT NULL AND j.actual_end IS NOT NULL AND j.scheduled_start IS NOT NULL AND j.scheduled_end IS NOT NULL) > 0
+          THEN ROUND(AVG(EXTRACT(EPOCH FROM ((j.actual_end - j.actual_start) - (j.scheduled_end - j.scheduled_start))) / 60)
+                     FILTER (WHERE j.actual_start IS NOT NULL AND j.actual_end IS NOT NULL AND j.scheduled_start IS NOT NULL AND j.scheduled_end IS NOT NULL))
+          ELSE NULL END AS "scheduleVarianceMinutes"
+      FROM jobs j
+      LEFT JOIN job_costs jc ON jc.job_id = j.id
+      WHERE j.company_id = ${companyId}::uuid AND j.status = 'completed' AND j.actual_end >= ${start} AND j.actual_end < ${end}
+      GROUP BY 1 ORDER BY 1 ASC
+    `);
+  }
 }
