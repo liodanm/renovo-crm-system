@@ -13,6 +13,7 @@ import { RecentPaymentsCard } from '../components/dashboard/recent-payments-card
 import { AiSuggestionsCard } from '../components/dashboard/ai-suggestions-card';
 import { NotificationsCard } from '../components/dashboard/notifications-card';
 import { GoogleReviewsCard } from '../components/dashboard/google-reviews-card';
+import { DashboardReportWidgets } from '../components/dashboard/DashboardReportWidgets';
 
 export default function DashboardPage() {
   const { user, isLoading } = useAuth();
@@ -80,6 +81,8 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <GoogleReviewsCard />
           </div>
+
+          <DashboardReportWidgets />
         </div>
       </div>
     </AppShell>
