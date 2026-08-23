@@ -173,4 +173,36 @@ export class ReportsController {
   ) {
     return this.reports.getServiceProfitabilityDrilldown(user.companyId, new Date(query.start), new Date(query.end), serviceName);
   }
+
+  // ---- Reporting Center Phase 3, Group 3 ----
+
+  @Get('customer-ltv')
+  getCustomerLtvTable(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.reports.getCustomerLtvTable(user.companyId);
+  }
+
+  @Get('customer-ltv/summary')
+  getCustomerLtvSummary(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.reports.getCustomerLtvSummary(user.companyId);
+  }
+
+  @Get('repeat-customers')
+  getRepeatCustomersTable(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.reports.getRepeatCustomersTable(user.companyId);
+  }
+
+  @Get('repeat-customers/summary')
+  getRepeatCustomersSummary(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.reports.getRepeatCustomersSummary(user.companyId);
+  }
+
+  @Get('callbacks')
+  getCallbackList(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getCallbackList(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('reviews')
+  getReviewList(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getReviewList(user.companyId, new Date(query.start), new Date(query.end));
+  }
 }

@@ -877,4 +877,169 @@ export class ReportsService {
       ORDER BY j.actual_end DESC
     `);
   }
+
+  // =========================================================================
+  // Reporting Center Phase 3, Group 3 — Customer Lifetime Value, Repeat &
+  // Recurring Customers, Satisfaction & Callbacks.
+  // =========================================================================
+
+  /**
+   * Customer LTV table. Deliberately NOT date-range-bound — same
+   * "lifetime is point-in-time, not period-filtered" precedent
+   * getCustomerAnalytics already established (see that method's own
+   * comment). customers.lifetime_value is the single authoritative CLV
+   * source (payments-based, auto-maintained), reused directly — not a
+   * second calculation. Average ticket here uses jobs.price (the same
+   * basis every other Average Ticket figure in this reporting phase
+   * uses), independently of lifetime_value, since lifetime_value is
+   * collected-payments-based while average ticket is job-price-based —
+   * two different, both-legitimate bases for two different questions,
+   * not a silent inconsistency.
+   */
+  async getCustomerLtvTable(companyId: string) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_stats AS (
+        SELECT customer_id, COUNT(*) AS job_count, COALESCE(AVG(price), 0) AS avg_ticket,
+               MIN(actual_end) AS first_job, MAX(actual_end) AS last_job
+        FROM jobs WHERE company_id = ${companyId}::uuid AND status = 'completed'
+        GROUP BY customer_id
+      )
+      SELECT
+        c.id AS "customerId",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName",
+        c.lifetime_value AS "lifetimeRevenue",
+        COALESCE(js.job_count, 0) AS "completedJobs",
+        COALESCE(js.avg_ticket, 0) AS "averageTicket",
+        js.first_job AS "firstJob",
+        js.last_job AS "lastJob"
+      FROM customers c
+      LEFT JOIN job_stats js ON js.customer_id = c.id
+      WHERE c.company_id = ${companyId}::uuid AND c.deleted_at IS NULL
+      ORDER BY "lifetimeRevenue" DESC
+    `);
+  }
+
+  /** Summary KPIs for the LTV table above — median via PERCENTILE_CONT, reliably computable in one query, so it's included per the spec's own "only if the backend can calculate it reliably" condition. */
+  async getCustomerLtvSummary(companyId: string) {
+    const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT
+        COUNT(*) AS "totalCustomers",
+        COALESCE(SUM(lifetime_value), 0) AS "totalLifetimeRevenue",
+        COALESCE(AVG(lifetime_value), 0) AS "averageLtv",
+        COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lifetime_value), 0) AS "medianLtv"
+      FROM customers WHERE company_id = ${companyId}::uuid AND deleted_at IS NULL
+    `);
+    return {
+      totalCustomers: Number(rows[0]?.totalCustomers ?? 0),
+      totalLifetimeRevenue: Number(rows[0]?.totalLifetimeRevenue ?? 0),
+      averageLtv: Math.round(Number(rows[0]?.averageLtv ?? 0) * 100) / 100,
+      medianLtv: Math.round(Number(rows[0]?.medianLtv ?? 0) * 100) / 100,
+      // High-Value Customers KPI deliberately omitted — no existing
+      // Renovo-defined dollar threshold exists for this, and the spec
+      // explicitly says not to invent one.
+    };
+  }
+
+  /**
+   * Repeat & Recurring Customers table. Repeat = completed job count > 1,
+   * the exact definition getCustomerAnalytics already established —
+   * reused inline here (same job_stats CTE shape), not redefined.
+   * hasRequestedRecurring is a real, stored signal (ServiceRequest.
+   * is_recurring, ever true for this customer) — not an inferred
+   * schedule from gaps between historical jobs, which the spec
+   * explicitly forbids. Next-due-date and recurring revenue are
+   * deliberately not computed here at all — see the frontend page for
+   * why (no reliable per-customer schedule exists in today's data
+   * model to compute either from).
+   */
+  async getRepeatCustomersTable(companyId: string) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_stats AS (
+        SELECT customer_id, COUNT(*) AS job_count, MIN(actual_end) AS first_job, MAX(actual_end) AS last_job
+        FROM jobs WHERE company_id = ${companyId}::uuid AND status = 'completed'
+        GROUP BY customer_id
+      ),
+      recurring_interest AS (
+        SELECT DISTINCT customer_id FROM service_requests WHERE company_id = ${companyId}::uuid AND is_recurring = true
+      )
+      SELECT
+        c.id AS "customerId",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName",
+        COALESCE(js.job_count, 0) AS "completedJobs",
+        c.lifetime_value AS "lifetimeRevenue",
+        js.first_job AS "firstJob",
+        js.last_job AS "lastJob",
+        (COALESCE(js.job_count, 0) > 1) AS "isRepeat",
+        (ri.customer_id IS NOT NULL) AS "hasRequestedRecurring"
+      FROM customers c
+      LEFT JOIN job_stats js ON js.customer_id = c.id
+      LEFT JOIN recurring_interest ri ON ri.customer_id = c.id
+      WHERE c.company_id = ${companyId}::uuid AND c.deleted_at IS NULL AND COALESCE(js.job_count, 0) > 0
+      ORDER BY "completedJobs" DESC, "lifetimeRevenue" DESC
+    `);
+  }
+
+  /** KPI summary for Repeat & Recurring Customers — reuses getCustomerAnalytics's own repeat-rate logic exactly (called directly, not reimplemented) plus a couple of straightforward additional counts. */
+  async getRepeatCustomersSummary(companyId: string) {
+    const analytics = await this.getCustomerAnalytics(companyId);
+    const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_stats AS (
+        SELECT customer_id, COUNT(*) AS job_count
+        FROM jobs WHERE company_id = ${companyId}::uuid AND status = 'completed'
+        GROUP BY customer_id
+      )
+      SELECT
+        COUNT(*) AS "totalCustomersWithJobs",
+        COALESCE(AVG(job_count), 0) AS "averageJobsPerCustomer",
+        COUNT(*) FILTER (WHERE job_count >= 2) AS "customersWithTwoPlusJobs"
+      FROM job_stats
+    `);
+    return {
+      totalCustomers: analytics.totalActiveCustomers,
+      repeatCustomers: analytics.repeatCustomerCount,
+      repeatCustomerRatePercent: analytics.repeatCustomerRatePercent,
+      averageJobsPerCustomer: Math.round(Number(rows[0]?.averageJobsPerCustomer ?? 0) * 10) / 10,
+      customersWithTwoPlusJobs: Number(rows[0]?.customersWithTwoPlusJobs ?? 0),
+    };
+  }
+
+  /**
+   * Callback list with real cost data — JobCallback already has
+   * additionalLaborCost/additionalMaterialCost/refundAmount columns
+   * (confirmed by reading the schema, not assumed absent), so this
+   * shows them directly rather than displaying a "Not Yet Available"
+   * that isn't actually true.
+   */
+  async getCallbackList(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT
+        jc.id AS "callbackId", j.id AS "jobId", j.job_number AS "jobNumber",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName",
+        COALESCE(j.service_type, 'Other') AS "serviceName",
+        j.actual_end AS "originalJobDate", jc.reason, jc.status,
+        (COALESCE(jc.additional_labor_cost, 0) + COALESCE(jc.additional_material_cost, 0) + COALESCE(jc.refund_amount, 0)) AS "callbackCost"
+      FROM job_callbacks jc
+      JOIN jobs j ON j.id = jc.original_job_id AND j.company_id = ${companyId}::uuid
+      JOIN customers c ON c.id = jc.customer_id AND c.company_id = ${companyId}::uuid
+      WHERE jc.company_id = ${companyId}::uuid AND j.actual_end >= ${start} AND j.actual_end < ${end}
+      ORDER BY j.actual_end DESC
+    `);
+  }
+
+  /** Review list with rating per job/customer — "Not Rated" (null), never a fabricated 0, for jobs with no review yet. */
+  async getReviewList(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT
+        r.id AS "reviewId",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName",
+        j.id AS "jobId", j.job_number AS "jobNumber", COALESCE(j.service_type, 'Other') AS "serviceName",
+        COALESCE(r.review_date, r.created_at) AS "reviewDate", r.rating,
+        (SELECT COUNT(*) FROM job_callbacks jc WHERE jc.original_job_id = j.id) > 0 AS "hadCallback"
+      FROM reviews r
+      LEFT JOIN jobs j ON j.id = r.job_id AND j.company_id = ${companyId}::uuid
+      LEFT JOIN customers c ON c.id = r.customer_id AND c.company_id = ${companyId}::uuid
+      WHERE r.company_id = ${companyId}::uuid AND COALESCE(r.review_date, r.created_at) >= ${start} AND COALESCE(r.review_date, r.created_at) < ${end}
+      ORDER BY "reviewDate" DESC
+    `);
+  }
 }

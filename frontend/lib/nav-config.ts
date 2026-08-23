@@ -71,6 +71,9 @@ export const navGroups: NavGroup[] = [
       { label: 'Average Ticket', href: '/reports/average-ticket', icon: BarChart3 },
       { label: 'Service Profitability', href: '/reports/service-profitability', icon: BarChart3 },
       { label: 'Job Cost & Margin', href: '/reports/job-cost', icon: BarChart3 },
+      { label: 'Customer Lifetime Value', href: '/reports/customer-lifetime-value', icon: BarChart3 },
+      { label: 'Repeat & Recurring Customers', href: '/reports/repeat-customers', icon: BarChart3 },
+      { label: 'Satisfaction & Callbacks', href: '/reports/satisfaction', icon: BarChart3 },
     ],
   },
   {

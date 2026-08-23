@@ -135,7 +135,74 @@ export const reportsApi = {
   getServiceProfitability: (start: string, end: string) => apiFetch<ServiceProfitabilityRow[]>(`/reports/service-profitability?${range(start, end)}`),
   getServiceProfitabilityDetail: (start: string, end: string, serviceName: string) =>
     apiFetch<ServiceProfitabilityJobRow[]>(`/reports/service-profitability/detail?${range(start, end)}&serviceName=${encodeURIComponent(serviceName)}`),
+  getCustomerLtvTable: () => apiFetch<CustomerLtvRow[]>('/reports/customer-ltv'),
+  getCustomerLtvSummary: () => apiFetch<CustomerLtvSummary>('/reports/customer-ltv/summary'),
+  getRepeatCustomersTable: () => apiFetch<RepeatCustomerRow[]>('/reports/repeat-customers'),
+  getRepeatCustomersSummary: () => apiFetch<RepeatCustomersSummary>('/reports/repeat-customers/summary'),
+  getCallbackList: (start: string, end: string) => apiFetch<CallbackRow[]>(`/reports/callbacks?${range(start, end)}`),
+  getReviewList: (start: string, end: string) => apiFetch<ReviewRow[]>(`/reports/reviews?${range(start, end)}`),
 };
+
+// ---- Reporting Center Phase 3, Group 3 ----
+
+export interface CustomerLtvRow {
+  customerId: string;
+  customerName: string;
+  lifetimeRevenue: string;
+  completedJobs: string;
+  averageTicket: string;
+  firstJob: string | null;
+  lastJob: string | null;
+}
+
+export interface CustomerLtvSummary {
+  totalCustomers: number;
+  totalLifetimeRevenue: number;
+  averageLtv: number;
+  medianLtv: number;
+}
+
+export interface RepeatCustomerRow {
+  customerId: string;
+  customerName: string;
+  completedJobs: string;
+  lifetimeRevenue: string;
+  firstJob: string | null;
+  lastJob: string | null;
+  isRepeat: boolean;
+  hasRequestedRecurring: boolean;
+}
+
+export interface RepeatCustomersSummary {
+  totalCustomers: number;
+  repeatCustomers: number;
+  repeatCustomerRatePercent: number | null;
+  averageJobsPerCustomer: number;
+  customersWithTwoPlusJobs: number;
+}
+
+export interface CallbackRow {
+  callbackId: string;
+  jobId: string;
+  jobNumber: string;
+  customerName: string;
+  serviceName: string;
+  originalJobDate: string;
+  reason: string;
+  status: string;
+  callbackCost: string;
+}
+
+export interface ReviewRow {
+  reviewId: string;
+  customerName: string | null;
+  jobId: string | null;
+  jobNumber: string | null;
+  serviceName: string | null;
+  reviewDate: string;
+  rating: number | null;
+  hadCallback: boolean;
+}
 
 // ---- Reporting Center Phase 3, Group 2 ----
 
