@@ -157,4 +157,20 @@ export class ReportsController {
   getAverageTicketByService(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
     return this.reports.getAverageTicketByService(user.companyId, new Date(query.start), new Date(query.end));
   }
+
+  // ---- Reporting Center Phase 3, Group 2 ----
+
+  @Get('service-profitability')
+  getServiceProfitability(@CurrentUser() user: AuthenticatedRequestUser, @Query() query: QueryReportsDto) {
+    return this.reports.getServiceProfitability(user.companyId, new Date(query.start), new Date(query.end));
+  }
+
+  @Get('service-profitability/detail')
+  getServiceProfitabilityDrilldown(
+    @CurrentUser() user: AuthenticatedRequestUser,
+    @Query() query: QueryReportsDto,
+    @Query('serviceName') serviceName: string,
+  ) {
+    return this.reports.getServiceProfitabilityDrilldown(user.companyId, new Date(query.start), new Date(query.end), serviceName);
+  }
 }

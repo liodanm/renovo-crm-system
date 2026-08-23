@@ -69,6 +69,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Revenue & Sales', href: '/reports/revenue', icon: BarChart3 },
       { label: 'Estimate Conversion', href: '/reports/estimate-conversion', icon: BarChart3 },
       { label: 'Average Ticket', href: '/reports/average-ticket', icon: BarChart3 },
+      { label: 'Service Profitability', href: '/reports/service-profitability', icon: BarChart3 },
       { label: 'Job Cost & Margin', href: '/reports/job-cost', icon: BarChart3 },
     ],
   },

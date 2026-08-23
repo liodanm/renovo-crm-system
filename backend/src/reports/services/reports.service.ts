@@ -732,4 +732,149 @@ export class ReportsService {
       GROUP BY 1 ORDER BY "totalRevenue" DESC
     `);
   }
+
+  // =========================================================================
+  // Reporting Center Phase 3, Group 2 — Service Profitability.
+  //
+  // Revenue/cost/grain decisions, made explicit rather than re-derived
+  // silently:
+  //
+  // GRAIN: job_line_items is many rows per job. The CTE below (byte-
+  // identical to getJobCostDetail's own job_costs CTE — not a second,
+  // possibly-divergent implementation) aggregates every job down to
+  // exactly one row FIRST, before any join to jobs or any GROUP BY
+  // service — so a job with 4 line items contributes its true $500
+  // revenue once, never $2,000. Service is then attributed at the JOB
+  // level via jobs.service_type (COALESCE'd to 'Other'), the same
+  // single-value-per-job field getAverageTicketByService already uses —
+  // not a per-line-item service split, which would fragment one job's
+  // revenue/cost across multiple service buckets and reintroduce the
+  // exact multiplication risk this section warns against.
+  //
+  // REVENUE/COST BASIS: mirrors getJobCostSummary's own already-approved
+  // resolution exactly — Revenue, Actual Cost, Gross Profit, and Average
+  // Ticket are ALL computed only from jobs that have real actual-cost
+  // data (has_actual_cost_data = true), keeping numerator and
+  // denominator on one consistent basis. Total completed job count is
+  // reported separately, unrestricted, purely for the completeness
+  // fraction — never blended into the revenue/profit figures themselves.
+  // The alternative (Revenue from all completed jobs, Cost only from
+  // the subset with data) would silently overstate margin by comparing
+  // two different job sets against each other — worse than the honest
+  // "smaller but consistent" figure this uses instead.
+  // =========================================================================
+
+  async getServiceProfitability(companyId: string, start: Date, end: Date) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_costs AS (
+        SELECT
+          jli.job_id,
+          SUM(jli.total) AS revenue,
+          SUM(COALESCE(jli.actual_labor_hours, 0) *
+              COALESCE((SELECT hourly_labor_rate FROM users WHERE id = jli.assigned_user_id), (SELECT default_labor_rate FROM companies WHERE id = ${companyId}::uuid), 0)
+          ) AS labor_cost,
+          SUM(COALESCE(jli.actual_chemical_cost, 0)) AS chemical_cost,
+          SUM(COALESCE(jli.actual_equipment_cost, 0)) AS equipment_cost,
+          SUM(COALESCE(jli.actual_fuel_cost, 0)) AS fuel_cost,
+          SUM(COALESCE(jli.actual_misc_cost, 0)) AS misc_cost,
+          BOOL_OR(jli.actual_labor_hours IS NOT NULL OR jli.actual_chemical_cost IS NOT NULL OR jli.actual_equipment_cost IS NOT NULL
+                  OR jli.actual_fuel_cost IS NOT NULL OR jli.actual_misc_cost IS NOT NULL) AS has_actual_cost_data
+        FROM job_line_items jli
+        WHERE jli.company_id = ${companyId}::uuid
+        GROUP BY jli.job_id
+      ),
+      eligible_jobs AS (
+        SELECT
+          j.id,
+          COALESCE(j.service_type, 'Other') AS service_name,
+          jc.revenue,
+          (jc.labor_cost + jc.chemical_cost + jc.equipment_cost + jc.fuel_cost + jc.misc_cost) AS actual_cost,
+          COALESCE(jc.has_actual_cost_data, false) AS has_actual_cost_data
+        FROM jobs j
+        LEFT JOIN job_costs jc ON jc.job_id = j.id
+        WHERE j.company_id = ${companyId}::uuid AND j.status = 'completed'
+          AND j.actual_end >= ${start} AND j.actual_end < ${end}
+      )
+      SELECT
+        service_name AS "serviceName",
+        COUNT(*) AS "totalJobs",
+        COUNT(*) FILTER (WHERE has_actual_cost_data) AS "jobsWithCostData",
+        COALESCE(SUM(revenue) FILTER (WHERE has_actual_cost_data), 0) AS "revenue",
+        COALESCE(SUM(actual_cost) FILTER (WHERE has_actual_cost_data), 0) AS "actualCost",
+        COALESCE(SUM(revenue - actual_cost) FILTER (WHERE has_actual_cost_data), 0) AS "grossProfit",
+        CASE WHEN COALESCE(SUM(revenue) FILTER (WHERE has_actual_cost_data), 0) > 0
+          THEN ROUND(COALESCE(SUM(revenue - actual_cost) FILTER (WHERE has_actual_cost_data), 0)
+                     / SUM(revenue) FILTER (WHERE has_actual_cost_data) * 100, 2)
+          ELSE NULL END AS "grossMarginPercent",
+        CASE WHEN COUNT(*) FILTER (WHERE has_actual_cost_data) > 0
+          THEN ROUND(COALESCE(SUM(revenue) FILTER (WHERE has_actual_cost_data), 0) / COUNT(*) FILTER (WHERE has_actual_cost_data), 2)
+          ELSE NULL END AS "averageTicket"
+      FROM eligible_jobs
+      GROUP BY service_name
+      ORDER BY "grossProfit" DESC NULLS LAST
+    `);
+  }
+
+  /**
+   * Drill-down: the completed jobs behind one service's row above,
+   * within the same date range. Reuses the exact same job_costs CTE and
+   * per-job formula getJobCostDetail already uses — not a second
+   * profitability calculation. Summing this result's revenue/cost/
+   * profit for jobs where isComplete-eligible (hasActualCostData) must
+   * reconcile exactly with the summary row's totals, since both are
+   * built from the identical CTE and the identical has_actual_cost_data
+   * filter — this is what the "drill-down trust requirement" asks for,
+   * satisfied structurally rather than by a separate reconciliation step.
+   */
+  async getServiceProfitabilityDrilldown(companyId: string, start: Date, end: Date, serviceName: string) {
+    // 'Other' (the COALESCE fallback label used everywhere else in this
+    // file) maps back to a real NULL service_type here — IS NOT
+    // DISTINCT FROM matches NULL-to-NULL correctly in one clean
+    // expression, unlike `=` (which never matches NULL to anything,
+    // including another NULL) or the more fragile boolean-flag OR/AND
+    // combination an earlier draft of this method used.
+    const matchValue = serviceName === 'Other' ? null : serviceName;
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      WITH job_costs AS (
+        SELECT
+          jli.job_id,
+          SUM(jli.total) AS revenue,
+          SUM(COALESCE(jli.actual_labor_hours, 0) *
+              COALESCE((SELECT hourly_labor_rate FROM users WHERE id = jli.assigned_user_id), (SELECT default_labor_rate FROM companies WHERE id = ${companyId}::uuid), 0)
+          ) AS labor_cost,
+          SUM(COALESCE(jli.actual_chemical_cost, 0)) AS chemical_cost,
+          SUM(COALESCE(jli.actual_equipment_cost, 0)) AS equipment_cost,
+          SUM(COALESCE(jli.actual_fuel_cost, 0)) AS fuel_cost,
+          SUM(COALESCE(jli.actual_misc_cost, 0)) AS misc_cost,
+          BOOL_OR(jli.actual_labor_hours IS NOT NULL OR jli.actual_chemical_cost IS NOT NULL OR jli.actual_equipment_cost IS NOT NULL
+                  OR jli.actual_fuel_cost IS NOT NULL OR jli.actual_misc_cost IS NOT NULL) AS has_actual_cost_data
+        FROM job_line_items jli
+        WHERE jli.company_id = ${companyId}::uuid
+        GROUP BY jli.job_id
+      )
+      SELECT
+        j.id AS "jobId", j.job_number AS "jobNumber",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName",
+        j.actual_end AS "completedAt",
+        COALESCE(j.service_type, 'Other') AS "serviceName",
+        COALESCE(jc.revenue, 0) AS revenue,
+        jc.labor_cost AS "laborCost", jc.chemical_cost AS "chemicalCost", jc.equipment_cost AS "equipmentCost",
+        jc.fuel_cost AS "fuelCost", jc.misc_cost AS "miscCost",
+        (COALESCE(jc.labor_cost, 0) + COALESCE(jc.chemical_cost, 0) + COALESCE(jc.equipment_cost, 0) + COALESCE(jc.fuel_cost, 0) + COALESCE(jc.misc_cost, 0)) AS "actualCost",
+        CASE WHEN COALESCE(jc.has_actual_cost_data, false)
+          THEN COALESCE(jc.revenue, 0) - (COALESCE(jc.labor_cost, 0) + COALESCE(jc.chemical_cost, 0) + COALESCE(jc.equipment_cost, 0) + COALESCE(jc.fuel_cost, 0) + COALESCE(jc.misc_cost, 0))
+          ELSE NULL END AS "grossProfit",
+        CASE WHEN COALESCE(jc.has_actual_cost_data, false) AND COALESCE(jc.revenue, 0) > 0
+          THEN ROUND((COALESCE(jc.revenue, 0) - (COALESCE(jc.labor_cost, 0) + COALESCE(jc.chemical_cost, 0) + COALESCE(jc.equipment_cost, 0) + COALESCE(jc.fuel_cost, 0) + COALESCE(jc.misc_cost, 0))) / jc.revenue * 100, 2)
+          ELSE NULL END AS "grossMarginPercent",
+        COALESCE(jc.has_actual_cost_data, false) AS "hasActualCostData"
+      FROM jobs j
+      LEFT JOIN job_costs jc ON jc.job_id = j.id
+      JOIN customers c ON c.id = j.customer_id AND c.company_id = ${companyId}::uuid
+      WHERE j.company_id = ${companyId}::uuid AND j.status = 'completed'
+        AND j.actual_end >= ${start} AND j.actual_end < ${end}
+        AND j.service_type IS NOT DISTINCT FROM ${matchValue}
+      ORDER BY j.actual_end DESC
+    `);
+  }
 }

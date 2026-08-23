@@ -132,7 +132,41 @@ export const reportsApi = {
   getEstimateConversionByService: (start: string, end: string) => apiFetch<EstimateConversionByService[]>(`/reports/estimate-conversion-by-service?${range(start, end)}`),
   getAverageTicketDetail: (start: string, end: string) => apiFetch<AverageTicketDetail>(`/reports/average-ticket-detail?${range(start, end)}`),
   getAverageTicketByService: (start: string, end: string) => apiFetch<AverageTicketByService[]>(`/reports/average-ticket-by-service?${range(start, end)}`),
+  getServiceProfitability: (start: string, end: string) => apiFetch<ServiceProfitabilityRow[]>(`/reports/service-profitability?${range(start, end)}`),
+  getServiceProfitabilityDetail: (start: string, end: string, serviceName: string) =>
+    apiFetch<ServiceProfitabilityJobRow[]>(`/reports/service-profitability/detail?${range(start, end)}&serviceName=${encodeURIComponent(serviceName)}`),
 };
+
+// ---- Reporting Center Phase 3, Group 2 ----
+
+export interface ServiceProfitabilityRow {
+  serviceName: string;
+  totalJobs: string;
+  jobsWithCostData: string;
+  revenue: string;
+  actualCost: string;
+  grossProfit: string;
+  grossMarginPercent: string | null;
+  averageTicket: string | null;
+}
+
+export interface ServiceProfitabilityJobRow {
+  jobId: string;
+  jobNumber: string;
+  customerName: string;
+  completedAt: string;
+  serviceName: string;
+  revenue: string;
+  laborCost: string | null;
+  chemicalCost: string | null;
+  equipmentCost: string | null;
+  fuelCost: string | null;
+  miscCost: string | null;
+  actualCost: string;
+  grossProfit: string | null;
+  grossMarginPercent: string | null;
+  hasActualCostData: boolean;
+}
 
 // ---- Reporting Center Phase 3, Group 1 ----
 
