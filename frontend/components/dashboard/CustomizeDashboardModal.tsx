@@ -18,9 +18,16 @@ export function CustomizeDashboardModal({
   const matches = (label: string) => label.toLowerCase().includes(search.toLowerCase());
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    // z-[9999], not this codebase's usual z-50 modal convention —
+    // deliberately: this is the one modal that can be opened while a
+    // Leaflet map (customer-map-card.tsx) is visible on the same page,
+    // and Leaflet's own internal panes go up to z-index 700 by default
+    // (popupPane) with nothing in this codebase overriding that. Every
+    // other modal here safely uses z-50 because none of them share a
+    // page with a Leaflet map; this one needs to clear it explicitly.
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl"
+        className="relative z-[10000] flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-5 py-4">
