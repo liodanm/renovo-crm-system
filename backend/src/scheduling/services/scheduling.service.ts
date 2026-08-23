@@ -17,11 +17,11 @@ const CALENDAR_SELECT = `
 
 const CALENDAR_JOINS = `
   FROM appointments a
-  LEFT JOIN customers c ON c.id = a.customer_id
-  LEFT JOIN properties p ON p.id = a.property_id
-  LEFT JOIN company_users cu ON cu.id = a.assigned_to_company_user_id
+  LEFT JOIN customers c ON c.id = a.customer_id AND c.company_id = a.company_id
+  LEFT JOIN properties p ON p.id = a.property_id AND p.company_id = a.company_id
+  LEFT JOIN company_users cu ON cu.id = a.assigned_to_company_user_id AND cu.company_id = a.company_id
   LEFT JOIN users u ON u.id = cu.user_id
-  LEFT JOIN jobs j ON j.id = a.job_id
+  LEFT JOIN jobs j ON j.id = a.job_id AND j.company_id = a.company_id
 `;
 
 @Injectable()
@@ -290,7 +290,7 @@ export class SchedulingService {
     const existing: { id: string; jobId: string | null; status: string; jobStatus: string | null }[] = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT a.id, a.job_id AS "jobId", a.status, j.status AS "jobStatus"
       FROM appointments a
-      LEFT JOIN jobs j ON j.id = a.job_id
+      LEFT JOIN jobs j ON j.id = a.job_id AND j.company_id = a.company_id
       WHERE a.id = ${appointmentId}::uuid AND a.company_id = ${companyId}::uuid
     `);
     if (existing.length === 0) throw new NotFoundException('Appointment not found');
