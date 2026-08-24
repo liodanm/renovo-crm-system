@@ -7,6 +7,39 @@ import { AppModule } from './app.module';
 import { IntegrationStatusService } from './common/integrations/integration-status.service';
 
 /**
+ * Postgres COUNT(*)/COUNT(x) returns bigint; Prisma's raw-query methods
+ * ($queryRaw/$queryRawUnsafe) map that to native JS BigInt, not number
+ * — and JSON.stringify throws on a bare BigInt ("Do not know how to
+ * serialize a BigInt"), which is a 500 on any endpoint returning one,
+ * discovered in production against reports/service-profitability and
+ * reports/period-kpis specifically, but latent in every raw-SQL COUNT()
+ * in reports.service.ts (dozens of them, built and "verified" against
+ * mocks/pure-function tests across many sessions — this exact type
+ * mapping only surfaces against a real Postgres connection, which this
+ * project's sandbox has never had, so it was never actually caught
+ * until real production traffic hit it).
+ *
+ * Fixed globally here rather than manually casting every individual
+ * COUNT() to ::int/::text across dozens of call sites — safer (one
+ * well-understood change vs. dozens of hand-edits with real risk of
+ * missing one) and future-proof (any COUNT() written from now on is
+ * covered automatically, not just today's known offenders). Serializes
+ * every BigInt as a string, which every frontend report type in this
+ * project already expects for count-like fields (confirmed: they're
+ * typed `string`, not `number`, and parsed with Number(...) before
+ * use) — this isn't a new contract, it's the one the frontend was
+ * already built against.
+ *
+ * customer-files.service.ts already hit this same class of bug once
+ * before (fileSizeBytes) and fixed it locally at that one call site —
+ * real precedent that this issue is genuine, not hypothetical. That
+ * existing fix is left alone; this is additive, not a replacement.
+ */
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function (this: bigint) {
+  return this.toString();
+};
+
+/**
  * DATABASE_URL/PORTAL_JWT_SECRET (and JWT_ACCESS_SECRET/JWT_REFRESH_SECRET,
  * checked separately via requireEnv() in config/auth.config.ts) are truly
  * required — the app cannot function at all without them, so it refuses
