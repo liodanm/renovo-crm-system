@@ -97,52 +97,54 @@ export class CustomersService {
 
     const orderBy = this.buildOrderBy(query.sortBy, query.sortDir);
 
-    const [total, customers] = await Promise.all([
-      this.prisma.customer.count({ where }),
-      this.prisma.customer.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
-          properties: { where: { deletedAt: null }, select: { id: true, city: true, state: true }, take: 3 },
-        },
-      }),
-    ]);
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const [total, customers] = await Promise.all([
+        tx.customer.count({ where }),
+        tx.customer.findMany({
+          where,
+          orderBy,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          include: {
+            properties: { where: { deletedAt: null }, select: { id: true, city: true, state: true }, take: 3 },
+          },
+        }),
+      ]);
 
-    // Balance due + last service date, batched for just this page's
-    // customer IDs (not the whole table) — same underlying fields the
-    // Invoices/Jobs modules already use, just aggregated per-customer
-    // for the list view. Optional columns; adds one query pair per
-    // page load, not per row.
-    const customerIds = customers.map((c) => c.id);
-    const [balances, lastServices, journeyStages] = customerIds.length
-      ? await Promise.all([
-          this.prisma.invoice.groupBy({
-            by: ['customerId'],
-            where: { companyId, customerId: { in: customerIds }, status: { notIn: ['draft', 'void'] } },
-            _sum: { balanceDue: true },
-          }),
-          this.prisma.job.groupBy({
-            by: ['customerId'],
-            where: { companyId, customerId: { in: customerIds }, actualEnd: { not: null } },
-            _max: { actualEnd: true },
-          }),
-          this.getJourneyStages(companyId, customerIds),
-        ])
-      : [[], [], new Map()];
-    const balanceByCustomer = new Map(balances.map((b): [string, string] => [b.customerId, (b._sum.balanceDue ?? 0).toString()]));
-    const lastServiceByCustomer = new Map(lastServices.map((j): [string, Date | null] => [j.customerId, j._max.actualEnd]));
+      // Balance due + last service date, batched for just this page's
+      // customer IDs (not the whole table) — same underlying fields the
+      // Invoices/Jobs modules already use, just aggregated per-customer
+      // for the list view. Optional columns; adds one query pair per
+      // page load, not per row.
+      const customerIds = customers.map((c) => c.id);
+      const [balances, lastServices, journeyStages] = customerIds.length
+        ? await Promise.all([
+            tx.invoice.groupBy({
+              by: ['customerId'],
+              where: { companyId, customerId: { in: customerIds }, status: { notIn: ['draft', 'void'] } },
+              _sum: { balanceDue: true },
+            }),
+            tx.job.groupBy({
+              by: ['customerId'],
+              where: { companyId, customerId: { in: customerIds }, actualEnd: { not: null } },
+              _max: { actualEnd: true },
+            }),
+            this.getJourneyStages(tx, companyId, customerIds),
+          ])
+        : [[], [], new Map()];
+      const balanceByCustomer = new Map(balances.map((b): [string, string] => [b.customerId, (b._sum.balanceDue ?? 0).toString()]));
+      const lastServiceByCustomer = new Map(lastServices.map((j): [string, Date | null] => [j.customerId, j._max.actualEnd]));
 
-    return {
-      data: customers.map((c) => ({
-        ...this.toSummary(c),
-        balanceDue: balanceByCustomer.get(c.id) ?? '0',
-        lastServiceDate: lastServiceByCustomer.get(c.id) ?? null,
-        journeyStage: (journeyStages as Map<string, string>).get(c.id) ?? 'new_lead',
-      })),
-      pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
-    };
+      return {
+        data: customers.map((c) => ({
+          ...this.toSummary(c),
+          balanceDue: balanceByCustomer.get(c.id) ?? '0',
+          lastServiceDate: lastServiceByCustomer.get(c.id) ?? null,
+          journeyStage: (journeyStages as Map<string, string>).get(c.id) ?? 'new_lead',
+        })),
+        pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+      };
+    });
   }
 
   private buildOrderBy(sortBy?: string, sortDir?: 'asc' | 'desc'): Prisma.CustomerOrderByWithRelationInput {
@@ -196,44 +198,62 @@ export class CustomersService {
     // of literally the same customer is far more common than two real
     // customers sharing an email). Shared with update() below — same
     // check, not a second one.
-    if (dto.email) {
-      await this.assertNoExactEmailConflict(companyId, dto.email, dto.acknowledgedDuplicateWarning);
-    }
+    //
+    // The whole method body runs inside one withTenantContext transaction
+    // — the exact-email check and the insert itself must see a consistent
+    // view of the same transaction, and this is also the fix for the
+    // tenant-isolation finding from the full-system audit: this method is
+    // reachable from BOTH authenticated staff requests (via
+    // createValidated) AND unauthenticated public requests (Quote Widget,
+    // Leads capture, via findOrCreateByEmail) — the request-scoped
+    // TenantContextInterceptor never runs for those public paths, so the
+    // newer `.tenant` extended client would throw "tenant context
+    // missing" for them. withTenantContext(companyId, ...) takes
+    // companyId as an explicit argument instead, so it works identically
+    // and safely for every caller regardless of how they obtained
+    // companyId — traced and confirmed: quote-widget.service.ts and
+    // leads.service.ts both resolve companyId from a trusted server-side
+    // lookup (widget key / company slug), never from client input.
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      if (dto.email) {
+        await this.assertNoExactEmailConflict(tx, companyId, dto.email, dto.acknowledgedDuplicateWarning);
+      }
 
-    const customer = await this.prisma.customer.create({
-      data: {
-        companyId,
-        customerType: dto.customerType,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        businessName: dto.businessName,
-        email: dto.email,
-        phone: dto.phone,
-        secondaryPhone: dto.secondaryPhone,
-        source: dto.source,
-        leadStatus: dto.leadStatus ?? 'lead',
-        tags: dto.tags ?? [],
-        notesText: dto.notesText,
-        createdBy: createdByUserId,
-        properties: dto.properties?.length
-          ? {
-              create: dto.properties.map((p) => ({
-                companyId,
-                label: p.label,
-                addressLine1: p.addressLine1,
-                city: p.city,
-                state: p.state,
-                postalCode: p.postalCode,
-                latitude: p.latitude,
-                longitude: p.longitude,
-              })),
-            }
-          : undefined,
-      },
-      include: { properties: true },
+      const customer = await tx.customer.create({
+        data: {
+          companyId,
+          customerType: dto.customerType,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          businessName: dto.businessName,
+          email: dto.email,
+          phone: dto.phone,
+          secondaryPhone: dto.secondaryPhone,
+          source: dto.source,
+          leadStatus: dto.leadStatus ?? 'lead',
+          tags: dto.tags ?? [],
+          notesText: dto.notesText,
+          createdBy: createdByUserId,
+          properties: dto.properties?.length
+            ? {
+                create: dto.properties.map((p) => ({
+                  companyId,
+                  label: p.label,
+                  addressLine1: p.addressLine1,
+                  city: p.city,
+                  state: p.state,
+                  postalCode: p.postalCode,
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                })),
+              }
+            : undefined,
+        },
+        include: { properties: true },
+      });
+
+      return customer;
     });
-
-    return customer;
   }
 
   /**
@@ -251,10 +271,12 @@ export class CustomersService {
    */
   async findOrCreateByEmail(companyId: string, createdByLabel: string, dto: CreateCustomerDto) {
     if (dto.email) {
-      const existing = await this.prisma.customer.findFirst({
-        where: { companyId, email: dto.email, deletedAt: null },
-        include: { properties: { where: { deletedAt: null } } },
-      });
+      const existing = await this.prisma.withTenantContext(companyId, (tx) =>
+        tx.customer.findFirst({
+          where: { companyId, email: dto.email, deletedAt: null },
+          include: { properties: { where: { deletedAt: null } } },
+        }),
+      );
       if (existing) return { customer: existing, wasExisting: true };
     }
 
@@ -288,21 +310,21 @@ export class CustomersService {
    * review: the first version checked completedJob before anyEstimate,
    * which silently contradicted this exact stated intent.)
    */
-  async getJourneyStages(companyId: string, customerIds: string[]): Promise<Map<string, 'new_lead' | 'estimate_sent' | 'scheduled' | 'completed'>> {
+  async getJourneyStages(tx: Prisma.TransactionClient, companyId: string, customerIds: string[]): Promise<Map<string, 'new_lead' | 'estimate_sent' | 'scheduled' | 'completed'>> {
     if (customerIds.length === 0) return new Map();
 
     const [activeJobs, completedJobs, anyEstimates] = await Promise.all([
-      this.prisma.job.findMany({
+      tx.job.findMany({
         where: { companyId, customerId: { in: customerIds }, status: { in: ['draft', 'scheduled', 'in_progress', 'paused'] } },
         select: { customerId: true },
         distinct: ['customerId'],
       }),
-      this.prisma.job.findMany({
+      tx.job.findMany({
         where: { companyId, customerId: { in: customerIds }, status: 'completed' },
         select: { customerId: true },
         distinct: ['customerId'],
       }),
-      this.prisma.estimate.findMany({
+      tx.estimate.findMany({
         where: { companyId, customerId: { in: customerIds } },
         select: { customerId: true },
         distinct: ['customerId'],
@@ -333,10 +355,12 @@ export class CustomersService {
    * construction, not just by careful code review at each call site.
    */
   async convertLeadToActiveIfNeeded(companyId: string, customerId: string) {
-    await this.prisma.customer.updateMany({
-      where: { id: customerId, companyId, leadStatus: 'lead' },
-      data: { leadStatus: 'active' },
-    });
+    await this.prisma.withTenantContext(companyId, (tx) =>
+      tx.customer.updateMany({
+        where: { id: customerId, companyId, leadStatus: 'lead' },
+        data: { leadStatus: 'active' },
+      }),
+    );
   }
 
   /**
@@ -345,60 +369,64 @@ export class CustomersService {
    * a harmless no-op (just updates the timestamp), not an error.
    */
   async markReviewReceived(companyId: string, customerId: string) {
-    await this.assertExists(companyId, customerId);
-    await this.prisma.customer.update({
-      where: { id: customerId },
-      data: { reviewReceivedAt: new Date() },
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      await this.assertExists(tx, companyId, customerId);
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { reviewReceivedAt: new Date() },
+      });
     });
   }
 
   async getProfile(companyId: string, customerId: string) {
-    const customer = await this.prisma.customer.findFirst({
-      where: { id: customerId, companyId, deletedAt: null },
-      include: {
-        properties: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
-      },
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const customer = await tx.customer.findFirst({
+        where: { id: customerId, companyId, deletedAt: null },
+        include: {
+          properties: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
+        },
+      });
+
+      if (!customer) throw new NotFoundException('Customer not found');
+
+      const [customFieldValues, balanceAgg, openEstimatesCount, openInvoicesCount, journeyStages] = await Promise.all([
+        tx.customFieldValue.findMany({
+          where: { companyId, entityId: customerId },
+          include: { fieldDefinition: true },
+        }),
+        // "Money at a glance" — the customer profile previously had no
+        // visibility into whether this person owes money, forcing a
+        // separate trip to the Invoices module for something that should
+        // be answerable the moment the phone rings. Sums real balanceDue
+        // across their non-draft, non-void invoices — same field the
+        // Invoices module itself displays, not a re-derived duplicate.
+        tx.invoice.aggregate({
+          where: { companyId, customerId, status: { notIn: ['draft', 'void'] } },
+          _sum: { balanceDue: true },
+        }),
+        tx.estimate.count({
+          where: { companyId, customerId, status: { in: ['draft', 'sent', 'viewed'] } },
+        }),
+        tx.invoice.count({
+          where: { companyId, customerId, status: { notIn: ['draft', 'void'] }, balanceDue: { gt: 0 } },
+        }),
+        this.getJourneyStages(tx, companyId, [customerId]),
+      ]);
+
+      return {
+        ...customer,
+        customFields: customFieldValues.map((v) => ({
+          fieldKey: v.fieldDefinition.fieldKey,
+          label: v.fieldDefinition.label,
+          fieldType: v.fieldDefinition.fieldType,
+          value: v.value,
+        })),
+        balanceDue: (balanceAgg._sum.balanceDue ?? 0).toString(),
+        openEstimatesCount,
+        openInvoicesCount,
+        journeyStage: journeyStages.get(customerId) ?? 'new_lead',
+      };
     });
-
-    if (!customer) throw new NotFoundException('Customer not found');
-
-    const [customFieldValues, balanceAgg, openEstimatesCount, openInvoicesCount, journeyStages] = await Promise.all([
-      this.prisma.customFieldValue.findMany({
-        where: { companyId, entityId: customerId },
-        include: { fieldDefinition: true },
-      }),
-      // "Money at a glance" — the customer profile previously had no
-      // visibility into whether this person owes money, forcing a
-      // separate trip to the Invoices module for something that should
-      // be answerable the moment the phone rings. Sums real balanceDue
-      // across their non-draft, non-void invoices — same field the
-      // Invoices module itself displays, not a re-derived duplicate.
-      this.prisma.invoice.aggregate({
-        where: { companyId, customerId, status: { notIn: ['draft', 'void'] } },
-        _sum: { balanceDue: true },
-      }),
-      this.prisma.estimate.count({
-        where: { companyId, customerId, status: { in: ['draft', 'sent', 'viewed'] } },
-      }),
-      this.prisma.invoice.count({
-        where: { companyId, customerId, status: { notIn: ['draft', 'void'] }, balanceDue: { gt: 0 } },
-      }),
-      this.getJourneyStages(companyId, [customerId]),
-    ]);
-
-    return {
-      ...customer,
-      customFields: customFieldValues.map((v) => ({
-        fieldKey: v.fieldDefinition.fieldKey,
-        label: v.fieldDefinition.label,
-        fieldType: v.fieldDefinition.fieldType,
-        value: v.value,
-      })),
-      balanceDue: (balanceAgg._sum.balanceDue ?? 0).toString(),
-      openEstimatesCount,
-      openInvoicesCount,
-      journeyStage: journeyStages.get(customerId) ?? 'new_lead',
-    };
   }
 
   /**
@@ -408,10 +436,20 @@ export class CustomersService {
    * than leaving edit unprotected or inventing a different rule for it.
    * excludeCustomerId keeps an unrelated edit (or re-saving the same
    * email unchanged) from matching itself.
+   *
+   * Takes `tx` (a tenant-scoped Prisma client, already inside a
+   * withTenantContext transaction) rather than using `this.prisma`
+   * directly — this method is always called from within create()/
+   * update(), both of which now establish tenant context themselves; a
+   * second, nested withTenantContext call here would attempt to open a
+   * transaction inside a transaction, which Prisma does not support
+   * cleanly. Passing the already-scoped client through is the correct
+   * pattern for a helper called only from within an already-wrapped
+   * caller, not a second RLS-context mechanism.
    */
-  private async assertNoExactEmailConflict(companyId: string, email: string, acknowledgedDuplicateWarning?: boolean, excludeCustomerId?: string) {
+  private async assertNoExactEmailConflict(tx: Prisma.TransactionClient, companyId: string, email: string, acknowledgedDuplicateWarning?: boolean, excludeCustomerId?: string) {
     if (acknowledgedDuplicateWarning) return;
-    const exactEmailMatch = await this.prisma.customer.findFirst({
+    const exactEmailMatch = await tx.customer.findFirst({
       where: { companyId, email, deletedAt: null, ...(excludeCustomerId ? { id: { not: excludeCustomerId } } : {}) },
     });
     if (exactEmailMatch) {
@@ -423,34 +461,38 @@ export class CustomersService {
   }
 
   async update(companyId: string, customerId: string, dto: UpdateCustomerDto) {
-    const existing = await this.assertExists(companyId, customerId);
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const existing = await this.assertExists(tx, companyId, customerId);
 
-    if (dto.email) {
-      await this.assertNoExactEmailConflict(companyId, dto.email, dto.acknowledgedDuplicateWarning, customerId);
-    }
-    await this.assertValidLeadSource(companyId, dto.source, existing.source);
+      if (dto.email) {
+        await this.assertNoExactEmailConflict(tx, companyId, dto.email, dto.acknowledgedDuplicateWarning, customerId);
+      }
+      await this.assertValidLeadSource(companyId, dto.source, existing.source);
 
-    return this.prisma.customer.update({
-      where: { id: customerId },
-      data: {
-        customerType: dto.customerType,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        businessName: dto.businessName,
-        email: dto.email,
-        phone: dto.phone,
-        secondaryPhone: dto.secondaryPhone,
-        source: dto.source,
-        leadStatus: dto.leadStatus,
-        tags: dto.tags,
-        notesText: dto.notesText,
-      },
+      return tx.customer.update({
+        where: { id: customerId },
+        data: {
+          customerType: dto.customerType,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          businessName: dto.businessName,
+          email: dto.email,
+          phone: dto.phone,
+          secondaryPhone: dto.secondaryPhone,
+          source: dto.source,
+          leadStatus: dto.leadStatus,
+          tags: dto.tags,
+          notesText: dto.notesText,
+        },
+      });
     });
   }
 
   async softDelete(companyId: string, customerId: string) {
-    await this.assertExists(companyId, customerId);
-    await this.prisma.customer.update({ where: { id: customerId }, data: { deletedAt: new Date() } });
+    await this.prisma.withTenantContext(companyId, async (tx) => {
+      await this.assertExists(tx, companyId, customerId);
+      await tx.customer.update({ where: { id: customerId }, data: { deletedAt: new Date() } });
+    });
     return { message: 'Customer deleted' };
   }
 
@@ -474,8 +516,9 @@ export class CustomersService {
     return { succeeded, failed };
   }
 
-  private async assertExists(companyId: string, customerId: string) {
-    const customer = await this.prisma.customer.findFirst({ where: { id: customerId, companyId, deletedAt: null } });
+  /** Same tx-parameter reasoning as assertNoExactEmailConflict above — always called from within an already-wrapped public method, never opens its own transaction. */
+  private async assertExists(tx: Prisma.TransactionClient, companyId: string, customerId: string) {
+    const customer = await tx.customer.findFirst({ where: { id: customerId, companyId, deletedAt: null } });
     if (!customer) throw new NotFoundException('Customer not found');
     return customer;
   }
@@ -485,54 +528,61 @@ export class CustomersService {
   // ===========================================================================
 
   async getServiceHistory(companyId: string, customerId: string) {
-    const customer = await this.assertExists(companyId, customerId);
+    const { customer, jobs, estimates, invoices, payments, activeCatalogItems, automationSettings, reviewRequestLog } = await this.prisma.withTenantContext(
+      companyId,
+      async (tx) => {
+        const customer = await this.assertExists(tx, companyId, customerId);
 
-    const [jobs, estimates, invoices, payments, activeCatalogItems, automationSettings, reviewRequestLog] = await Promise.all([
-      this.prisma.job.findMany({
-        where: { companyId, customerId },
-        orderBy: { scheduledStart: 'desc' },
-        include: { property: { select: { addressLine1: true, city: true } } },
-      }),
-      this.prisma.estimate.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.invoice.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } }),
-      // No orderBy here — Prisma can't sort by a computed
-      // COALESCE(paymentDate, processedAt) directly, and this already
-      // fetches this one customer's full payment history unbounded (no
-      // take limit), so sorting by the real effective date after fetch,
-      // below, is exact, not an approximation.
-      this.prisma.payment.findMany({ where: { companyId, customerId } }),
-      // Only the two fields the upsell comparison actually needs — not a
-      // full catalog fetch. Reuses the exact same service_type vocabulary
-      // Job.serviceType already uses, confirmed identical.
-      this.prisma.serviceCatalogItem.findMany({
-        where: { companyId, isActive: true },
-        select: { name: true, serviceType: true },
-      }),
-      // Reuses the exact same threshold the recurring-reminder automation
-      // already runs on — same table, same 12-month fallback when no
-      // settings row exists — not a second, independently-invented number.
-      this.prisma.automationSettings.findUnique({ where: { companyId }, select: { recurringReminderIntervalMonths: true } }),
-      // "Request Sent" is fully derivable from the same table the real
-      // sending logic (AutomationService.runReviewRequests) already
-      // writes to on every send — not a new log, not a duplicate.
-      //
-      // Note: this schema also has ReviewRequest and Review models —
-      // confirmed by exhaustive search to be completely unused anywhere
-      // in the application (no send path writes to ReviewRequest, no
-      // webhook or form writes to Review at all). They look like a more
-      // sophisticated design was planned at some point (platform,
-      // rating, reviewText, clickedAt) but never wired up. Deliberately
-      // not building on them here — an unpopulated table would make
-      // "Request Sent" silently always show as never-sent, regardless of
-      // real activity. Flagged as a real finding for a future decision
-      // (wire them up properly with a real integration, or remove them),
-      // not something to route around silently.
-      this.prisma.automationLog.findFirst({
-        where: { companyId, customerId, ruleType: 'review_request' },
-        orderBy: { sentAt: 'desc' },
-        select: { status: true, sentAt: true },
-      }),
-    ]);
+        const [jobs, estimates, invoices, payments, activeCatalogItems, automationSettings, reviewRequestLog] = await Promise.all([
+          tx.job.findMany({
+            where: { companyId, customerId },
+            orderBy: { scheduledStart: 'desc' },
+            include: { property: { select: { addressLine1: true, city: true } } },
+          }),
+          tx.estimate.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } }),
+          tx.invoice.findMany({ where: { companyId, customerId }, orderBy: { createdAt: 'desc' } }),
+          // No orderBy here — Prisma can't sort by a computed
+          // COALESCE(paymentDate, processedAt) directly, and this already
+          // fetches this one customer's full payment history unbounded (no
+          // take limit), so sorting by the real effective date after fetch,
+          // below, is exact, not an approximation.
+          tx.payment.findMany({ where: { companyId, customerId } }),
+          // Only the two fields the upsell comparison actually needs — not a
+          // full catalog fetch. Reuses the exact same service_type vocabulary
+          // Job.serviceType already uses, confirmed identical.
+          tx.serviceCatalogItem.findMany({
+            where: { companyId, isActive: true },
+            select: { name: true, serviceType: true },
+          }),
+          // Reuses the exact same threshold the recurring-reminder automation
+          // already runs on — same table, same 12-month fallback when no
+          // settings row exists — not a second, independently-invented number.
+          tx.automationSettings.findUnique({ where: { companyId }, select: { recurringReminderIntervalMonths: true } }),
+          // "Request Sent" is fully derivable from the same table the real
+          // sending logic (AutomationService.runReviewRequests) already
+          // writes to on every send — not a new log, not a duplicate.
+          //
+          // Note: this schema also has ReviewRequest and Review models —
+          // confirmed by exhaustive search to be completely unused anywhere
+          // in the application (no send path writes to ReviewRequest, no
+          // webhook or form writes to Review at all). They look like a more
+          // sophisticated design was planned at some point (platform,
+          // rating, reviewText, clickedAt) but never wired up. Deliberately
+          // not building on them here — an unpopulated table would make
+          // "Request Sent" silently always show as never-sent, regardless of
+          // real activity. Flagged as a real finding for a future decision
+          // (wire them up properly with a real integration, or remove them),
+          // not something to route around silently.
+          tx.automationLog.findFirst({
+            where: { companyId, customerId, ruleType: 'review_request' },
+            orderBy: { sentAt: 'desc' },
+            select: { status: true, sentAt: true },
+          }),
+        ]);
+
+        return { customer, jobs, estimates, invoices, payments, activeCatalogItems, automationSettings, reviewRequestLog };
+      },
+    );
 
     const completedJobs = jobs.filter((j) => j.status === 'completed');
     const lastCompletedJob = completedJobs[0]; // jobs already sorted newest-first
@@ -632,30 +682,32 @@ export class CustomersService {
   // ===========================================================================
 
   async getActivityTimeline(companyId: string, customerId: string, limit = 50) {
-    await this.assertExists(companyId, customerId);
+    const [jobs, estimates, invoices, payments, notes] = await this.prisma.withTenantContext(companyId, async (tx) => {
+      await this.assertExists(tx, companyId, customerId);
 
-    const [jobs, estimates, invoices, payments, notes] = await Promise.all([
-      this.prisma.job.findMany({
-        where: { companyId, customerId },
-        select: { id: true, title: true, status: true, createdAt: true },
-      }),
-      this.prisma.estimate.findMany({
-        where: { companyId, customerId },
-        select: { id: true, status: true, sentAt: true, createdAt: true },
-      }),
-      this.prisma.invoice.findMany({
-        where: { companyId, customerId },
-        select: { id: true, invoiceNumber: true, status: true, createdAt: true, paidAt: true },
-      }),
-      this.prisma.payment.findMany({
-        where: { companyId, customerId },
-        select: { id: true, amount: true, paymentDate: true, processedAt: true, createdAt: true },
-      }),
-      this.prisma.customerNote.findMany({
-        where: { companyId, customerId, deletedAt: null },
-        select: { id: true, body: true, createdAt: true, authorUserId: true },
-      }),
-    ]);
+      return Promise.all([
+        tx.job.findMany({
+          where: { companyId, customerId },
+          select: { id: true, title: true, status: true, createdAt: true },
+        }),
+        tx.estimate.findMany({
+          where: { companyId, customerId },
+          select: { id: true, status: true, sentAt: true, createdAt: true },
+        }),
+        tx.invoice.findMany({
+          where: { companyId, customerId },
+          select: { id: true, invoiceNumber: true, status: true, createdAt: true, paidAt: true },
+        }),
+        tx.payment.findMany({
+          where: { companyId, customerId },
+          select: { id: true, amount: true, paymentDate: true, processedAt: true, createdAt: true },
+        }),
+        tx.customerNote.findMany({
+          where: { companyId, customerId, deletedAt: null },
+          select: { id: true, body: true, createdAt: true, authorUserId: true },
+        }),
+      ]);
+    });
 
     type TimelineEvent = { id: string; type: string; description: string; occurredAt: Date };
     const events: TimelineEvent[] = [];
@@ -708,11 +760,6 @@ export class CustomersService {
       throw new BadRequestException('Cannot merge a customer into itself');
     }
 
-    const [canonical, duplicate] = await Promise.all([
-      this.assertExists(companyId, canonicalId),
-      this.assertExists(companyId, duplicateId),
-    ]);
-
     // Callback form (not the array form this used before) — needed so
     // lifetimeValue can be recalculated from payments.customerId *after*
     // it's reassigned below, in the same atomic transaction. Recalculates
@@ -721,7 +768,19 @@ export class CustomersService {
     // the Phase 2 backfill script (backfill-lifetime-value.js), not a
     // fourth way of computing this number. Self-correcting: doesn't
     // depend on either customer's pre-merge value already being right.
-    await this.prisma.$transaction(async (tx) => {
+    //
+    // Was this.prisma.$transaction(...) directly — a real, plain
+    // Postgres transaction with no SET LOCAL, meaning this whole merge
+    // (including the 8 updateMany reassignments and the raw payments
+    // SUM query) ran with no RLS session context at all. withTenantContext
+    // wraps the exact same transaction mechanism and adds the one missing
+    // SET LOCAL statement — the body below is otherwise unchanged.
+    await this.prisma.withTenantContext(companyId, async (tx) => {
+      const [canonical, duplicate] = await Promise.all([
+        this.assertExists(tx, companyId, canonicalId),
+        this.assertExists(tx, companyId, duplicateId),
+      ]);
+
       await tx.property.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
       await tx.job.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
       await tx.estimate.updateMany({ where: { customerId: duplicateId }, data: { customerId: canonicalId } });
