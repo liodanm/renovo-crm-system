@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { MobileSidebar } from './MobileSidebar';
 import { CompanySwitcher } from '../auth/company-switcher';
 import { GlobalSearch } from './GlobalSearch';
+import { AddNewMenu } from './AddNewMenu';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -18,12 +19,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             page for every user regardless of company count, which is
             the real, concrete reason to finally give desktop a header
             too, rather than the placeholder problem this file used to
-            flag. */}
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center gap-3 lg:hidden">
+            flag.
+
+            "Renovo CRM" text replaced with the Add New quick-action menu
+            — the brand name stays everywhere else (login screen, page
+            title, sidebar), this was specifically the one spot where a
+            fast, in-context action is more useful than a static label,
+            per the explicit request to speed up in-the-field workflow. */}
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:gap-3">
+          <div className="lg:hidden">
             <MobileSidebar />
-            <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">Renovo CRM</span>
           </div>
+          <AddNewMenu />
           <div className="min-w-0 flex-1">
             <GlobalSearch />
           </div>

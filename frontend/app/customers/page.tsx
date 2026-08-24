@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { CheckSquare, X } from 'lucide-react';
 import { customersApi, CustomerQueryParams } from '../../lib/api/customers';
@@ -14,9 +15,23 @@ import { AppShell } from '../../components/layout/AppShell';
 import { ActionBar, type ActionBarItem } from '../../components/action-center/ActionBar';
 import { ConfirmDialog } from '../../components/action-center/ConfirmDialog';
 
-export default function CustomersPage() {
+function CustomersPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [filters, setFilters] = useState<CustomerQueryParams>({ page: 1, pageSize: 25 });
   const [showCreate, setShowCreate] = useState(false);
+
+  // Lets the header's "Add New" quick-action menu open this exact same
+  // modal from anywhere in the app (?new=true), without duplicating the
+  // create-customer form or introducing a second creation path — this
+  // page's own existing button still works exactly as before.
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      setShowCreate(true);
+      router.replace('/customers');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mobileSelectionMode, setMobileSelectionMode] = useState(false);
@@ -231,5 +246,13 @@ export default function CustomersPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <Suspense fallback={null}>
+      <CustomersPageInner />
+    </Suspense>
   );
 }
