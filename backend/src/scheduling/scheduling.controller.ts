@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { SchedulingService } from './services/scheduling.service';
-import { ScheduleJobDto, RescheduleAppointmentDto, UpdateAppointmentAssignmentDto, QueryCalendarDto, CancelAppointmentDto } from './dto/scheduling.dto';
+import { ScheduleJobDto, RescheduleAppointmentDto, UpdateAppointmentAssignmentDto, QueryCalendarDto, CancelAppointmentDto, CreateCalendarItemDto, UpdateCalendarItemDto } from './dto/scheduling.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -24,6 +24,22 @@ export class SchedulingController {
   @RequirePermissions('jobs.write')
   scheduleJob(@CurrentUser() user: AuthenticatedRequestUser, @Param('jobId') jobId: string, @Body() dto: ScheduleJobDto) {
     return this.scheduling.scheduleJob(user.companyId, jobId, user.userId, dto);
+  }
+
+  // General-purpose Calendar Items — reuse the same appointments table
+  // and the same jobs.write permission as every other write below;
+  // deliberately not a new permission, since this is the same
+  // underlying calendar, not a separate feature to gate differently.
+  @Post('calendar-items')
+  @RequirePermissions('jobs.write')
+  createCalendarItem(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: CreateCalendarItemDto) {
+    return this.scheduling.createCalendarItem(user.companyId, user.userId, dto);
+  }
+
+  @Patch('calendar-items/:id')
+  @RequirePermissions('jobs.write')
+  updateCalendarItem(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body() dto: UpdateCalendarItemDto) {
+    return this.scheduling.updateCalendarItem(user.companyId, id, dto);
   }
 
   @Patch('appointments/:id/reschedule')

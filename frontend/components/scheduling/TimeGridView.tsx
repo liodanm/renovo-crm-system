@@ -104,6 +104,7 @@ export function TimeGridView({ appointments, days, onSelect, onRescheduled }: Ti
                   const top = (startOffset / 60) * HOUR_HEIGHT_PX;
                   const height = (durationMin / 60) * HOUR_HEIGHT_PX;
 
+                  const isCalendarItem = a.appointmentType !== 'job';
                   return (
                     <button
                       key={a.id}
@@ -115,11 +116,21 @@ export function TimeGridView({ appointments, days, onSelect, onRescheduled }: Ti
                       className={cn(
                         'absolute z-[1] cursor-grab overflow-hidden rounded-md px-1.5 py-0.5 text-left text-[11px] text-white shadow-sm active:cursor-grabbing',
                         APPOINTMENT_STATUS_COLORS[a.status] ?? 'bg-slate-400',
+                        // Calendar Items get a dashed left edge — visually
+                        // distinct from a solid-bordered Job at a glance,
+                        // without introducing a whole second color scheme
+                        // that would compete with the existing
+                        // status-based coloring this calendar already
+                        // relies on.
+                        isCalendarItem && 'border-l-2 border-dashed border-white/70',
                         draggingId === a.id && 'opacity-50',
                       )}
                     >
-                      <p className="truncate font-medium">{appointmentCustomerName(a)}</p>
-                      <p className="truncate opacity-90">{start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
+                      <p className="truncate font-medium">{isCalendarItem ? a.title : appointmentCustomerName(a)}</p>
+                      <p className="truncate opacity-90">
+                        {isCalendarItem && a.customerId ? appointmentCustomerName(a) + ' · ' : ''}
+                        {start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      </p>
                     </button>
                   );
                 })}

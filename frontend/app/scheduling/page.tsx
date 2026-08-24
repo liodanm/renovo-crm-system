@@ -180,11 +180,12 @@ export default function SchedulingPage() {
 
 function AppointmentChip({ appointment, onSelect, compact }: { appointment: CalendarAppointment; onSelect: (a: CalendarAppointment) => void; compact?: boolean }) {
   const time = new Date(appointment.startsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const isCalendarItem = appointment.appointmentType !== 'job';
   return (
-    <button onClick={() => onSelect(appointment)} className="flex w-full items-center gap-1.5 truncate rounded-md px-1.5 py-1 text-left text-xs hover:opacity-90">
+    <button onClick={() => onSelect(appointment)} className={cn('flex w-full items-center gap-1.5 truncate rounded-md px-1.5 py-1 text-left text-xs hover:opacity-90', isCalendarItem && 'border-l-2 border-dashed border-slate-300 dark:border-slate-600')}>
       <span className={cn('h-2 w-2 shrink-0 rounded-full', APPOINTMENT_STATUS_COLORS[appointment.status] ?? 'bg-slate-400')} />
       {!compact && <span className="shrink-0 text-slate-500 dark:text-slate-400">{time}</span>}
-      <span className="truncate font-medium text-slate-800 dark:text-slate-100">{appointmentCustomerName(appointment)}</span>
+      <span className="truncate font-medium text-slate-800 dark:text-slate-100">{isCalendarItem ? appointment.title : appointmentCustomerName(appointment)}</span>
     </button>
   );
 }

@@ -1,12 +1,13 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ScheduleJobDto, RescheduleAppointmentDto, UpdateAppointmentAssignmentDto, QueryCalendarDto } from '../dto/scheduling.dto';
+import { ScheduleJobDto, RescheduleAppointmentDto, UpdateAppointmentAssignmentDto, QueryCalendarDto, CreateCalendarItemDto, UpdateCalendarItemDto } from '../dto/scheduling.dto';
 import { resolveArrivalWindowMinutes } from './arrival-window.util';
 
 const CALENDAR_SELECT = `
   a.id, a.appointment_type AS "appointmentType", a.starts_at AS "startsAt", a.ends_at AS "endsAt",
   a.all_day AS "allDay", a.status, a.arrival_window_minutes AS "arrivalWindowMinutes",
   a.job_id AS "jobId", a.estimate_id AS "estimateId", a.title, a.cancellation_reason AS "cancellationReason",
+  a.location, a.notes,
   c.id AS "customerId", c.first_name AS "customerFirstName", c.last_name AS "customerLastName",
   c.business_name AS "customerBusinessName", c.phone AS "customerPhone",
   p.id AS "propertyId", p.address_line1 AS "propertyAddressLine1", p.city AS "propertyCity",
@@ -152,6 +153,130 @@ export class SchedulingService {
           status = CASE WHEN status = 'draft' THEN 'scheduled' ELSE status END,
           updated_at = now()
         WHERE id = ${jobId}::uuid AND company_id = ${companyId}::uuid
+      `;
+
+      return this.getAppointment(companyId, appointmentId, tx);
+    });
+  }
+
+  /**
+   * General-purpose Calendar Item — deliberately NOT a variant of
+   * scheduleJob() above. That method exists to sync a Job's own
+   * scheduled_start/scheduled_end and requires a real Job row; this one
+   * is for exactly the opposite case (an appointment that may have no
+   * Job, no Customer, no Property at all) and must never touch the
+   * jobs table. Reuses the same appointments table, same tenant-context
+   * pattern, same conflict-check helper — not a second scheduling
+   * system, just the other entry point into the same one.
+   */
+  async createCalendarItem(companyId: string, userId: string, dto: CreateCalendarItemDto) {
+    const startsAt = new Date(dto.startsAt);
+    const endsAt = new Date(dto.endsAt);
+    if (endsAt < startsAt) throw new BadRequestException('endsAt must not be before startsAt');
+
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      // Every relationship is optional, but if one IS provided it must
+      // genuinely belong to this company — never trusting an id merely
+      // because the request included it. A provided propertyId must
+      // also belong to the provided customerId specifically, not just
+      // to the company at large.
+      if (dto.customerId) {
+        const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM customers WHERE id = ${dto.customerId}::uuid AND company_id = ${companyId}::uuid AND deleted_at IS NULL`;
+        if (rows.length === 0) throw new NotFoundException('Customer not found');
+      }
+      if (dto.propertyId) {
+        const rows = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM properties WHERE id = ${dto.propertyId}::uuid AND company_id = ${companyId}::uuid
+            AND (${dto.customerId ?? null}::uuid IS NULL OR customer_id = ${dto.customerId ?? null}::uuid)
+        `;
+        if (rows.length === 0) throw new NotFoundException('Property not found for this customer');
+      }
+      if (dto.jobId) {
+        const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM jobs WHERE id = ${dto.jobId}::uuid AND company_id = ${companyId}::uuid`;
+        if (rows.length === 0) throw new NotFoundException('Job not found');
+      }
+
+      let assignedCompanyUserId: string | null = null;
+      if (dto.assignedUserId) {
+        const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM company_users WHERE user_id = ${dto.assignedUserId}::uuid AND company_id = ${companyId}::uuid`;
+        if (rows.length === 0) throw new ForbiddenException('That user is not a member of this company');
+        assignedCompanyUserId = rows[0].id;
+        await this.assertNoTechnicianConflict(tx, companyId, assignedCompanyUserId, startsAt, endsAt, null);
+      }
+
+      const inserted = await tx.$queryRaw<{ id: string }[]>`
+        INSERT INTO appointments (company_id, appointment_type, job_id, customer_id, property_id, title, starts_at, ends_at, assigned_to_company_user_id, status, location, notes)
+        VALUES (${companyId}::uuid, ${dto.appointmentType}, ${dto.jobId ?? null}::uuid, ${dto.customerId ?? null}::uuid, ${dto.propertyId ?? null}::uuid,
+                ${dto.title}, ${startsAt}, ${endsAt}, ${assignedCompanyUserId}::uuid, 'scheduled', ${dto.location ?? null}, ${dto.notes ?? null})
+        RETURNING id
+      `;
+
+      return this.getAppointment(companyId, inserted[0].id, tx);
+    });
+  }
+
+  /** Edits any appointment's own fields directly — title, type, time, relationships, location, notes. Unlike reschedule()/updateAssignment() below (narrow, single-purpose), this is the general edit path a Calendar Item's detail view uses; a Job-linked appointment can also be edited here, but this never touches the jobs table itself (scheduleJob()'s sync stays scheduleJob()'s job alone). */
+  async updateCalendarItem(companyId: string, appointmentId: string, dto: UpdateCalendarItemDto) {
+    const existing = await this.getAppointment(companyId, appointmentId);
+    if (!existing) throw new NotFoundException('Appointment not found');
+
+    const startsAt = dto.startsAt ? new Date(dto.startsAt) : new Date(existing.startsAt);
+    const endsAt = dto.endsAt ? new Date(dto.endsAt) : new Date(existing.endsAt);
+    if (endsAt < startsAt) throw new BadRequestException('endsAt must not be before startsAt');
+
+    // Resolved to concrete values BEFORE the query runs — Prisma's raw
+    // tagged templates bind every interpolated value as a real SQL
+    // parameter, including `undefined` itself (it does not mean "omit
+    // this from the SET clause" the way a plain JS object spread would).
+    // Three-state logic (omitted = keep existing, explicit null = clear,
+    // a value = set it) has to be fully resolved here in JS first, so
+    // nothing but real, final values ever reaches the query below.
+    const nextTitle = dto.title ?? existing.title;
+    const nextType = dto.appointmentType ?? existing.appointmentType;
+    const nextCustomerId = dto.customerId !== undefined ? dto.customerId : existing.customerId;
+    const nextPropertyId = dto.propertyId !== undefined ? dto.propertyId : existing.propertyId;
+    const nextJobId = dto.jobId !== undefined ? dto.jobId : existing.jobId;
+    const nextLocation = dto.location !== undefined ? dto.location : existing.location;
+    const nextNotes = dto.notes !== undefined ? dto.notes : existing.notes;
+
+    if (dto.customerId) {
+      const rows = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw<{ id: string }[]>`SELECT id FROM customers WHERE id = ${dto.customerId}::uuid AND company_id = ${companyId}::uuid AND deleted_at IS NULL`);
+      if (rows.length === 0) throw new NotFoundException('Customer not found');
+    }
+    if (dto.propertyId) {
+      const rows = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM properties WHERE id = ${dto.propertyId}::uuid AND company_id = ${companyId}::uuid
+          AND (${nextCustomerId ?? null}::uuid IS NULL OR customer_id = ${nextCustomerId ?? null}::uuid)
+      `);
+      if (rows.length === 0) throw new NotFoundException('Property not found for this customer');
+    }
+    if (dto.jobId) {
+      const rows = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw<{ id: string }[]>`SELECT id FROM jobs WHERE id = ${dto.jobId}::uuid AND company_id = ${companyId}::uuid`);
+      if (rows.length === 0) throw new NotFoundException('Job not found');
+    }
+
+    let nextAssignedCompanyUserId: string | null = existing.assignedCompanyUserId ?? null;
+    if (dto.assignedUserId === null) {
+      nextAssignedCompanyUserId = null;
+    } else if (dto.assignedUserId) {
+      const rows = await this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw<{ id: string }[]>`SELECT id FROM company_users WHERE user_id = ${dto.assignedUserId}::uuid AND company_id = ${companyId}::uuid`);
+      if (rows.length === 0) throw new ForbiddenException('That user is not a member of this company');
+      nextAssignedCompanyUserId = rows[0].id;
+    }
+    if (dto.assignedUserId !== undefined || dto.startsAt || dto.endsAt) {
+      await this.prisma.withTenantContext(companyId, (tx) => this.assertNoTechnicianConflict(tx, companyId, nextAssignedCompanyUserId, startsAt, endsAt, appointmentId));
+    }
+
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      await tx.$executeRaw`
+        UPDATE appointments SET
+          title = ${nextTitle}, appointment_type = ${nextType},
+          starts_at = ${startsAt}, ends_at = ${endsAt},
+          customer_id = ${nextCustomerId ?? null}::uuid, property_id = ${nextPropertyId ?? null}::uuid, job_id = ${nextJobId ?? null}::uuid,
+          assigned_to_company_user_id = ${nextAssignedCompanyUserId ?? null}::uuid,
+          location = ${nextLocation ?? null}, notes = ${nextNotes ?? null},
+          updated_at = now()
+        WHERE id = ${appointmentId}::uuid AND company_id = ${companyId}::uuid
       `;
 
       return this.getAppointment(companyId, appointmentId, tx);

@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, Phone, Navigation, Play, CalendarClock, CalendarX, ExternalLink } from 'lucide-react';
+import { X, Phone, Navigation, Play, CalendarClock, CalendarX, ExternalLink, Pencil } from 'lucide-react';
 import { dashboardApi, type WeatherSnapshot } from '../../lib/api/dashboard';
 import { jobsApi, RECOMMENDABLE_SERVICE_LABELS } from '../../lib/api/jobs';
 import {
   appointmentCustomerName,
   schedulingApi,
   APPOINTMENT_STATUS_LABELS,
+  APPOINTMENT_TYPE_LABELS,
   type CalendarAppointment,
 } from '../../lib/api/scheduling';
 import { ConfirmDialog } from '../action-center/ConfirmDialog';
+import { CalendarItemModal } from './CalendarItemModal';
 
 interface AppointmentDetailPanelProps {
   appointment: CalendarAppointment;
@@ -37,6 +39,14 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
   const [isActing, setIsActing] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [showEdit, setShowEdit] = useState(false);
+
+  // A Calendar Item is any appointment not generated from a real Job —
+  // 'job' is exclusively set by scheduleJob(); every other type comes
+  // from createCalendarItem(). This is the same distinction the whole
+  // feature is built around: a Job represents actual work, a Calendar
+  // Item is something that needs to happen on the calendar.
+  const isCalendarItem = appointment.appointmentType !== 'job';
 
   useEffect(() => {
     setWeather(undefined);
@@ -111,6 +121,11 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
             <button onClick={onOpenReschedule} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200">
               <CalendarClock className="h-4 w-4" /> Reschedule
             </button>
+            {isCalendarItem && (
+              <button onClick={() => setShowEdit(true)} className="flex flex-col items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2 py-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200">
+                <Pencil className="h-4 w-4" /> Edit
+              </button>
+            )}
             {!['cancelled', 'completed'].includes(appointment.status) && appointment.jobStatus !== 'completed' && (
               <button onClick={() => setShowCancelDialog(true)} className="flex flex-col items-center gap-1 rounded-xl bg-red-50 dark:bg-red-950 px-2 py-3 text-xs font-medium text-red-700 dark:text-red-300 hover:bg-red-100">
                 <CalendarX className="h-4 w-4" /> Cancel
@@ -120,16 +135,19 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
 
           {/* Operational-center info */}
           <dl className="mt-5 space-y-3 text-sm">
+            {isCalendarItem && <Row label="Type" value={APPOINTMENT_TYPE_LABELS[appointment.appointmentType] ?? appointment.appointmentType} />}
             <Row label="Customer" value={appointmentCustomerName(appointment)} />
             <Row label="Property" value={appointment.propertyAddressLine1 ? `${appointment.propertyAddressLine1}, ${appointment.propertyCity}` : '—'} />
-            <Row label="Services" value={appointment.services.length > 0 ? appointment.services.map((s) => RECOMMENDABLE_SERVICE_LABELS[s] ?? s).join(', ') : '—'} />
+            {isCalendarItem && appointment.location && !appointment.propertyAddressLine1 && <Row label="Location" value={appointment.location} />}
+            {!isCalendarItem && <Row label="Services" value={appointment.services.length > 0 ? appointment.services.map((s) => RECOMMENDABLE_SERVICE_LABELS[s] ?? s).join(', ') : '—'} />}
             <Row label="Status" value={APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status} />
             {appointment.status === 'cancelled' && appointment.cancellationReason && (
               <Row label="Cancellation Reason" value={appointment.cancellationReason} />
             )}
             <Row label="Technician" value={technicianName} />
-            <Row label="Arrival Window" value={formatWindow(appointment.startsAt, appointment.resolvedArrivalWindowMinutes)} />
-            <Row label="Estimated Revenue" value={formatMoney(appointment.jobPrice)} />
+            {!isCalendarItem && <Row label="Arrival Window" value={formatWindow(appointment.startsAt, appointment.resolvedArrivalWindowMinutes)} />}
+            {!isCalendarItem && <Row label="Estimated Revenue" value={formatMoney(appointment.jobPrice)} />}
+            {isCalendarItem && appointment.notes && <Row label="Notes" value={appointment.notes} />}
             <Row
               label="Weather"
               value={
@@ -144,6 +162,15 @@ export function AppointmentDetailPanel({ appointment, onClose, onChanged, onOpen
         </div>
       </div>
     </div>
+
+      {showEdit && (
+        <CalendarItemModal
+          existing={appointment}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => { setShowEdit(false); onChanged(); }}
+          onDeleted={() => { setShowEdit(false); onChanged(); onClose(); }}
+        />
+      )}
 
       {showCancelDialog && (
         <ConfirmDialog
