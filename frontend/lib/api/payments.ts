@@ -14,6 +14,11 @@ export interface Payment {
   referenceNumber: string | null;
   notes: string | null;
   paymentDate: string | null;
+  // "When was the service actually performed?" — deliberately separate
+  // from paymentDate. Feeds Customer.lastServiceDate; NULL means no
+  // override was recorded (falls back to a linked completed Job's
+  // actual end date).
+  serviceDate: string | null;
   processedAt: string | null;
   refundedAmount: string;
   receiptNumber: string | null;
@@ -58,6 +63,7 @@ export interface RecordPaymentInput {
   method: string;
   cardType?: 'credit' | 'debit';
   paymentDate?: string;
+  serviceDate?: string;
   tipAmount?: number;
   referenceNumber?: string;
   notes?: string;

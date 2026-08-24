@@ -18,6 +18,11 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // Independent default from paymentDate, not copied from it — this is
+  // the primary path for exactly the historical-customer scenario this
+  // field exists for (no invoice, often no Job at all), so it must
+  // never silently assume "paid today" means "serviced today."
+  const [serviceDate, setServiceDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [tipAmount, setTipAmount] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
@@ -32,12 +37,14 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
         amount: Number(amount),
         method,
         paymentDate,
+        serviceDate,
         tipAmount: tipAmount ? Number(tipAmount) : undefined,
         referenceNumber: referenceNumber || undefined,
         notes: notes || undefined,
       });
       setAmount('');
       setPaymentDate(new Date().toISOString().slice(0, 10));
+      setServiceDate(new Date().toISOString().slice(0, 10));
       setTipAmount('');
       setReferenceNumber('');
       setNotes('');
@@ -81,12 +88,6 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
           ))}
         </select>
         <input
-          type="date"
-          value={paymentDate}
-          onChange={(e) => setPaymentDate(e.target.value)}
-          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
-        />
-        <input
           value={tipAmount}
           onChange={(e) => setTipAmount(e.target.value.replace(/[^0-9.]/g, ''))}
           placeholder="Tip (Optional)"
@@ -96,6 +97,37 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
         <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Reference #" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
         <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400" />
       </div>
+
+      {/* Given this whole component's purpose is largely historical
+          data entry, Service Date is arguably the single most important
+          field here — clearly labeled, not tucked away, matching the
+          same pattern as the invoice-based Record Payment form. */}
+      <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 sm:grid-cols-2">
+        <div>
+          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">Service Date</label>
+          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">When was the service actually performed?</p>
+          <input
+            type="date"
+            value={serviceDate}
+            onChange={(e) => setServiceDate(e.target.value)}
+            className="mt-1.5 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">Payment Date</label>
+          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">When was the payment received?</p>
+          <input
+            type="date"
+            value={paymentDate}
+            onChange={(e) => setPaymentDate(e.target.value)}
+            className="mt-1.5 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100"
+          />
+        </div>
+        <p className="sm:col-span-2 text-[11px] text-slate-400 dark:text-slate-500">
+          For historical customers, Service Date can be well before today — that&apos;s what makes their Customer profile show the correct Last Service date instead of today&apos;s data-entry date.
+        </p>
+      </div>
+
       {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
       <div className="mt-3 flex gap-2">
         <button

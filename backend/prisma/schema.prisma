@@ -715,6 +715,13 @@ model Payment {
   referenceNumber     String?   @map("reference_number")
   notes               String?
   paymentDate         DateTime? @map("payment_date") @db.Date
+  // The date the service was actually performed — distinct from
+  // paymentDate (when the money was received). Added specifically to
+  // support historical/manually-entered payments and correctly compute
+  // Customer.lastServiceDate for them. NULL means "no override; fall
+  // back to a linked completed Job's actualEnd," never "no service ever
+  // happened." See CustomersService's Last Service calculation.
+  serviceDate         DateTime? @map("service_date") @db.Date
   receiptNumber       String?   @map("receipt_number")
   refundedAmount      Decimal   @default(0) @map("refunded_amount") @db.Decimal(12, 2)
   // Optional gratuity, entirely separate from `amount` — never combined

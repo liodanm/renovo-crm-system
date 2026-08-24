@@ -8,7 +8,7 @@ const PAYMENT_SELECT = `
   p.id, p.invoice_id AS "invoiceId", p.customer_id AS "customerId", p.property_id AS "propertyId",
   p.amount, p.tip_amount AS "tipAmount", p.processing_fee_amount AS "processingFeeAmount", p.card_type AS "cardType",
   p.method, p.status, p.reference_number AS "referenceNumber", p.notes,
-  p.payment_date AS "paymentDate", p.processed_at AS "processedAt", p.refunded_amount AS "refundedAmount",
+  p.payment_date AS "paymentDate", p.service_date AS "serviceDate", p.processed_at AS "processedAt", p.refunded_amount AS "refundedAmount",
   p.receipt_number AS "receiptNumber", p.created_at AS "createdAt"
 `;
 
@@ -84,9 +84,10 @@ export class PaymentsService {
       // else touches them — the invoice/LTV updates below continue to
       // read only dto.amount, exactly as before either field existed.
       const paymentRows = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, processing_fee_amount, card_type, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
+        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, processing_fee_amount, card_type, method, status, reference_number, notes, payment_date, service_date, processed_at, receipt_number)
         VALUES (${companyId}::uuid, ${invoiceId}::uuid, ${invoice.customerId}::uuid, ${invoice.propertyId}::uuid, ${dto.amount}, ${dto.tipAmount ?? 0}, ${processingFeeAmount}, ${dto.cardType ?? null}, ${dto.method}, 'succeeded',
-                ${dto.referenceNumber ?? null}, ${dto.notes ?? null}, ${dto.paymentDate ? new Date(dto.paymentDate) : new Date()}, now(), ${receiptNumber})
+                ${dto.referenceNumber ?? null}, ${dto.notes ?? null}, ${dto.paymentDate ? new Date(dto.paymentDate) : new Date()},
+                ${dto.serviceDate ? new Date(dto.serviceDate) : null}, now(), ${receiptNumber})
         RETURNING id
       `;
       const paymentId = paymentRows[0].id;
@@ -155,9 +156,10 @@ export class PaymentsService {
         ? await this.calculateProcessingFee(tx, companyId, dto.amount)
         : 0;
       const paymentRows = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, processing_fee_amount, card_type, method, status, reference_number, notes, payment_date, processed_at, receipt_number)
+        INSERT INTO payments (company_id, invoice_id, customer_id, property_id, amount, tip_amount, processing_fee_amount, card_type, method, status, reference_number, notes, payment_date, service_date, processed_at, receipt_number)
         VALUES (${companyId}::uuid, NULL, ${customerId}::uuid, NULL, ${dto.amount}, ${dto.tipAmount ?? 0}, ${processingFeeAmount}, ${dto.cardType ?? null}, ${dto.method}, 'succeeded',
-                ${dto.referenceNumber ?? null}, ${dto.notes ?? null}, ${dto.paymentDate ? new Date(dto.paymentDate) : new Date()}, now(), ${receiptNumber})
+                ${dto.referenceNumber ?? null}, ${dto.notes ?? null}, ${dto.paymentDate ? new Date(dto.paymentDate) : new Date()},
+                ${dto.serviceDate ? new Date(dto.serviceDate) : null}, now(), ${receiptNumber})
         RETURNING id
       `;
       const paymentId = paymentRows[0].id;

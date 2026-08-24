@@ -187,7 +187,7 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
 
-            <PaymentsSection invoiceId={invoice.id} balanceDue={invoice.balanceDue} invoiceStatus={invoice.status} onPaymentRecorded={() => mutate()} />
+            <PaymentsSection invoiceId={invoice.id} jobId={invoice.jobId} balanceDue={invoice.balanceDue} invoiceStatus={invoice.status} onPaymentRecorded={() => mutate()} />
 
             {(invoice.notes || invoice.terms) && (
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">

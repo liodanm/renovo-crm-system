@@ -21,9 +21,25 @@ export class RecordPaymentDto {
   @IsIn(CARD_TYPES)
   cardType?: (typeof CARD_TYPES)[number];
 
+  // "When was the payment received?" — kept completely separate from
+  // serviceDate below. For a normal current job these are usually the
+  // same date; for historical/manually-entered data they can differ,
+  // which is the entire reason this field exists.
   @IsOptional()
   @IsISO8601()
   paymentDate?: string;
+
+  // "When was the service actually performed?" — NOT interchangeable
+  // with paymentDate. Optional so a normal current-job payment doesn't
+  // force the user to fill it in (the frontend defaults it sensibly —
+  // see the Record Payment form), but once persisted it's the field
+  // Customer.lastServiceDate is computed from for this payment, not
+  // paymentDate. Never silently defaulted to paymentDate on the
+  // backend — that would recreate the exact bug this field exists to
+  // fix (a same-day payment on old work looking like a new service).
+  @IsOptional()
+  @IsISO8601()
+  serviceDate?: string;
 
   // Optional, separate from `amount` — @Min(0) (not 0.01 like amount
   // above) since a tip legitimately can be exactly $0 (the default,

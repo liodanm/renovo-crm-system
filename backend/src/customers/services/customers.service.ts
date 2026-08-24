@@ -116,24 +116,48 @@ export class CustomersService {
       // Invoices/Jobs modules already use, just aggregated per-customer
       // for the list view. Optional columns; adds one query pair per
       // page load, not per row.
+      //
+      // Last Service = MAX(completed Job.actualEnd, Payment.serviceDate)
+      // — the single authoritative definition now shared with
+      // getServiceHistory() below (previously these two disagreed: this
+      // method used MAX(job.actualEnd) with no status filter at all,
+      // getServiceHistory() used the *scheduled* start date of the most
+      // recent completed job). paymentDate is deliberately never
+      // consulted — a payment recorded today for historical work must
+      // never make Last Service look like today.
       const customerIds = customers.map((c) => c.id);
-      const [balances, lastServices, journeyStages] = customerIds.length
+      const [lastCompletedJobs, lastServiceDatePayments, journeyStages, balances] = customerIds.length
         ? await Promise.all([
+            tx.job.groupBy({
+              by: ['customerId'],
+              where: { companyId, customerId: { in: customerIds }, status: 'completed', actualEnd: { not: null } },
+              _max: { actualEnd: true },
+            }),
+            tx.payment.groupBy({
+              by: ['customerId'],
+              where: { companyId, customerId: { in: customerIds }, serviceDate: { not: null } },
+              _max: { serviceDate: true },
+            }),
+            this.getJourneyStages(tx, companyId, customerIds),
             tx.invoice.groupBy({
               by: ['customerId'],
               where: { companyId, customerId: { in: customerIds }, status: { notIn: ['draft', 'void'] } },
               _sum: { balanceDue: true },
             }),
-            tx.job.groupBy({
-              by: ['customerId'],
-              where: { companyId, customerId: { in: customerIds }, actualEnd: { not: null } },
-              _max: { actualEnd: true },
-            }),
-            this.getJourneyStages(tx, companyId, customerIds),
           ])
-        : [[], [], new Map()];
+        : [[], [], new Map(), []];
+
       const balanceByCustomer = new Map(balances.map((b): [string, string] => [b.customerId, (b._sum.balanceDue ?? 0).toString()]));
-      const lastServiceByCustomer = new Map(lastServices.map((j): [string, Date | null] => [j.customerId, j._max.actualEnd]));
+
+      const lastServiceByCustomer = new Map<string, Date | null>();
+      for (const j of lastCompletedJobs) {
+        if (j._max.actualEnd) lastServiceByCustomer.set(j.customerId, j._max.actualEnd);
+      }
+      for (const p of lastServiceDatePayments) {
+        if (!p._max.serviceDate) continue;
+        const existing = lastServiceByCustomer.get(p.customerId);
+        if (!existing || p._max.serviceDate > existing) lastServiceByCustomer.set(p.customerId, p._max.serviceDate);
+      }
 
       return {
         data: customers.map((c) => ({
@@ -585,16 +609,40 @@ export class CustomersService {
     );
 
     const completedJobs = jobs.filter((j) => j.status === 'completed');
-    const lastCompletedJob = completedJobs[0]; // jobs already sorted newest-first
     const performedServiceTypes = new Set(jobs.map((j) => j.serviceType).filter((t): t is string => !!t));
     const recommendedUpsell = activeCatalogItems.find((item) => !performedServiceTypes.has(item.serviceType));
 
+    // Last Service = MAX(completed Job.actualEnd, Payment.serviceDate) —
+    // the same authoritative definition list() above now uses. Was
+    // completedJobs[0].scheduledStart previously (wrong on two counts:
+    // the *scheduled*, not actual, date; and jobs here are sorted by
+    // scheduledStart, so [0] isn't even guaranteed to be the job with
+    // the latest actualEnd). paymentDate is deliberately never
+    // consulted, and a payment with no serviceDate contributes nothing
+    // — never silently falls back to paymentDate or "today."
+    const lastServiceDate = (() => {
+      let latest: Date | null = null;
+      for (const j of completedJobs) {
+        if (j.actualEnd && (!latest || j.actualEnd > latest)) latest = j.actualEnd;
+      }
+      for (const p of payments) {
+        if (p.serviceDate && (!latest || p.serviceDate > latest)) latest = p.serviceDate;
+      }
+      return latest;
+    })();
+
+    // overdueForCleaning shares the same underlying concept as
+    // lastServiceDate ("when did we actually last serve this
+    // customer") — it previously used the same wrong scheduledStart
+    // field this fix corrects lastServiceDate to; using the same
+    // corrected value here too avoids reintroducing the exact
+    // inconsistency this whole change exists to eliminate.
     const intervalMonths = automationSettings?.recurringReminderIntervalMonths ?? 12;
     const overdueForCleaning = (() => {
-      if (!lastCompletedJob?.scheduledStart) return false;
+      if (!lastServiceDate) return false;
       const cutoff = new Date();
       cutoff.setMonth(cutoff.getMonth() - intervalMonths);
-      return lastCompletedJob.scheduledStart <= cutoff;
+      return lastServiceDate <= cutoff;
     })();
 
     // Review status — the manual reviewReceivedAt flag always wins once
@@ -632,7 +680,7 @@ export class CustomersService {
       // every call from the same source-of-truth tables everything else
       // in this app already reads.
       intelligence: {
-        lastServiceDate: lastCompletedJob?.scheduledStart ?? null,
+        lastServiceDate,
         jobsCompleted: completedJobs.length,
         averageJobValue: completedJobs.length > 0 ? completedJobs.reduce((sum, j) => sum + j.price.toNumber(), 0) / completedJobs.length : 0,
         recommendedUpsell: recommendedUpsell ? { serviceType: recommendedUpsell.serviceType, name: recommendedUpsell.name } : null,
