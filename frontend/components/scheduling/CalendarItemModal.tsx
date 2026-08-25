@@ -87,6 +87,24 @@ export function CalendarItemModal({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Bug fix: without this, scrolling while the modal is open scrolls
+  // the page behind it instead of the modal's own content — the
+  // modal's backdrop being `fixed` doesn't itself prevent the
+  // underlying body from scrolling. Locked for exactly as long as
+  // this modal is mounted, restored to whatever it was before
+  // (not hardcoded to '') so this composes safely if another modal is
+  // ever open underneath. No existing scroll-lock pattern was found
+  // anywhere else in this codebase — this is likely the same gap in
+  // every other modal, not just this one; flagged separately rather
+  // than silently rewritten here.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   const { data: customers } = useSWR('customers-for-calendar-item', () => customersApi.list({ pageSize: 100, sortBy: 'name', sortDir: 'asc' }));
   // Resolves the display name for a customer carried in via
   // initialCustomerId (only an ID is available from the URL) once the
@@ -261,15 +279,15 @@ export function CalendarItemModal({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">Date</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100" />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 h-11 w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-base lg:h-9 lg:text-sm dark:bg-slate-900 dark:text-slate-100" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">Start Time</label>
-              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100" />
+              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="mt-1 h-11 w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-base lg:h-9 lg:text-sm dark:bg-slate-900 dark:text-slate-100" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">End Time</label>
-              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-3 text-base lg:py-2 lg:text-sm dark:bg-slate-900 dark:text-slate-100" />
+              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="mt-1 h-11 w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-700 px-3 text-base lg:h-9 lg:text-sm dark:bg-slate-900 dark:text-slate-100" />
             </div>
           </div>
 

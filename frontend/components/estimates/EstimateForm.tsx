@@ -678,7 +678,23 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                       key: crypto.randomUUID(),
                       serviceType: catalogItem.serviceType,
                       description: catalogItem.description || catalogItem.name,
-                      unitOfMeasure: catalogItem.defaultUnitOfMeasure ?? 'each',
+                      // Per the owner's explicit request: every service
+                      // pulled into an Estimate defaults to Flat Rate
+                      // here, regardless of the Service Catalog item's
+                      // own configured defaultUnitOfMeasure (sq ft,
+                      // linear ft, etc). This is deliberately an
+                      // Estimate-only default, not a Service Catalog
+                      // change — catalogItem.defaultUnitOfMeasure and
+                      // .defaultUnitPrice are read here but never
+                      // written back, so the Catalog's own stored
+                      // configuration for every service is completely
+                      // untouched; the price itself is still pulled in
+                      // unchanged below, just presented under Flat Rate
+                      // by default instead of the Catalog's own unit —
+                      // adjustable per-line if a particular service
+                      // genuinely needs its per-sq-ft/per-linear-ft
+                      // pricing instead.
+                      unitOfMeasure: 'flat_rate',
                       quantity: '1',
                       unitPrice: catalogItem.defaultUnitPrice ?? '',
                       notes: catalogItem.defaultNotes ?? undefined,
