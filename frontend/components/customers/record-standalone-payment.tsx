@@ -7,14 +7,48 @@ import { ApiError } from '../../lib/api/api-client';
 const availableMethods = ['cash', 'check', 'zelle', 'other'] as const;
 
 /**
+ * Split into a trigger + a panel, both controlled by the parent's own
+ * `open` state — NOT one self-toggling component. The original version
+ * returned either a small button OR a large form IN PLACE, as a sibling
+ * of the other header buttons (+New Estimate, Edit, More). That meant
+ * opening the form physically displaced those other buttons — first
+ * scattering them into the form's leftover row space, then (after a
+ * first attempted fix using w-full) pushing them cleanly below the form
+ * instead — neither of which is right. The header's buttons need to
+ * stay exactly where they are, always, regardless of whether this form
+ * is open. The trigger renders inline in the header's button row; the
+ * panel renders whereever the parent places it (below the entire header
+ * block), and neither one moves the other.
+ */
+export function RecordPaymentTrigger({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onOpenChange(!open)}
+      className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800"
+    >
+      Record Payment
+    </button>
+  );
+}
+
+/**
  * "Customer → Record Payment" — for money received with no invoice
  * involved at all (typically historical work from before this CRM
  * existed). Deliberately simpler than the invoice PaymentsSection form:
  * no balance-due cap, no invoice-status refresh, since neither concept
  * applies here.
  */
-export function RecordStandalonePayment({ customerId, onRecorded }: { customerId: string; onRecorded: () => void }) {
-  const [showForm, setShowForm] = useState(false);
+export function RecordPaymentPanel({
+  customerId,
+  open,
+  onOpenChange,
+  onRecorded,
+}: {
+  customerId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onRecorded: () => void;
+}) {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -28,6 +62,8 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (!open) return null;
 
   async function handleRecord() {
     setIsSaving(true);
@@ -48,7 +84,7 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
       setTipAmount('');
       setReferenceNumber('');
       setNotes('');
-      setShowForm(false);
+      onOpenChange(false);
       onRecorded();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not record this payment.');
@@ -57,19 +93,8 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
     }
   }
 
-  if (!showForm) {
-    return (
-      <button
-        onClick={() => setShowForm(true)}
-        className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800"
-      >
-        Record Payment
-      </button>
-    );
-  }
-
   return (
-    <div className="mt-4 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+    <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Record Payment</p>
         <p className="text-xs text-slate-400 dark:text-slate-500">No invoice needed — for cash/check/Zelle received directly, including historical work</p>
@@ -137,7 +162,7 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
         >
           {isSaving ? 'Saving…' : 'Save Payment'}
         </button>
-        <button onClick={() => setShowForm(false)} className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
+        <button onClick={() => onOpenChange(false)} className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-800">
           Cancel
         </button>
       </div>

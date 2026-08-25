@@ -16,7 +16,7 @@ import { PhotosTab } from '../../../components/customers/tabs/photos-tab';
 import { DocumentsTab } from '../../../components/customers/tabs/documents-tab';
 import { ActivityTab } from '../../../components/customers/tabs/activity-tab';
 import { AppShell } from '../../../components/layout/AppShell';
-import { RecordStandalonePayment } from '../../../components/customers/record-standalone-payment';
+import { RecordPaymentTrigger, RecordPaymentPanel } from '../../../components/customers/record-standalone-payment';
 import { DeleteCustomerModal } from '../../../components/customers/delete-customer-modal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../components/ui/dropdown-menu';
 import { cn } from '../../../lib/utils';
@@ -57,6 +57,12 @@ export default function CustomerProfilePage() {
   const { data: serviceHistory, mutate: mutateServiceHistory } = useSWR([`service-history`, customerId], () => customersApi.getServiceHistory(customerId));
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Lifted up here rather than owned inside the payment component
+  // itself — this is what lets the trigger button stay fixed in the
+  // header's button row while the form panel renders as its own
+  // section below the entire header block, without either one
+  // displacing the other.
+  const [showRecordPayment, setShowRecordPayment] = useState(false);
 
   const displayName = customer ? customer.businessName || `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || 'Unnamed customer' : '';
   const currentStepIndex = customer ? JOURNEY_STEPS.indexOf(customer.journeyStage) : -1;
@@ -101,24 +107,7 @@ export default function CustomerProfilePage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <PermissionGate permissions={['payments.write']}>
-                  <RecordStandalonePayment
-                    customerId={customerId}
-                    onRecorded={() => {
-                      // Real bug, caught here: this callback previously
-                      // only revalidated serviceHistory, never the
-                      // separate `customer` fetch — which is what
-                      // actually holds lifetimeValue, balanceDue,
-                      // openEstimatesCount, and openInvoicesCount, all
-                      // shown in the KPI strip above. The backend always
-                      // updated the database correctly on every payment;
-                      // this page just never re-fetched to show it,
-                      // leaving the KPI strip stale until a full manual
-                      // page refresh. Both queries share their data, so
-                      // both need to revalidate together.
-                      mutate();
-                      mutateServiceHistory();
-                    }}
-                  />
+                  <RecordPaymentTrigger open={showRecordPayment} onOpenChange={setShowRecordPayment} />
                 </PermissionGate>
                 <Link
                   href={`/estimates/new?customerId=${customerId}`}
@@ -148,6 +137,28 @@ export default function CustomerProfilePage() {
                 </PermissionGate>
               </div>
             </div>
+
+            <PermissionGate permissions={['payments.write']}>
+              <RecordPaymentPanel
+                customerId={customerId}
+                open={showRecordPayment}
+                onOpenChange={setShowRecordPayment}
+                onRecorded={() => {
+                  // Real bug, caught here: this callback previously
+                  // only revalidated serviceHistory, never the
+                  // separate `customer` fetch — which is what actually
+                  // holds lifetimeValue, balanceDue, openEstimatesCount,
+                  // and openInvoicesCount, all shown in the KPI strip
+                  // below. The backend always updated the database
+                  // correctly on every payment; this page just never
+                  // re-fetched to show it, leaving the KPI strip stale
+                  // until a full manual page refresh. Both queries share
+                  // their data, so both need to revalidate together.
+                  mutate();
+                  mutateServiceHistory();
+                }}
+              />
+            </PermissionGate>
 
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <Kpi label="Lifetime Value" value={currency.format(customer.lifetimeValue)} />
