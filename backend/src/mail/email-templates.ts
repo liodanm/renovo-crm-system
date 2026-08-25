@@ -91,6 +91,32 @@ export function renderEmailTemplate(template: string, data: Record<string, any>)
             ctaButton(data.estimateUrl, 'View Estimate in Renovo'),
         ),
       };
+    case 'estimate-accepted-notification':
+      // Same internal-only, no-CTA-branding style as estimate-viewed
+      // above. Signature mentioned only as a fact ("captured"), never
+      // embedded as an image in the email itself — the signature is a
+      // private business/customer record, not something to put in an
+      // email body.
+      return {
+        subject: `Quote ${escape(data.estimateNumber)} Accepted by ${escape(data.customerName)}`,
+        html: wrapper(
+          `<p><strong>${escape(data.customerName)}</strong> accepted Quote <strong>${escape(data.estimateNumber)}</strong> for <strong>${escape(data.totalFormatted)}</strong>.</p>` +
+            (data.propertyAddress ? `<p>Property: ${escape(data.propertyAddress)}</p>` : '') +
+            `<p>Accepted: ${escape(data.acceptedAtFormatted)}</p>` +
+            `<p>A customer signature was captured with this acceptance.</p>` +
+            ctaButton(data.estimateUrl, 'View Estimate in Renovo'),
+        ),
+      };
+    case 'estimate-declined-notification':
+      return {
+        subject: `Quote ${escape(data.estimateNumber)} Declined by ${escape(data.customerName)}`,
+        html: wrapper(
+          `<p><strong>${escape(data.customerName)}</strong> declined Quote <strong>${escape(data.estimateNumber)}</strong>.</p>` +
+            `<p>Declined: ${escape(data.declinedAtFormatted)}</p>` +
+            (data.declineReason ? `<p>Reason: ${escape(data.declineReason)}</p>` : '') +
+            ctaButton(data.estimateUrl, 'View Estimate in Renovo'),
+        ),
+      };
     case 'invoice-sent-notification':
       // Internal-only, same style as estimate-viewed-notification above
       // — a staff-inbox notice, not a customer-facing email.

@@ -95,6 +95,14 @@ export class MailService {
     await this.enqueue('estimate-viewed-notification', to, data);
   }
 
+  async sendEstimateAcceptedNotification(to: string, data: { customerName: string; estimateNumber: string; totalFormatted: string; propertyAddress: string | null; acceptedAtFormatted: string; estimateUrl: string }) {
+    await this.enqueue('estimate-accepted-notification', to, data);
+  }
+
+  async sendEstimateDeclinedNotification(to: string, data: { customerName: string; estimateNumber: string; declinedAtFormatted: string; declineReason: string | null; estimateUrl: string }) {
+    await this.enqueue('estimate-declined-notification', to, data);
+  }
+
   async sendInvoiceViewedNotification(to: string, data: { customerName: string; customerEmail: string; invoiceNumber: string; totalFormatted: string; viewedAtFormatted: string; propertyAddress: string | null; invoiceUrl: string }) {
     await this.enqueue('invoice-viewed-notification', to, data);
   }

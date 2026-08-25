@@ -52,6 +52,19 @@ export class StorageService {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
+  /**
+   * Server-side upload for data the backend itself produces (e.g. a
+   * signature converted from a base64 data URL), as opposed to
+   * getPresignedUploadUrl() above, which is for a browser uploading
+   * directly. Same PutObjectCommand this class already uses internally
+   * in testUploadRoundTrip() — not a new upload mechanism, just the
+   * first time it's exposed as a reusable method instead of being
+   * inlined for that one diagnostic use.
+   */
+  async uploadBuffer(key: string, body: Buffer, contentType: string): Promise<void> {
+    await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }));
+  }
+
   getConfig(): { bucket: string; region: string } {
     return { bucket: this.bucket, region: this.config.get<string>('AWS_REGION', 'us-east-1') };
   }

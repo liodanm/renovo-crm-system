@@ -24,6 +24,20 @@ export class EstimatesController {
     return this.estimatesService.findOne(user.companyId, id, this.canViewProfitability(user));
   }
 
+  /**
+   * Staff-only, tenant-verified access to a customer's acceptance
+   * signature — returns a short-lived presigned URL for the S3 case, or
+   * the raw legacy data URL for pre-S3-migration estimates. Ownership
+   * is verified the same way findOne() above already is (user.companyId
+   * from the authenticated request, never a client-supplied value); a
+   * missing/wrong-tenant estimate id resolves to 404, never a signature
+   * belonging to another company.
+   */
+  @Get(':id/signature')
+  getSignature(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string) {
+    return this.estimatesService.getSignature(user.companyId, id);
+  }
+
   @Post()
   @RequirePermissions('estimates.write')
   create(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: CreateEstimateDto) {

@@ -1,12 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
+import { createOwnerNotification } from '../../common/utils/owner-notification.util';
 import { JobsService } from '../../jobs/services/jobs.service';
 import { CustomersService } from '../../customers/services/customers.service';
 import { CompanyContextService } from '../../documents/services/company-context.service';
 import { MailService } from '../../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
+
+function formatMoney(value: unknown): string {
+  return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 /**
  * Every method here takes `customerId` as an explicit, required parameter
@@ -52,9 +58,20 @@ export class PortalDataService {
     if (estimate.status === 'declined') throw new BadRequestException('This estimate was already declined and can no longer be accepted');
     if (estimate.status === 'expired') throw new BadRequestException('This estimate has expired and can no longer be accepted. Please contact us for an updated quote.');
 
+    // New acceptances store the signature in S3, not as base64 in
+    // Postgres — signature_data_url (the legacy column) is left
+    // completely alone here; existing accepted estimates keep reading
+    // from it exactly as before. A conversion failure falls back to
+    // the legacy column rather than blocking acceptance entirely — a
+    // customer's "yes, I accept" must never be lost over a storage
+    // hiccup.
+    const signatureS3Key = await this.uploadSignatureToS3(companyId, estimateId, signatureDataUrl);
+
     const updated = await this.prisma.tenant.estimate.update({
       where: { id: estimateId },
-      data: { status: 'accepted', acceptedAt: new Date(), signatureDataUrl, acceptedVia: 'portal' },
+      data: signatureS3Key
+        ? { status: 'accepted', acceptedAt: new Date(), signatureS3Key, acceptedVia: 'portal' }
+        : { status: 'accepted', acceptedAt: new Date(), signatureDataUrl, acceptedVia: 'portal' },
       select: { id: true, status: true, acceptedAt: true, totalAmount: true, estimateNumber: true },
     });
     await this.writeEstimateHistory(companyId, estimateId, estimate.status, 'accepted', null, 'portal', 'Accepted by customer via portal');
@@ -65,6 +82,22 @@ export class PortalDataService {
       dedupeKey: `estimate-approved-${estimateId}`,
       messageBody: `Estimate ${estimate.estimateNumber} approved by customer`,
     });
+    // Reuses the existing, already-designed Notification model
+    // (dashboard.service.ts's getNotifications already reads it — this
+    // is the first thing that ever writes to it). Idempotent via the
+    // same dedupe-key pattern as logAutomationEvent above, not a
+    // second dedup mechanism.
+    const customerName = await this.getCustomerDisplayName(companyId, customerId);
+    await createOwnerNotification(this.prisma, {
+      companyId,
+      notificationType: 'estimate_accepted',
+      title: 'Quote Accepted',
+      body: `${customerName} accepted Quote #${estimate.estimateNumber} for ${formatMoney(updated.totalAmount)}.`,
+      relatedEntityType: 'estimate',
+      relatedEntityId: estimateId,
+      dedupeKey: `estimate-accepted-${estimateId}`,
+    });
+    await this.sendEstimateAcceptedEmail(companyId, estimateId, customerName, updated.totalAmount, updated.acceptedAt!);
 
     // Same automatic conversion as staff acceptance — a customer
     // accepting from the portal should mean exactly the same thing as
@@ -81,6 +114,8 @@ export class PortalDataService {
 
   async declineEstimate(companyId: string, customerId: string, estimateId: string) {
     const estimate = await this.getOwnedEstimate(companyId, customerId, estimateId);
+    if (estimate.status === 'declined') return { id: estimate.id, status: 'declined', declinedAt: estimate.declinedAt, estimateNumber: estimate.estimateNumber };
+    if (estimate.status === 'accepted') throw new BadRequestException('This estimate has already been accepted and can no longer be declined');
     const updated = await this.prisma.tenant.estimate.update({
       where: { id: estimateId },
       data: { status: 'declined', declinedAt: new Date() },
@@ -94,6 +129,21 @@ export class PortalDataService {
       dedupeKey: `estimate-declined-${estimateId}`,
       messageBody: `Estimate ${estimate.estimateNumber} declined by customer`,
     });
+    // No decline-reason field exists in the current portal decline
+    // flow (unlike the staff-side declineManually, which does accept
+    // one) — not added here, per the explicit instruction not to
+    // invent one; the notification body simply has nothing to include.
+    const customerName = await this.getCustomerDisplayName(companyId, customerId);
+    await createOwnerNotification(this.prisma, {
+      companyId,
+      notificationType: 'estimate_declined',
+      title: 'Quote Declined',
+      body: `${customerName} declined Quote #${estimate.estimateNumber}.`,
+      relatedEntityType: 'estimate',
+      relatedEntityId: estimateId,
+      dedupeKey: `estimate-declined-notif-${estimateId}`,
+    });
+    await this.sendEstimateDeclinedEmail(companyId, estimateId, customerName, updated.declinedAt!, null);
     return updated;
   }
 
@@ -109,6 +159,17 @@ export class PortalDataService {
     const estimate = await this.prisma.estimate.findFirst({ where: { id: estimateId, companyId, customerId } });
     if (!estimate) throw new NotFoundException('Estimate not found');
     return estimate;
+  }
+
+  /** Same COALESCE(business_name, first_name || ' ' || last_name) display-name convention used everywhere else in this codebase, not a new formatting rule. */
+  private async getCustomerDisplayName(companyId: string, customerId: string): Promise<string> {
+    const rows = await this.prisma.withTenantContext(companyId, (tx) =>
+      tx.$queryRaw<{ name: string }[]>`
+        SELECT COALESCE(business_name, first_name || ' ' || last_name) AS name
+        FROM customers WHERE id = ${customerId}::uuid AND company_id = ${companyId}::uuid
+      `,
+    );
+    return rows[0]?.name ?? 'A customer';
   }
 
   /** Full includes for PDF generation — kept separate from the lightweight
@@ -211,6 +272,73 @@ export class PortalDataService {
         messageBody: `Estimate ${estimate.estimateNumber} viewed by customer`,
       });
       await this.sendEstimateViewedNotification(companyId, estimateId);
+    }
+  }
+
+  /**
+   * Converts the base64 data URL the signature pad already produces
+   * into a private S3 object, using the exact key structure the task
+   * specified: {companyId}/documents/estimates/{estimateId}/signature-{uuid}.png.
+   * Reuses StorageService.uploadBuffer (added for this) — never
+   * StorageService.getPublicUrl, never the branding/ prefix real
+   * public assets use. Returns null (never throws) on any malformed
+   * input or S3 failure — the caller falls back to the legacy
+   * signature_data_url column rather than losing the customer's
+   * acceptance entirely over a storage hiccup.
+   */
+  private async uploadSignatureToS3(companyId: string, estimateId: string, signatureDataUrl: string): Promise<string | null> {
+    try {
+      const match = /^data:image\/(png|jpeg);base64,(.+)$/.exec(signatureDataUrl);
+      if (!match) return null;
+      const [, ext, base64Payload] = match;
+      const buffer = Buffer.from(base64Payload, 'base64');
+      if (buffer.length === 0 || buffer.length > 2_000_000) return null; // sanity bound — a real signature pad export is a few KB, not megabytes
+      const key = `${companyId}/documents/estimates/${estimateId}/signature-${randomUUID()}.${ext === 'jpeg' ? 'jpg' : ext}`;
+      await this.storage.uploadBuffer(key, buffer, `image/${ext}`);
+      return key;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Same fire-and-forget, never-block-the-customer principle as sendEstimateViewedNotification above — a delivery failure here must never surface as an error to the customer who just accepted. */
+  private async sendEstimateAcceptedEmail(companyId: string, estimateId: string, customerName: string, totalAmount: unknown, acceptedAt: Date): Promise<void> {
+    try {
+      const to = await this.companyContext.getReplyToEmail(companyId);
+      if (!to) return;
+      const estimate = await this.prisma.estimate.findUnique({ where: { id: estimateId }, include: { property: true } });
+      if (!estimate) return;
+      await this.mailService.sendEstimateAcceptedNotification(to, {
+        customerName,
+        estimateNumber: estimate.estimateNumber,
+        totalFormatted: formatMoney(totalAmount),
+        propertyAddress: estimate.property ? `${estimate.property.addressLine1}, ${estimate.property.city}` : null,
+        acceptedAtFormatted: acceptedAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+        estimateUrl: `${this.config.get('auth.frontendUrl') ?? ''}/estimates/${estimateId}`,
+      });
+    } catch {
+      // No further action — never let an email failure affect the
+      // already-completed acceptance.
+    }
+  }
+
+  /** Same principle as sendEstimateAcceptedEmail above. declineReason is always null today — the portal decline flow has no reason field (see declineEstimate's own comment) — left as a real parameter so this helper is ready the moment one exists, without a second signature to maintain later. */
+  private async sendEstimateDeclinedEmail(companyId: string, estimateId: string, customerName: string, declinedAt: Date, declineReason: string | null): Promise<void> {
+    try {
+      const to = await this.companyContext.getReplyToEmail(companyId);
+      if (!to) return;
+      const estimate = await this.prisma.estimate.findUnique({ where: { id: estimateId }, select: { estimateNumber: true } });
+      if (!estimate) return;
+      await this.mailService.sendEstimateDeclinedNotification(to, {
+        customerName,
+        estimateNumber: estimate.estimateNumber,
+        declinedAtFormatted: declinedAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+        declineReason,
+        estimateUrl: `${this.config.get('auth.frontendUrl') ?? ''}/estimates/${estimateId}`,
+      });
+    } catch {
+      // No further action — never let an email failure affect the
+      // already-completed decline.
     }
   }
 

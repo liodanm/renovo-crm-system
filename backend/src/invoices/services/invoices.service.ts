@@ -317,10 +317,9 @@ export class InvoicesService {
 
     const { company, branding } = await this.companyContext.getCompanyAndBranding(companyId);
     const replyTo = await this.companyContext.getReplyToEmail(companyId);
-    // Deep-links straight to the specific invoice, same pattern as the
-    // estimate email fix — redirectTo carries the customer past the
-    // generic portal dashboard directly onto /portal/invoices/{id}.
-    const portalUrl = await this.portalAuthService.generatePortalLink(companyId, existing.customerId, `/portal/invoices/${id}`)
+    // Same permanent, Postgres-backed document token as Estimates now
+    // use — see PortalAuthService.getOrCreateDocumentToken.
+    const portalUrl = await this.portalAuthService.getOrCreateDocumentToken(companyId, existing.customerId, { invoiceId: id })
       ?? this.config.get<string>('PORTAL_URL', 'https://portal.renovocrm.com');
 
     const emailLogId = await this.emailLogService.create({

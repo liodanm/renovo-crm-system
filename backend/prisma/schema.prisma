@@ -265,6 +265,7 @@ model Estimate {
   // (which already existed) on conversion.
   internalNotes     String?   @map("internal_notes")
   signatureDataUrl  String?   @map("signature_data_url")
+  signatureS3Key    String?   @map("signature_s3_key")
   createdBy         String?   @map("created_by")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")

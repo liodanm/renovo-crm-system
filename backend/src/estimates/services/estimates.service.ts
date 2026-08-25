@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
 import { CustomersService } from '../../customers/services/customers.service';
 import { SmsService } from '../../sms/sms.service';
+import { StorageService } from '../../common/storage/storage.service';
 
 // Fields only estimates.profitability holders should ever see — stripped
 // from every response otherwise, not just hidden client-side (which
@@ -40,7 +41,30 @@ export class EstimatesService {
     private readonly customersService: CustomersService,
     private readonly portalAuthService: PortalAuthService,
     private readonly smsService: SmsService,
+    private readonly storage: StorageService,
   ) {}
+
+  /**
+   * Staff-only signature access — S3 case returns a short-lived
+   * presigned URL (never a public one, never getPublicUrl()); legacy
+   * case returns the existing base64 data URL as-is, unchanged
+   * behavior for estimates accepted before this migration. Tenant
+   * ownership verified the same way findOne() already is.
+   */
+  async getSignature(companyId: string, estimateId: string): Promise<{ url: string | null; type: 'presigned' | 'legacy' | 'none' }> {
+    const estimate = await this.prisma.estimate.findFirst({
+      where: { id: estimateId, companyId },
+      select: { signatureS3Key: true, signatureDataUrl: true },
+    });
+    if (!estimate) throw new NotFoundException('Estimate not found');
+    if (estimate.signatureS3Key) {
+      return { url: await this.storage.getPresignedDownloadUrl(estimate.signatureS3Key), type: 'presigned' };
+    }
+    if (estimate.signatureDataUrl) {
+      return { url: estimate.signatureDataUrl, type: 'legacy' };
+    }
+    return { url: null, type: 'none' };
+  }
 
   async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean) {
     await this.assertCustomerAndPropertyBelongToCompany(companyId, dto.customerId, dto.propertyId);
@@ -489,12 +513,12 @@ export class EstimatesService {
 
     const { company, branding } = await this.companyContext.getCompanyAndBranding(companyId);
     const replyTo = await this.companyContext.getReplyToEmail(companyId);
-    // Previously a static, unauthenticated URL to the generic portal root
-    // — clicking it landed the customer on a login wall, not their
-    // estimate. Now the same real, auto-authenticating, single-use magic
-    // link the invoice email already used (see PortalAuthService), with
-    // a redirect target so it lands directly on this specific estimate.
-    const portalUrl = (await this.portalAuthService.generatePortalLink(companyId, existing.customerId, `/portal/estimates/${id}`))
+    // Previously a single-use, 72-hour Redis magic link — customers
+    // complained it expired/died before they got back to it. Now a
+    // permanent, Postgres-backed document token that stays valid
+    // (clickable from this exact email, repeatedly, on any device)
+    // until explicitly revoked. See PortalAuthService.getOrCreateDocumentToken.
+    const portalUrl = (await this.portalAuthService.getOrCreateDocumentToken(companyId, existing.customerId, { estimateId: id }))
       ?? `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
 
     const emailLogId = await this.emailLogService.create({
@@ -563,7 +587,7 @@ export class EstimatesService {
     if (!recipientPhone) throw new BadRequestException('This customer has no phone number on file');
 
     const { company } = await this.companyContext.getCompanyAndBranding(companyId);
-    const portalUrl = (await this.portalAuthService.generatePortalLink(companyId, existing.customerId, `/portal/estimates/${id}`))
+    const portalUrl = (await this.portalAuthService.getOrCreateDocumentToken(companyId, existing.customerId, { estimateId: id }))
       ?? `${this.config.get('auth.frontendUrl') ?? ''}/portal`;
 
     // No price anywhere in this message — same rule sendEmail's own data

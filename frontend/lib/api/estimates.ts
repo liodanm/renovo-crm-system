@@ -139,6 +139,7 @@ export const estimatesApi = {
     apiFetch<{ success: boolean; logId: string; recipientPhone: string }>(`/estimates/${id}/resend-sms`, { method: 'POST', body: JSON.stringify({ toPhone }) }),
 
   getEmailHistory: (id: string) => apiFetch<EmailLogEntry[]>(`/estimates/${id}/email-history`),
+  getSignature: (id: string) => apiFetch<{ url: string | null; type: 'presigned' | 'legacy' | 'none' }>(`/estimates/${id}/signature`),
 
   pdfPath: (id: string) => `/estimates/${id}/pdf`,
 

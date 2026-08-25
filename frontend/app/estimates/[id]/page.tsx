@@ -328,6 +328,12 @@ export default function EstimateDetailPage() {
               <div className="mt-3">
                 <StatusTimeline entries={statusHistory ?? []} />
               </div>
+              {/* Signature display lives inside the same Timeline card
+                  as the acceptance event it belongs to, rather than a
+                  separate section — reuses estimate_status_history's
+                  own acceptance entry as the context, not a second,
+                  duplicate "signature captured" event. */}
+              {isAccepted && <EstimateSignatureSection estimateId={estimate.id} />}
             </div>
 
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
@@ -402,5 +408,31 @@ export default function EstimateDetailPage() {
         )}
       </main>
     </AppShell>
+  );
+}
+
+/**
+ * Fetches lazily only when actually rendered (i.e. only for an
+ * accepted estimate) — never an extra request for the common case of
+ * a pending/declined estimate. Handles all three real states from the
+ * backend: a presigned S3 URL, a legacy base64 data URL, or no
+ * signature at all (an estimate accepted before signature capture
+ * existed) — never assumes one is always present.
+ */
+function EstimateSignatureSection({ estimateId }: { estimateId: string }) {
+  const { data, isLoading } = useSWR(['estimate-signature', estimateId], () => estimatesApi.getSignature(estimateId));
+
+  return (
+    <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Customer Signature</p>
+      {isLoading && <div className="mt-2 h-16 w-40 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />}
+      {!isLoading && data?.url && (
+        // eslint-disable-next-line @next/next/no-img-element -- a
+        // presigned S3 URL / legacy data URL, neither of which next/image
+        // can optimize (both are already short-lived or already a data URI)
+        <img src={data.url} alt="Customer signature" className="mt-2 h-16 max-w-[220px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white object-contain p-1" />
+      )}
+      {!isLoading && data && !data.url && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">No signature on file for this acceptance.</p>}
+    </div>
   );
 }

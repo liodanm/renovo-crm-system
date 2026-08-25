@@ -50,6 +50,12 @@ export class PortalController {
     return this.auth.verifyMagicLink(dto.token);
   }
 
+  @Public()
+  @Post('auth/verify-document')
+  verifyDocument(@Body() dto: VerifyMagicLinkDto) {
+    return this.auth.verifyDocumentToken(dto.token);
+  }
+
   // ===========================================================================
   // Everything below requires a valid portal session, scoped to exactly one
   // customer — see PortalCustomerGuard and PortalDataService for how that's
