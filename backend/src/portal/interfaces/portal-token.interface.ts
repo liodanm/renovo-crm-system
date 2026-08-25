@@ -9,12 +9,19 @@
 export interface PortalTokenPayload {
   sub: string; // customer id — NOT a user id; customers aren't `users` in this system
   companyId: string;
-  email: string;
+  // Nullable: a permanent document token (see PortalAuthService.
+  // getOrCreateDocumentToken) can legitimately belong to a customer with
+  // no email on file, sent only via SMS — unlike the original
+  // requestMagicLink()/generatePortalLink() login flow, which always
+  // required an email before ever generating a link. Widened here to
+  // reflect that real, valid scenario rather than pretending it can't
+  // happen.
+  email: string | null;
   type: 'portal';
 }
 
 export interface AuthenticatedPortalCustomer {
   customerId: string;
   companyId: string;
-  email: string;
+  email: string | null;
 }

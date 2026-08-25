@@ -14,28 +14,36 @@ export class StripePaymentService {
    * Stripe.js/Elements directly from the browser — card details never
    * transit this server, which is what keeps Renovo out of PCI SAQ D scope.
    */
-  async createPaymentIntent(input: { amountCents: number; currency: string; invoiceId: string; companyId: string; customerEmail: string }): Promise<{ clientSecret: string; paymentIntentId: string } | null> {
+  async createPaymentIntent(input: { amountCents: number; currency: string; invoiceId: string; companyId: string; customerEmail: string | null }): Promise<{ clientSecret: string; paymentIntentId: string } | null> {
     const secretKey = this.config.get<string>('STRIPE_SECRET_KEY');
     if (!secretKey) {
       this.logger.warn('STRIPE_SECRET_KEY not configured — cannot create PaymentIntent');
       return null;
     }
 
+    // Stripe's receipt_email is genuinely optional — omitted entirely
+    // (not sent as an empty string, which Stripe would reject as an
+    // invalid email) for a customer with no email on file, e.g. one who
+    // only ever received their portal link by SMS. They simply won't
+    // get an automatic Stripe receipt; nothing else about the payment
+    // is affected.
+    const params = new URLSearchParams({
+      amount: String(input.amountCents),
+      currency: input.currency,
+      'metadata[invoiceId]': input.invoiceId,
+      // companyId isn't needed by Stripe itself — it's carried through so
+      // the webhook handler (which runs with no authenticated request
+      // context to derive a tenant from) can explicitly scope its invoice
+      // lookup by company, instead of querying across all tenants.
+      'metadata[companyId]': input.companyId,
+      'automatic_payment_methods[enabled]': 'true',
+    });
+    if (input.customerEmail) params.set('receipt_email', input.customerEmail);
+
     const response = await fetch('https://api.stripe.com/v1/payment_intents', {
       method: 'POST',
       headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        amount: String(input.amountCents),
-        currency: input.currency,
-        receipt_email: input.customerEmail,
-        'metadata[invoiceId]': input.invoiceId,
-        // companyId isn't needed by Stripe itself — it's carried through so
-        // the webhook handler (which runs with no authenticated request
-        // context to derive a tenant from) can explicitly scope its invoice
-        // lookup by company, instead of querying across all tenants.
-        'metadata[companyId]': input.companyId,
-        'automatic_payment_methods[enabled]': 'true',
-      }).toString(),
+      body: params.toString(),
     });
 
     if (!response.ok) {
