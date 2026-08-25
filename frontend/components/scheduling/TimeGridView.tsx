@@ -20,6 +20,13 @@ interface TimeGridViewProps {
   days: Date[]; // 1 day for Day view, 7 for Week view
   onSelect: (a: CalendarAppointment) => void;
   onRescheduled: () => void;
+  // Root-cause fix: previously nothing on this grid responded to a
+  // click except an existing appointment block — an empty hour slot
+  // had no handler at all, which is exactly why "click a date, nothing
+  // happens" was reported. Reuses the SAME per-hour div already built
+  // for drag-and-drop drop targets below, rather than adding a second,
+  // parallel grid just for clicks.
+  onCreateAt: (date: Date, hour: number) => void;
 }
 
 /**
@@ -31,7 +38,7 @@ interface TimeGridViewProps {
  * one-tap action — that's the mobile-appropriate equivalent, not a
  * degraded drag experience.
  */
-export function TimeGridView({ appointments, days, onSelect, onRescheduled }: TimeGridViewProps) {
+export function TimeGridView({ appointments, days, onSelect, onRescheduled, onCreateAt }: TimeGridViewProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ day: string; hour: number } | null>(null);
   const hours = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR }, (_, i) => GRID_START_HOUR + i);
@@ -89,7 +96,8 @@ export function TimeGridView({ appointments, days, onSelect, onRescheduled }: Ti
                   <div
                     key={h}
                     style={{ height: HOUR_HEIGHT_PX }}
-                    className={cn('border-b border-slate-50', dropTarget?.day === dayKey && dropTarget.hour === h && 'bg-[var(--color-brand)]/10')}
+                    className={cn('cursor-pointer border-b border-slate-50 hover:bg-slate-50 dark:hover:bg-slate-800/40', dropTarget?.day === dayKey && dropTarget.hour === h && 'bg-[var(--color-brand)]/10')}
+                    onClick={() => onCreateAt(day, h)}
                     onDragOver={(e) => { e.preventDefault(); setDropTarget({ day: dayKey, hour: h }); }}
                     onDragLeave={() => setDropTarget(null)}
                     onDrop={(e) => { e.preventDefault(); handleDrop(day, h); }}
@@ -111,7 +119,7 @@ export function TimeGridView({ appointments, days, onSelect, onRescheduled }: Ti
                       draggable
                       onDragStart={() => setDraggingId(a.id)}
                       onDragEnd={() => setDraggingId(null)}
-                      onClick={() => onSelect(a)}
+                      onClick={(e) => { e.stopPropagation(); onSelect(a); }}
                       style={{ top, height: Math.max(height, 24), left: 2, right: 2 }}
                       className={cn(
                         'absolute z-[1] cursor-grab overflow-hidden rounded-md px-1.5 py-0.5 text-left text-[11px] text-white shadow-sm active:cursor-grabbing',

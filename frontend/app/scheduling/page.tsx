@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppShell } from '../../components/layout/AppShell';
 import { AppointmentDetailPanel } from '../../components/scheduling/AppointmentDetailPanel';
 import { RescheduleModal } from '../../components/scheduling/RescheduleModal';
 import { TimeGridView } from '../../components/scheduling/TimeGridView';
+import { CalendarItemModal } from '../../components/scheduling/CalendarItemModal';
 import {
   schedulingApi,
   appointmentCustomerName,
@@ -60,12 +62,34 @@ function rangeForView(anchor: Date, view: ViewMode): { start: Date; end: Date } 
 }
 
 export default function SchedulingPage() {
+  return (
+    <Suspense fallback={null}>
+      <SchedulingPageInner />
+    </Suspense>
+  );
+}
+
+function SchedulingPageInner() {
+  const searchParams = useSearchParams();
+  // Customer context fix: Customer Detail's "Schedule Appointment" link
+  // now passes ?customerId=..., and this page reads it once on mount so
+  // the create-appointment flow opens with that customer already
+  // selected — the user should never have to search for the same
+  // customer again right after leaving their profile.
+  const contextCustomerId = searchParams.get('customerId');
+
   const [view, setView] = useState<ViewMode>('month');
   const [anchor, setAnchor] = useState(() => new Date());
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<CalendarAppointment | null>(null);
   const [rescheduling, setRescheduling] = useState<CalendarAppointment | null>(null);
+  // Root-cause fix: this is the state that was always missing. Nothing
+  // on the calendar previously had anywhere to write a "the user wants
+  // to create something starting around this date/time" intent to —
+  // every click handler that existed only ever opened an EXISTING
+  // appointment. This holds that intent until the create form opens.
+  const [creatingAt, setCreatingAt] = useState<{ date: Date; hour?: number } | null>(null);
 
   // Mobile improvement: a 7-column week grid or 42-cell month grid is
   // genuinely hard to use on a phone-width screen. Day view — one column,
@@ -100,6 +124,7 @@ export default function SchedulingPage() {
     mutate();
     setSelected(null);
     setRescheduling(null);
+    setCreatingAt(null);
   }
 
   return (
@@ -155,9 +180,9 @@ export default function SchedulingPage() {
         {isLoading && <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</div>}
         {error && <div className="mt-8 text-center text-sm text-red-600 dark:text-red-400">Couldn't load the calendar.</div>}
 
-        {appointments && view === 'day' && <TimeGridView appointments={appointments} days={[anchor]} onSelect={setSelected} onRescheduled={refreshAfterChange} />}
-        {appointments && view === 'week' && <TimeGridView appointments={appointments} days={Array.from({ length: 7 }, (_, i) => addDays(start, i))} onSelect={setSelected} onRescheduled={refreshAfterChange} />}
-        {appointments && view === 'month' && <MonthView appointments={appointments} gridStart={start} monthAnchor={anchor} onSelect={setSelected} />}
+        {appointments && view === 'day' && <TimeGridView appointments={appointments} days={[anchor]} onSelect={setSelected} onRescheduled={refreshAfterChange} onCreateAt={(date, hour) => setCreatingAt({ date, hour })} />}
+        {appointments && view === 'week' && <TimeGridView appointments={appointments} days={Array.from({ length: 7 }, (_, i) => addDays(start, i))} onSelect={setSelected} onRescheduled={refreshAfterChange} onCreateAt={(date, hour) => setCreatingAt({ date, hour })} />}
+        {appointments && view === 'month' && <MonthView appointments={appointments} gridStart={start} monthAnchor={anchor} onSelect={setSelected} onCreateAt={(date) => setCreatingAt({ date })} />}
         {appointments && view === 'map' && (
           <div className="mt-4 h-[600px] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
             <ScheduleMapInner appointments={appointments} onSelect={setSelected} />
@@ -174,6 +199,15 @@ export default function SchedulingPage() {
         />
       )}
       {rescheduling && <RescheduleModal appointment={rescheduling} onClose={() => setRescheduling(null)} onRescheduled={refreshAfterChange} />}
+      {creatingAt && (
+        <CalendarItemModal
+          initialDate={creatingAt.date}
+          initialHour={creatingAt.hour}
+          initialCustomerId={contextCustomerId ?? undefined}
+          onClose={() => setCreatingAt(null)}
+          onSaved={refreshAfterChange}
+        />
+      )}
     </AppShell>
   );
 }
@@ -182,7 +216,10 @@ function AppointmentChip({ appointment, onSelect, compact }: { appointment: Cale
   const time = new Date(appointment.startsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const isCalendarItem = appointment.appointmentType !== 'job';
   return (
-    <button onClick={() => onSelect(appointment)} className={cn('flex w-full items-center gap-1.5 truncate rounded-md px-1.5 py-1 text-left text-xs hover:opacity-90', isCalendarItem && 'border-l-2 border-dashed border-slate-300 dark:border-slate-600')}>
+    <button
+      onClick={(e) => { e.stopPropagation(); onSelect(appointment); }}
+      className={cn('flex w-full items-center gap-1.5 truncate rounded-md px-1.5 py-1 text-left text-xs hover:opacity-90', isCalendarItem && 'border-l-2 border-dashed border-slate-300 dark:border-slate-600')}
+    >
       <span className={cn('h-2 w-2 shrink-0 rounded-full', APPOINTMENT_STATUS_COLORS[appointment.status] ?? 'bg-slate-400')} />
       {!compact && <span className="shrink-0 text-slate-500 dark:text-slate-400">{time}</span>}
       <span className="truncate font-medium text-slate-800 dark:text-slate-100">{isCalendarItem ? appointment.title : appointmentCustomerName(appointment)}</span>
@@ -190,7 +227,19 @@ function AppointmentChip({ appointment, onSelect, compact }: { appointment: Cale
   );
 }
 
-function MonthView({ appointments, gridStart, monthAnchor, onSelect }: { appointments: CalendarAppointment[]; gridStart: Date; monthAnchor: Date; onSelect: (a: CalendarAppointment) => void }) {
+function MonthView({
+  appointments,
+  gridStart,
+  monthAnchor,
+  onSelect,
+  onCreateAt,
+}: {
+  appointments: CalendarAppointment[];
+  gridStart: Date;
+  monthAnchor: Date;
+  onSelect: (a: CalendarAppointment) => void;
+  onCreateAt: (date: Date) => void;
+}) {
   const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
   const currentMonth = monthAnchor.getMonth();
 
@@ -203,7 +252,11 @@ function MonthView({ appointments, gridStart, monthAnchor, onSelect }: { appoint
         const dayAppointments = appointments.filter((a) => startOfDay(new Date(a.startsAt)).getTime() === startOfDay(day).getTime());
         const inMonth = day.getMonth() === currentMonth;
         return (
-          <div key={day.toISOString()} className={cn('min-h-[90px] rounded-lg border border-slate-200 dark:border-slate-800 p-1.5', !inMonth && 'bg-slate-50 dark:bg-slate-800')}>
+          <div
+            key={day.toISOString()}
+            onClick={() => onCreateAt(day)}
+            className={cn('min-h-[90px] cursor-pointer rounded-lg border border-slate-200 dark:border-slate-800 p-1.5 hover:border-[var(--color-brand)]/40', !inMonth && 'bg-slate-50 dark:bg-slate-800')}
+          >
             <p className={cn('text-xs', inMonth ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600')}>{day.getDate()}</p>
             <div className="mt-1 space-y-0.5">
               {dayAppointments.slice(0, 3).map((a) => (

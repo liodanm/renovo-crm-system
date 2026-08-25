@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { X } from 'lucide-react';
 import { CustomerPicker } from '../estimates/CustomerPicker';
@@ -33,11 +33,27 @@ function defaultTimes() {
  */
 export function CalendarItemModal({
   existing,
+  initialDate,
+  initialHour,
+  initialCustomerId,
   onClose,
   onSaved,
   onDeleted,
 }: {
   existing?: CalendarAppointment;
+  // New: lets a calendar-cell click (the actual bug fix) pre-fill the
+  // form instead of always defaulting to "right now" — matching what
+  // the user just clicked rather than ignoring it.
+  initialDate?: Date;
+  initialHour?: number;
+  // New: carries customer context from Customer Detail's "Schedule
+  // Appointment" link through to this form, so the customer doesn't
+  // have to be searched for again immediately after leaving their
+  // profile. Only the ID is available from the URL; the display name
+  // is resolved from the already-loaded `customers` list below once it
+  // arrives, rather than firing a second, redundant fetch just for a
+  // name.
+  initialCustomerId?: string;
   onClose: () => void;
   onSaved: () => void;
   onDeleted?: () => void;
@@ -45,14 +61,24 @@ export function CalendarItemModal({
   const isEditing = !!existing;
   const initialTimes = existing
     ? { date: toLocalDateInput(existing.startsAt), startTime: toLocalTimeInput(existing.startsAt), endTime: toLocalTimeInput(existing.endsAt) }
-    : defaultTimes();
+    : initialDate
+      ? (() => {
+          const start = new Date(initialDate);
+          // Month view only provides a date, no hour — default to 9am
+          // rather than midnight, a far more useful starting point for
+          // "pick a time" than an unset Date object would give.
+          start.setHours(initialHour ?? 9, 0, 0, 0);
+          const end = new Date(start.getTime() + 60 * 60000);
+          return { date: start.toISOString().slice(0, 10), startTime: start.toTimeString().slice(0, 5), endTime: end.toTimeString().slice(0, 5) };
+        })()
+      : defaultTimes();
 
   const [title, setTitle] = useState(existing?.title ?? '');
   const [appointmentType, setAppointmentType] = useState(existing?.appointmentType && existing.appointmentType !== 'job' ? existing.appointmentType : 'customer_meeting');
   const [date, setDate] = useState(initialTimes.date);
   const [startTime, setStartTime] = useState(initialTimes.startTime);
   const [endTime, setEndTime] = useState(initialTimes.endTime);
-  const [customerId, setCustomerId] = useState(existing?.customerId ?? '');
+  const [customerId, setCustomerId] = useState(existing?.customerId ?? initialCustomerId ?? '');
   const [customerLabel, setCustomerLabel] = useState(existing?.customerId ? (existing.customerBusinessName ?? `${existing.customerFirstName ?? ''} ${existing.customerLastName ?? ''}`.trim()) : '');
   const [propertyId, setPropertyId] = useState(existing?.propertyId ?? '');
   const [jobId, setJobId] = useState(existing?.jobId && existing.appointmentType !== 'job' ? existing.jobId : '');
@@ -62,6 +88,17 @@ export function CalendarItemModal({
   const [error, setError] = useState<string | null>(null);
 
   const { data: customers } = useSWR('customers-for-calendar-item', () => customersApi.list({ pageSize: 100, sortBy: 'name', sortDir: 'asc' }));
+  // Resolves the display name for a customer carried in via
+  // initialCustomerId (only an ID is available from the URL) once the
+  // already-loaded customers list arrives — avoids a second, redundant
+  // fetch just to get a name for the picker's initial label.
+  useEffect(() => {
+    if (initialCustomerId && !customerLabel && customers) {
+      const match = customers.data.find((c) => c.id === initialCustomerId);
+      if (match) setCustomerLabel(match.displayName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers, initialCustomerId]);
   // Only fetched once a customer is actually selected — properties and
   // jobs are both customer-scoped, and there's nothing to choose from
   // until then.
