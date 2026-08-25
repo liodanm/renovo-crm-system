@@ -9,6 +9,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { AppointmentDetailPanel } from '../../components/scheduling/AppointmentDetailPanel';
 import { RescheduleModal } from '../../components/scheduling/RescheduleModal';
 import { TimeGridView } from '../../components/scheduling/TimeGridView';
+import { DayAgendaView } from '../../components/scheduling/DayAgendaView';
 import { CalendarItemModal } from '../../components/scheduling/CalendarItemModal';
 import {
   schedulingApi,
@@ -180,7 +181,9 @@ function SchedulingPageInner() {
         {isLoading && <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</div>}
         {error && <div className="mt-8 text-center text-sm text-red-600 dark:text-red-400">Couldn't load the calendar.</div>}
 
-        {appointments && view === 'day' && <TimeGridView appointments={appointments} days={[anchor]} onSelect={setSelected} onRescheduled={refreshAfterChange} onCreateAt={(date, hour) => setCreatingAt({ date, hour })} />}
+        {appointments && view === 'day' && (
+          <DayAgendaView date={anchor} appointments={appointments} onSelect={setSelected} onCreate={() => setCreatingAt({ date: anchor, hour: 9 })} />
+        )}
         {appointments && view === 'week' && <TimeGridView appointments={appointments} days={Array.from({ length: 7 }, (_, i) => addDays(start, i))} onSelect={setSelected} onRescheduled={refreshAfterChange} onCreateAt={(date, hour) => setCreatingAt({ date, hour })} />}
         {appointments && view === 'month' && <MonthView appointments={appointments} gridStart={start} monthAnchor={anchor} onSelect={setSelected} onCreateAt={(date) => setCreatingAt({ date })} />}
         {appointments && view === 'map' && (

@@ -128,6 +128,32 @@ export const APPOINTMENT_TYPE_LABELS: Record<string, string> = {
   ...Object.fromEntries(CALENDAR_ITEM_TYPES.map((t) => [t.value, t.label])),
 };
 
+/**
+ * Centralized type→color/icon mapping, additive to (not a replacement
+ * for) the existing status-based coloring (APPOINTMENT_STATUS_COLORS
+ * above) — type is the primary visual identity in the new Day Agenda,
+ * status stays secondary text, exactly per the task's own instruction
+ * not to lose status information. One place to look up a color/icon
+ * for a type, reused across Day Agenda, and available for Week/Month
+ * without forcing either to actually use it (their existing appearance
+ * is intentionally left alone).
+ */
+export const APPOINTMENT_TYPE_STYLES: Record<string, { label: string; icon: string; dot: string; bg: string; text: string; border: string }> = {
+  job: { label: 'Job', icon: '🟦', dot: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-950', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-900' },
+  estimate_visit: { label: 'Estimate', icon: '🟨', dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-950', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-900' },
+  customer_meeting: { label: 'Customer Meeting', icon: '🟪', dot: 'bg-violet-500', bg: 'bg-violet-50 dark:bg-violet-950', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-200 dark:border-violet-900' },
+  property_inspection: { label: 'Property Inspection', icon: '🟧', dot: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-950', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-900' },
+  job_check: { label: 'Job / Project Check', icon: '🟦', dot: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-950', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-900' },
+  follow_up: { label: 'Follow-Up', icon: '🟩', dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-900' },
+  consultation: { label: 'Consultation', icon: '🟪', dot: 'bg-violet-500', bg: 'bg-violet-50 dark:bg-violet-950', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-200 dark:border-violet-900' },
+  pickup_delivery: { label: 'Pickup / Delivery', icon: '⬜', dot: 'bg-slate-400', bg: 'bg-slate-50 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-200 dark:border-slate-700' },
+  other: { label: 'Other', icon: '⬜', dot: 'bg-slate-400', bg: 'bg-slate-50 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-200 dark:border-slate-700' },
+};
+
+export function appointmentTypeStyle(type: string) {
+  return APPOINTMENT_TYPE_STYLES[type] ?? APPOINTMENT_TYPE_STYLES.other;
+}
+
 export function appointmentCustomerName(a: CalendarAppointment): string {
   return a.customerBusinessName ?? (`${a.customerFirstName ?? ''} ${a.customerLastName ?? ''}`.trim() || 'No customer');
 }
