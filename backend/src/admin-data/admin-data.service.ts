@@ -88,6 +88,22 @@ export class AdminDataService {
 
         await tx.estimate.delete({ where: { id } });
 
+        // Same class of bug found and fixed in deletePayment() below —
+        // this method can remove Payment rows too (via the invoice
+        // cascade above), and left uncorrected would leave the
+        // customer's cached lifetime_value stale in exactly the same
+        // way. Only recalculates when a payment actually existed to
+        // remove, avoiding an unnecessary write on the common case.
+        if (deletedPaymentIds.length > 0) {
+          const [{ total }] = await tx.$queryRaw<{ total: string }[]>`
+            SELECT COALESCE(SUM(amount - refunded_amount), 0) AS total
+            FROM payments
+            WHERE customer_id = ${estimate.customerId}::uuid
+              AND status IN ('succeeded', 'partially_refunded', 'refunded')
+          `;
+          await tx.customer.update({ where: { id: estimate.customerId }, data: { lifetimeValue: Number(total) } });
+        }
+
         return { deletedInvoiceIds: invoiceIds, deletedPaymentIds };
       });
 
@@ -142,6 +158,19 @@ export class AdminDataService {
         // is sufficient for all of these, no explicit steps needed.
         await tx.job.delete({ where: { id } });
 
+        // Same lifetime_value staleness bug found and fixed across
+        // every delete method in this file — see deletePayment()'s own
+        // comment for the full reasoning.
+        if (deletedPaymentIds.length > 0) {
+          const [{ total }] = await tx.$queryRaw<{ total: string }[]>`
+            SELECT COALESCE(SUM(amount - refunded_amount), 0) AS total
+            FROM payments
+            WHERE customer_id = ${job.customerId}::uuid
+              AND status IN ('succeeded', 'partially_refunded', 'refunded')
+          `;
+          await tx.customer.update({ where: { id: job.customerId }, data: { lifetimeValue: Number(total) } });
+        }
+
         return { deletedInvoiceIds: invoiceIds, deletedPaymentIds, deletedAppointmentIds };
       });
 
@@ -167,6 +196,19 @@ export class AdminDataService {
 
         await tx.invoice.delete({ where: { id } });
 
+        // Same lifetime_value staleness bug found and fixed across
+        // every delete method in this file — see deletePayment()'s own
+        // comment for the full reasoning.
+        if (deletedPaymentIds.length > 0) {
+          const [{ total }] = await tx.$queryRaw<{ total: string }[]>`
+            SELECT COALESCE(SUM(amount - refunded_amount), 0) AS total
+            FROM payments
+            WHERE customer_id = ${invoice.customerId}::uuid
+              AND status IN ('succeeded', 'partially_refunded', 'refunded')
+          `;
+          await tx.customer.update({ where: { id: invoice.customerId }, data: { lifetimeValue: Number(total) } });
+        }
+
         return { deletedPaymentIds };
       });
 
@@ -188,6 +230,26 @@ export class AdminDataService {
         // needed. Deliberately no Stripe call anywhere in this method —
         // stripePaymentIntentId/stripeChargeId are read nowhere here.
         await tx.payment.delete({ where: { id } });
+
+        // Real bug found and fixed here: this method deleted the
+        // payment row but never touched customers.lifetime_value,
+        // unlike every other payment-affecting path in this codebase
+        // (recordPayment, void, refund, merge). Left uncorrected, the
+        // customer's cached lifetime value silently drifts upward every
+        // time an admin deletes a payment through this tool — exactly
+        // what happened in production (a customer's LTV stayed at the
+        // old total after their test payments were removed here).
+        // Recalculates from the same SUM(amount - refunded_amount)
+        // WHERE status IN ('succeeded','partially_refunded','refunded')
+        // formula already proven correct in CustomersService.merge() —
+        // not a new, independently-invented calculation.
+        const [{ total }] = await tx.$queryRaw<{ total: string }[]>`
+          SELECT COALESCE(SUM(amount - refunded_amount), 0) AS total
+          FROM payments
+          WHERE customer_id = ${payment.customerId}::uuid
+            AND status IN ('succeeded', 'partially_refunded', 'refunded')
+        `;
+        await tx.customer.update({ where: { id: payment.customerId }, data: { lifetimeValue: Number(total) } });
       });
 
       await this.writeLog(companyId, userId, 'payment', id, true);
