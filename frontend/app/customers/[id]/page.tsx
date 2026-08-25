@@ -101,7 +101,24 @@ export default function CustomerProfilePage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <PermissionGate permissions={['payments.write']}>
-                  <RecordStandalonePayment customerId={customerId} onRecorded={() => mutateServiceHistory()} />
+                  <RecordStandalonePayment
+                    customerId={customerId}
+                    onRecorded={() => {
+                      // Real bug, caught here: this callback previously
+                      // only revalidated serviceHistory, never the
+                      // separate `customer` fetch — which is what
+                      // actually holds lifetimeValue, balanceDue,
+                      // openEstimatesCount, and openInvoicesCount, all
+                      // shown in the KPI strip above. The backend always
+                      // updated the database correctly on every payment;
+                      // this page just never re-fetched to show it,
+                      // leaving the KPI strip stale until a full manual
+                      // page refresh. Both queries share their data, so
+                      // both need to revalidate together.
+                      mutate();
+                      mutateServiceHistory();
+                    }}
+                  />
                 </PermissionGate>
                 <Link
                   href={`/estimates/new?customerId=${customerId}`}
