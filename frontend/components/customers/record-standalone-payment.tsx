@@ -69,7 +69,7 @@ export function RecordStandalonePayment({ customerId, onRecorded }: { customerId
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+    <div className="mt-4 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Record Payment</p>
         <p className="text-xs text-slate-400 dark:text-slate-500">No invoice needed — for cash/check/Zelle received directly, including historical work</p>
