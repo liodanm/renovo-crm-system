@@ -116,12 +116,12 @@ function CustomersPageInner() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+      <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Customers</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {data ? `${data.pagination.total.toLocaleString()} total` : 'Loading…'}
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+              {data ? `${data.pagination.total.toLocaleString()} customer${data.pagination.total === 1 ? '' : 's'}` : 'Loading…'}
             </p>
           </div>
 
@@ -148,17 +148,33 @@ function CustomersPageInner() {
                 onClick={() => setShowCreate(true)}
                 className="rounded-lg bg-[var(--color-brand)] px-3 py-3 text-base font-semibold text-white hover:bg-[var(--color-brand-dark)] lg:py-2 lg:text-sm"
               >
-                + New Customer
+                + Add Customer
               </button>
             </PermissionGate>
           </div>
         </div>
 
-        <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+        <div className="mt-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
           <CustomerFilters filters={filters} onChange={setFilters} />
         </div>
 
-        <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        {/* Quick filters — only "All"/"Leads"/"Active" map onto a real,
+            already-supported filter (leadStatus). Deliberately no
+            "Needs Follow-Up" or "Balance Due" quick filter and no
+            per-status counts next to any of these: no existing endpoint
+            provides reliable per-status counts without issuing a
+            separate filtered request per bucket, and the current page's
+            already-paginated 25 rows aren't a valid source to compute
+            them from client-side without silently misrepresenting the
+            real total. Per the explicit instruction, omitting these is
+            the correct choice over fabricating a number. */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <QuickFilter label="All" active={!filters.leadStatus} onClick={() => setFilters((f) => ({ ...f, leadStatus: undefined, page: 1 }))} />
+          <QuickFilter label="Leads" active={filters.leadStatus === 'lead'} onClick={() => setFilters((f) => ({ ...f, leadStatus: 'lead', page: 1 }))} />
+          <QuickFilter label="Active" active={filters.leadStatus === 'active'} onClick={() => setFilters((f) => ({ ...f, leadStatus: 'active', page: 1 }))} />
+        </div>
+
+        <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           {isLoading && (
             <div className="p-4">
               <CardSkeleton lines={6} />
@@ -206,7 +222,7 @@ function CustomersPageInner() {
       </main>
 
       {selectedIds.size > 0 && (
-        <div className="sticky bottom-0 z-10 mx-auto max-w-7xl px-4 pb-4 sm:px-6">
+        <div className="sticky bottom-0 z-10 mx-auto max-w-[1400px] px-4 pb-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-lg">
             <span className="px-2 text-sm font-medium text-slate-700 dark:text-slate-300">{selectedIds.size} selected (this page)</span>
             <ActionBar primary={actionBarPrimary} secondary={actionBarSecondary} danger={actionBarDanger} />
@@ -246,6 +262,21 @@ function CustomersPageInner() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+function QuickFilter({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+        active
+          ? 'bg-[var(--color-brand)] text-white'
+          : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 

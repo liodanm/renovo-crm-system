@@ -891,6 +891,7 @@ export class CustomersService {
       email: c.email,
       phone: c.phone,
       leadStatus: c.leadStatus,
+      source: c.source,
       lifetimeValue: c.lifetimeValue.toNumber(),
       tags: c.tags,
       propertyCount: c.properties.length,

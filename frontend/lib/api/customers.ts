@@ -17,6 +17,7 @@ export interface CustomerSummary {
   phone: string | null;
   leadStatus: string;
   journeyStage: JourneyStage;
+  source: string | null;
   lifetimeValue: number;
   tags: string[];
   propertyCount: number;
