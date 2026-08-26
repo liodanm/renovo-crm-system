@@ -27,7 +27,7 @@ const PROFILE_SELECT = `
 `;
 
 const COMPANY_SELECT = `
-  id, name, dba, logo_url AS "logoUrl", address_line1 AS "addressLine1", address_line2 AS "addressLine2",
+  id, name, dba, slug, logo_url AS "logoUrl", address_line1 AS "addressLine1", address_line2 AS "addressLine2",
   city, state, postal_code AS "postalCode", country, phone, email, website,
   tax_id AS "taxId", license_number AS "licenseNumber", business_hours AS "businessHours"
 `;

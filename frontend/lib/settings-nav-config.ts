@@ -105,7 +105,8 @@ export const settingsNavGroups: SettingsNavGroup[] = [
     items: [
       { key: 'notifications', label: 'Notifications', description: 'Email and SMS notification preferences', comingSoon: true, icon: Bell },
       { key: 'integrations', label: 'Integrations', description: 'Provider status, system health, and business links', icon: LinkIcon },
-      { key: 'reports', label: 'Reports', description: 'Custom reports and dashboards', comingSoon: true, icon: BarChart3 },
+      { key: 'reports', label: 'Reports', description: 'Owner Scorecard, Sales, Profitability, and Customer reports', icon: BarChart3 },
+      { key: 'quote-tool', label: 'Quote Tool', description: 'Your public quote link — let customers request an estimate from your website', icon: FileText },
       { key: 'appearance', label: 'Appearance', description: 'App theme and display preferences', icon: Moon },
       { key: 'data-management', label: 'Data Management', description: 'Permanently delete test Estimates, Jobs, Invoices, and Payments', icon: Trash2, ownerOnly: true },
     ],

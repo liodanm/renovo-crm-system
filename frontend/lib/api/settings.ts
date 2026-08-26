@@ -17,6 +17,7 @@ export interface CompanySettings {
   id: string;
   name: string;
   dba: string | null;
+  slug: string;
   logoUrl: string | null;
   addressLine1: string | null;
   addressLine2: string | null;
