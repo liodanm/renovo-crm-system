@@ -7,7 +7,8 @@ import { EstimateForm } from '../../../components/estimates/EstimateForm';
 function NewEstimateInner() {
   const searchParams = useSearchParams();
   const customerId = searchParams.get('customerId') ?? undefined;
-  return <EstimateForm initialCustomerId={customerId} />;
+  const returnTo = searchParams.get('returnTo') ?? undefined;
+  return <EstimateForm initialCustomerId={customerId} returnTo={returnTo} />;
 }
 
 export default function NewEstimatePage() {

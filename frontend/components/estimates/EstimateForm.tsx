@@ -174,7 +174,7 @@ function customerNameOf(customer: { firstName: string | null; lastName: string |
  * this logic. `existingEstimate` being present is what switches every
  * behavior below from create to edit; there is no other mode flag.
  */
-export function EstimateForm({ existingEstimate, initialCustomerId }: { existingEstimate?: Estimate; initialCustomerId?: string }) {
+export function EstimateForm({ existingEstimate, initialCustomerId, returnTo }: { existingEstimate?: Estimate; initialCustomerId?: string; returnTo?: string }) {
   const router = useRouter();
   const isEdit = !!existingEstimate;
 
@@ -924,7 +924,13 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
               // new-estimate-only, see clearDraft's own definition), so
               // this is a no-op there and just navigates back.
               if (!isEdit) clearDraft();
-              router.push(isEdit ? `/estimates/${existingEstimate!.id}` : '/estimates');
+              // returnTo is only honored for a genuinely new estimate
+              // (never edit mode, which already correctly returns to
+              // that specific estimate) — and only when present at all,
+              // so this is purely additive: any existing caller of this
+              // page/form that doesn't pass it gets the exact original
+              // fallback behavior, unchanged.
+              router.push(isEdit ? `/estimates/${existingEstimate!.id}` : returnTo || '/estimates');
             }}
             className="w-full rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950 px-4 py-3 text-base font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 sm:w-auto lg:py-2 lg:text-sm"
           >
