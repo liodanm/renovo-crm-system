@@ -68,7 +68,6 @@ export default function DashboardPage() {
               appointments={appointments}
               onSelect={setSelected}
               onCreate={() => router.push('/scheduling')}
-              onViewMap={() => router.push('/scheduling')}
             />
           ) : (
             <div className="h-40 animate-pulse rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900" />

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MapPin, Plus, UserPlus, FileText, CalendarPlus, Map as MapIcon, AlertTriangle } from 'lucide-react';
+import { MapPin, Plus, UserPlus, FileText, CalendarPlus, AlertTriangle } from 'lucide-react';
 import {
   appointmentCustomerName,
   appointmentTypeStyle,
@@ -37,13 +37,11 @@ export function DayAgendaView({
   appointments,
   onSelect,
   onCreate,
-  onViewMap,
 }: {
   date: Date;
   appointments: CalendarAppointment[];
   onSelect: (a: CalendarAppointment) => void;
   onCreate: () => void;
-  onViewMap: () => void;
 }) {
   const router = useRouter();
   const now = new Date();
@@ -97,22 +95,17 @@ export function DayAgendaView({
   return (
     <div className="mt-4 space-y-4">
       {/* ---- Header ---- */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            {viewingToday && <span className="ml-2 rounded-full bg-[var(--color-brand)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-brand)]">Today</span>}
-          </h2>
-          {today.length > 0 && (
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-              {summaryParts.join(' · ')}
-              {cancelledCount > 0 && <span className="text-slate-400 dark:text-slate-500"> · {cancelledCount} cancelled</span>}
-            </p>
-          )}
-        </div>
-        <button onClick={onViewMap} className="flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">
-          <MapIcon className="h-3.5 w-3.5" /> View Map
-        </button>
+      <div>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {viewingToday && <span className="ml-2 rounded-full bg-[var(--color-brand)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-brand)]">Today</span>}
+        </h2>
+        {today.length > 0 && (
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            {summaryParts.join(' · ')}
+            {cancelledCount > 0 && <span className="text-slate-400 dark:text-slate-500"> · {cancelledCount} cancelled</span>}
+          </p>
+        )}
       </div>
 
       {/* ---- Quick Actions — labels match the global Add New+ menu exactly ---- */}
