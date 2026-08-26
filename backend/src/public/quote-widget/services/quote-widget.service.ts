@@ -88,6 +88,20 @@ export class QuoteWidgetService {
 
     this.logger.log({ event: 'quote_widget.submission_received', companySlug, serviceCount: dto.services.length });
 
+    // Real defect found by a test written for this task (caught on a
+    // real Postgres/real-Jest run, not just source-inspection): this
+    // check previously ran AFTER customer and property creation below,
+    // meaning an empty-services submission would still leave behind a
+    // real, orphaned Customer (and possibly Property) row before ever
+    // discovering there was nothing to quote. Moved to the top, before
+    // any record is created — matching how submitRequest() already
+    // does this correctly. This is the one narrow, test-justified
+    // production fix in this task; nothing else about the method's
+    // behavior changed.
+    if (dto.services.length === 0) {
+      throw new BadRequestException('Select at least one service');
+    }
+
     const company = await this.resolveCompany(companySlug);
     const companyId = company.id;
 
@@ -101,9 +115,6 @@ export class QuoteWidgetService {
 
     // --- Line items: price comes from the Service Catalog server-side,
     //     never from the client ---
-    if (dto.services.length === 0) {
-      throw new BadRequestException('Select at least one service');
-    }
     const lineItems = await Promise.all(
       dto.services.map(async (selected) => {
         const catalogItem = await this.serviceCatalog.findOne(companyId, selected.serviceCatalogItemId);
