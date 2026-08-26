@@ -41,6 +41,7 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
   const [category, setCategory] = useState(existing?.category ?? '');
   const [description, setDescription] = useState(existing?.description ?? '');
   const [isActive, setIsActive] = useState(existing?.isActive ?? true);
+  const [onlineQuoteMode, setOnlineQuoteMode] = useState<'instant' | 'request'>(existing?.onlineQuoteMode ?? 'instant');
 
   const [defaultUnitOfMeasure, setDefaultUnitOfMeasure] = useState(existing?.defaultUnitOfMeasure ?? 'sq_ft');
   const [defaultUnitPrice, setDefaultUnitPrice] = useState(existing?.defaultUnitPrice ?? '');
@@ -84,6 +85,7 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
         category: category || undefined,
         description: description || undefined,
         isActive,
+        onlineQuoteMode,
         defaultUnitOfMeasure,
         defaultUnitPrice: defaultUnitPrice ? Number(defaultUnitPrice) : undefined,
         minimumPrice: minimumPrice ? Number(minimumPrice) : undefined,
@@ -136,6 +138,12 @@ export function ServiceCatalogForm({ existing }: ServiceCatalogFormProps) {
               <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded border-slate-300 dark:border-slate-700" />
               Active
             </label>
+          </Field>
+          <Field label="Online Quote">
+            <select value={onlineQuoteMode} onChange={(e) => setOnlineQuoteMode(e.target.value as 'instant' | 'request')} className={inputClass}>
+              <option value="instant">Instant Estimate</option>
+              <option value="request">Request Quote</option>
+            </select>
           </Field>
         </div>
         <Field label="Description">

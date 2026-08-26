@@ -20,14 +20,12 @@ export class QuoteWidgetApiError extends Error {
   }
 }
 
-// Only the customer-appropriate fields are typed and used here — the
-// real backend response includes several internal-operations fields
-// (defaultChemicals, requiredEquipment, preparationInstructions,
-// defaultNotes, defaultTerms, upsell targeting) that exist for the
-// staff catalog UI this endpoint is shared with. None of those are
-// referenced anywhere in this file or rendered anywhere in the public
-// UI — deliberately, not by omission. See the final report for why
-// this is a frontend-side mitigation, not a backend fix.
+// Matches the public services endpoint's own restricted DB-level
+// projection exactly (ServiceCatalogService.findAllPublic) — the
+// backend itself never sends chemicals, equipment, internal prep/
+// aftercare notes, upsell targeting, price, or any other staff-only
+// catalog field to this endpoint at all. This type isn't doing the
+// filtering; it's just documenting what the backend already promises.
 export interface PublicQuoteService {
   id: string;
   name: string;
@@ -35,6 +33,7 @@ export interface PublicQuoteService {
   category: string | null;
   description: string | null;
   defaultUnitOfMeasure: string;
+  quoteMode: 'instant' | 'request';
 }
 
 export interface PublicQuoteBranding {
@@ -67,11 +66,31 @@ export interface SubmitQuotePayload {
   companyWebsite?: string;
 }
 
+export interface RequestQuotePayload {
+  firstName: string;
+  lastName?: string;
+  email: string;
+  phone: string;
+  addressLine1: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  services: { serviceCatalogItemId: string }[];
+  notes?: string;
+  idempotencyKey: string;
+  companyWebsite?: string;
+}
+
 export const quoteWidgetApi = {
   getBranding: (companySlug: string) => publicFetch<PublicQuoteBranding>(`/public/${companySlug}/quote-widget/branding`),
   getServices: (companySlug: string) => publicFetch<PublicQuoteService[]>(`/public/${companySlug}/quote-widget/services`),
   submitQuote: (companySlug: string, payload: SubmitQuotePayload) =>
     publicFetch<QuoteSubmissionResult | { received: true }>(`/public/${companySlug}/quote-widget/quote`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  submitRequest: (companySlug: string, payload: RequestQuotePayload) =>
+    publicFetch<{ received: true }>(`/public/${companySlug}/quote-widget/request`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

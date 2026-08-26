@@ -13,7 +13,7 @@ export class CustomerNotesService {
     });
   }
 
-  async create(companyId: string, customerId: string, authorUserId: string, dto: CreateNoteDto) {
+  async create(companyId: string, customerId: string, authorUserId: string | null, dto: CreateNoteDto) {
     await this.assertCustomerExists(companyId, customerId);
     return this.prisma.customerNote.create({
       data: { companyId, customerId, authorUserId, body: dto.body, isPinned: dto.isPinned ?? false },

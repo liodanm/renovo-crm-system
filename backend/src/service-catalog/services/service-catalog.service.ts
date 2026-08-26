@@ -12,7 +12,7 @@ const SELECT_COLUMNS = `
   preparation_instructions AS "preparationInstructions", aftercare_instructions AS "aftercareInstructions",
   default_notes AS "defaultNotes", default_terms AS "defaultTerms",
   suggested_upsell_service_ids AS "suggestedUpsellServiceIds", suggested_future_service_ids AS "suggestedFutureServiceIds",
-  sort_order AS "sortOrder", created_at AS "createdAt", updated_at AS "updatedAt"
+  sort_order AS "sortOrder", online_quote_mode AS "onlineQuoteMode", created_at AS "createdAt", updated_at AS "updatedAt"
 `;
 
 // Deliberately separate from SELECT_COLUMNS above, not a subset applied
@@ -32,7 +32,7 @@ const SELECT_COLUMNS = `
 // exists" mistake this task exists to prevent.
 const PUBLIC_SELECT_COLUMNS = `
   id, name, service_type AS "serviceType", category, description,
-  default_unit_of_measure AS "defaultUnitOfMeasure"
+  default_unit_of_measure AS "defaultUnitOfMeasure", online_quote_mode AS "quoteMode"
 `;
 
 @Injectable()
@@ -124,9 +124,9 @@ export class ServiceCatalogService {
          default_unit_of_measure, default_unit_price, minimum_price, default_labor_hours, estimated_duration_minutes,
          default_chemicals, default_equipment, required_equipment,
          warranty_days, warranty_terms, preparation_instructions, aftercare_instructions,
-         default_notes, default_terms, suggested_upsell_service_ids, suggested_future_service_ids, sort_order
+         default_notes, default_terms, suggested_upsell_service_ids, suggested_future_service_ids, sort_order, online_quote_mode
        ) VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21::uuid[],$22::uuid[],
-         (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM service_catalog_items WHERE company_id = $1::uuid))
+         (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM service_catalog_items WHERE company_id = $1::uuid), $23)
        RETURNING ${SELECT_COLUMNS}`,
         companyId,
         dto.name,
@@ -150,6 +150,7 @@ export class ServiceCatalogService {
         dto.defaultTerms ?? null,
         dto.suggestedUpsellServiceIds ?? [],
         dto.suggestedFutureServiceIds ?? [],
+        dto.onlineQuoteMode ?? 'instant',
       ),
     );
     return rows[0];
@@ -171,7 +172,8 @@ export class ServiceCatalogService {
          default_labor_hours = $11, estimated_duration_minutes = $12,
          default_chemicals = $13::jsonb, default_equipment = $14::jsonb, required_equipment = $15::jsonb,
          warranty_days = $16, warranty_terms = $17, preparation_instructions = $18, aftercare_instructions = $19,
-         default_notes = $20, default_terms = $21, suggested_upsell_service_ids = $22::uuid[], suggested_future_service_ids = $23::uuid[]
+         default_notes = $20, default_terms = $21, suggested_upsell_service_ids = $22::uuid[], suggested_future_service_ids = $23::uuid[],
+         online_quote_mode = $24
        WHERE id = $1::uuid AND company_id = $2::uuid
        RETURNING ${SELECT_COLUMNS}`,
         id,
@@ -197,6 +199,7 @@ export class ServiceCatalogService {
         dto.defaultTerms ?? existing.defaultTerms,
         dto.suggestedUpsellServiceIds ?? existing.suggestedUpsellServiceIds,
         dto.suggestedFutureServiceIds ?? existing.suggestedFutureServiceIds,
+        dto.onlineQuoteMode ?? existing.onlineQuoteMode,
       ),
     );
     return rows[0];

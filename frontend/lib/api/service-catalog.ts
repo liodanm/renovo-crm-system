@@ -25,6 +25,7 @@ export interface ServiceCatalogItem {
   defaultUnitOfMeasure: string | null;
   defaultUnitPrice: string | null;
   minimumPrice: string | null;
+  onlineQuoteMode: 'instant' | 'request';
   defaultLaborHours: string | null;
   estimatedDurationMinutes: number | null;
   defaultChemicals: CatalogChemical[];

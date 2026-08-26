@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../auth/decorators/public.decorator';
 import { QuoteWidgetService } from './services/quote-widget.service';
 import { SubmitQuoteDto } from './dto/submit-quote.dto';
+import { RequestQuoteDto } from './dto/request-quote.dto';
 
 /**
  * The single home for the public-facing Instant Quote Widget, per the
@@ -37,5 +38,15 @@ export class QuoteWidgetController {
   @Post('quote')
   submitQuote(@Param('companySlug') companySlug: string, @Body() dto: SubmitQuoteDto) {
     return this.quoteWidget.submitQuote(companySlug, dto);
+  }
+
+  // Same throttle limit as the instant path — a request submission is
+  // just as real an action (creates a genuine CRM customer/lead) even
+  // without a price attached.
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } })
+  @Post('request')
+  submitRequest(@Param('companySlug') companySlug: string, @Body() dto: RequestQuoteDto) {
+    return this.quoteWidget.submitRequest(companySlug, dto);
   }
 }

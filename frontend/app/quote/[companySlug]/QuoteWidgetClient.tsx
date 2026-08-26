@@ -41,6 +41,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   const [honeypot, setHoneypot] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<{ estimateNumber: string; totalAmount: string } | null>(null);
 
@@ -63,6 +64,13 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   }, [companySlug]);
 
   const selectedServices = useMemo(() => (services ?? []).filter((s) => selectedServiceIds.has(s.id)), [services, selectedServiceIds]);
+  // If ANY selected service requires manual review, the WHOLE
+  // submission goes through the request-only path — the spec describes
+  // Instant and Request as two separate flows but doesn't address a
+  // mixed cart; this is the safer, simpler resolution (never guess at
+  // a price for a service the owner explicitly marked as needing
+  // review) rather than trying to split one submission into two.
+  const isRequestOnly = selectedServices.some((s) => s.quoteMode === 'request');
   const brandColor = branding?.primaryColor || '#0f766e';
 
   function toggleService(id: string) {
@@ -83,34 +91,56 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     if (i > 0) setStep(STEP_ORDER[i - 1]);
   }
 
-  const canContinueService = selectedServiceIds.size > 0 && selectedServices.every((s) => s.defaultUnitOfMeasure === 'flat_rate' || Number(quantities[s.id]) > 0);
+  const canContinueService = selectedServiceIds.size > 0 && selectedServices.every((s) => s.quoteMode === 'request' || s.defaultUnitOfMeasure === 'flat_rate' || Number(quantities[s.id]) > 0);
   const canContinueProperty = !!(address.addressLine1.trim() && address.city.trim() && address.state.trim() && address.postalCode.trim());
   const canContinueContact = !!(contact.firstName.trim() && /\S+@\S+\.\S+/.test(contact.email) && contact.phone.trim().length >= 7);
 
   async function handleSubmit() {
-    if (isSubmitting || result) return; // prevents any possibility of a double-click firing two requests
+    // Real bug caught before shipping: the original guard checked
+    // `result`, which only ever gets set on the Instant path — a
+    // Request-Only submission never produces one, so that guard alone
+    // would not have stopped a double-click from firing two identical
+    // requests on this path. hasSubmitted covers both.
+    if (isSubmitting || hasSubmitted) return;
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      const response = await quoteWidgetApi.submitQuote(companySlug, {
-        firstName: contact.firstName.trim(),
-        lastName: contact.lastName.trim() || undefined,
-        email: contact.email.trim(),
-        phone: contact.phone.trim(),
-        addressLine1: address.addressLine1.trim(),
-        city: address.city.trim(),
-        state: address.state.trim(),
-        postalCode: address.postalCode.trim(),
-        services: selectedServices.map((s) => ({
-          serviceCatalogItemId: s.id,
-          quantity: s.defaultUnitOfMeasure === 'flat_rate' ? 1 : Number(quantities[s.id]),
-        })),
-        idempotencyKey,
-        companyWebsite: honeypot || undefined,
-      });
-      if ('estimateNumber' in response) {
-        setResult(response);
+      if (isRequestOnly) {
+        await quoteWidgetApi.submitRequest(companySlug, {
+          firstName: contact.firstName.trim(),
+          lastName: contact.lastName.trim() || undefined,
+          email: contact.email.trim(),
+          phone: contact.phone.trim(),
+          addressLine1: address.addressLine1.trim(),
+          city: address.city.trim(),
+          state: address.state.trim(),
+          postalCode: address.postalCode.trim(),
+          services: selectedServices.map((s) => ({ serviceCatalogItemId: s.id })),
+          idempotencyKey,
+          companyWebsite: honeypot || undefined,
+        });
+      } else {
+        const response = await quoteWidgetApi.submitQuote(companySlug, {
+          firstName: contact.firstName.trim(),
+          lastName: contact.lastName.trim() || undefined,
+          email: contact.email.trim(),
+          phone: contact.phone.trim(),
+          addressLine1: address.addressLine1.trim(),
+          city: address.city.trim(),
+          state: address.state.trim(),
+          postalCode: address.postalCode.trim(),
+          services: selectedServices.map((s) => ({
+            serviceCatalogItemId: s.id,
+            quantity: s.defaultUnitOfMeasure === 'flat_rate' ? 1 : Number(quantities[s.id]),
+          })),
+          idempotencyKey,
+          companyWebsite: honeypot || undefined,
+        });
+        if ('estimateNumber' in response) {
+          setResult(response);
+        }
       }
+      setHasSubmitted(true);
       setStep('success');
     } catch (err) {
       if (err instanceof QuoteWidgetApiError && err.status === 429) {
@@ -190,7 +220,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                         {selected && <Check className="h-4 w-4 text-white" />}
                       </span>
                     </button>
-                    {selected && s.defaultUnitOfMeasure !== 'flat_rate' && (
+                    {selected && s.quoteMode === 'instant' && s.defaultUnitOfMeasure !== 'flat_rate' && (
                       <div className="mt-2 pl-4">
                         <label className="block text-xs font-medium text-slate-600">{UNIT_QUESTIONS[s.defaultUnitOfMeasure] ?? 'Quantity'}</label>
                         <input
@@ -203,6 +233,9 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                           className="mt-1 w-32 rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-transparent focus:outline-none focus:ring-2"
                         />
                       </div>
+                    )}
+                    {selected && s.quoteMode === 'request' && (
+                      <p className="mt-1.5 pl-4 text-xs text-slate-500">This service requires a quick review so we can provide an accurate quote.</p>
                     )}
                   </div>
                 );
@@ -273,7 +306,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
 
         {step === 'review' && (
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Your Estimate Request</h1>
+            <h1 className="text-xl font-semibold text-slate-900">{isRequestOnly ? 'Your Quote Request' : 'Your Estimate Request'}</h1>
             <div className="mt-5 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Services</p>
@@ -295,7 +328,11 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 <p className="text-sm text-slate-700">{contact.phone}</p>
               </div>
             </div>
-            <p className="mt-3 text-xs text-slate-400">Your estimate will be created instantly and emailed to you.</p>
+            <p className="mt-3 text-xs text-slate-400">
+              {isRequestOnly
+                ? "We'll review your property and get back to you with a quote."
+                : 'Your estimate will be created instantly and emailed to you.'}
+            </p>
             {submitError && <p className="mt-3 text-sm text-red-600">{submitError}</p>}
             <div className="mt-5 flex items-center gap-3">
               <button onClick={goBack} disabled={isSubmitting} className="flex items-center gap-1 rounded-lg px-3 py-3 text-sm font-medium text-slate-600 disabled:opacity-50">
@@ -309,8 +346,10 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Creating Your Estimate…
+                    <Loader2 className="h-4 w-4 animate-spin" /> {isRequestOnly ? 'Submitting…' : 'Creating Your Estimate…'}
                   </>
+                ) : isRequestOnly ? (
+                  'Request Quote'
                 ) : (
                   'Get My Estimate'
                 )}
@@ -324,14 +363,23 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: `${brandColor}1a` }}>
               <Check className="h-6 w-6" style={{ color: brandColor }} />
             </div>
-            <h1 className="mt-4 text-xl font-semibold text-slate-900">Your Estimate Is Ready</h1>
-            <p className="mt-2 text-sm text-slate-600">Thank you, {contact.firstName}!</p>
-            <p className="mt-1 text-sm text-slate-600">Your estimate has been created and sent to {contact.email}.</p>
-            {result && (
-              <div className="mx-auto mt-4 max-w-xs rounded-lg bg-slate-50 p-4">
-                <p className="text-xs text-slate-400">Estimate {result.estimateNumber}</p>
-                <p className="mt-0.5 text-2xl font-semibold text-slate-900">{currency(result.totalAmount)}</p>
-              </div>
+            {isRequestOnly ? (
+              <>
+                <h1 className="mt-4 text-xl font-semibold text-slate-900">Quote Request Received</h1>
+                <p className="mt-2 text-sm text-slate-600">Thanks, {contact.firstName}! We&apos;ve received your request and will review the property and contact you shortly.</p>
+              </>
+            ) : (
+              <>
+                <h1 className="mt-4 text-xl font-semibold text-slate-900">Your Estimate Is Ready</h1>
+                <p className="mt-2 text-sm text-slate-600">Thank you, {contact.firstName}!</p>
+                <p className="mt-1 text-sm text-slate-600">Your estimate has been created and sent to {contact.email}.</p>
+                {result && (
+                  <div className="mx-auto mt-4 max-w-xs rounded-lg bg-slate-50 p-4">
+                    <p className="text-xs text-slate-400">Estimate {result.estimateNumber}</p>
+                    <p className="mt-0.5 text-2xl font-semibold text-slate-900">{currency(result.totalAmount)}</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

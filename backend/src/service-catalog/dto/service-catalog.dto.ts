@@ -89,6 +89,14 @@ export class CreateServiceCatalogItemDto {
   @IsBoolean()
   isActive?: boolean;
 
+  // Public Quote Tool control only — staff-side estimate creation is
+  // unaffected either way. Kept as an explicit @IsIn rather than
+  // reusing UNITS_OF_MEASURE's pattern, since these two values are a
+  // genuinely different concept from a unit of measure.
+  @IsOptional()
+  @IsIn(['instant', 'request'])
+  onlineQuoteMode?: 'instant' | 'request';
+
   @IsOptional()
   @IsIn(UNITS_OF_MEASURE)
   defaultUnitOfMeasure?: (typeof UNITS_OF_MEASURE)[number];
