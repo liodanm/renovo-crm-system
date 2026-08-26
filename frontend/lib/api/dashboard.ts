@@ -12,6 +12,33 @@ export interface TodaysJob {
   price: number;
 }
 
+export interface OverdueInvoice {
+  id: string;
+  invoiceNumber: string;
+  balanceDue: string;
+  dueDate: string;
+  daysOverdue: number;
+  customerName: string;
+}
+
+export interface FollowUpCandidate {
+  id: string;
+  estimateNumber: string;
+  totalAmount: string;
+  sentAt: string;
+  daysSinceSent: number;
+  customerName: string;
+}
+
+export interface RecurringOverdueCandidate {
+  propertyId: string;
+  addressLine1: string;
+  customerId: string;
+  customerName: string;
+  lastServiceDate: string;
+  daysOverdue: number;
+}
+
 export interface DashboardSummary {
   todaysJobs: { count: number; completedCount: number; jobs: TodaysJob[] } | null;
   todaysRevenue: { total: number; paymentCount: number } | null;
@@ -24,6 +51,19 @@ export interface DashboardSummary {
     processedAt: string;
     customerName: string;
   }> | null;
+  // Dashboard 2.0 — every field below is composed from an existing
+  // ReportsService method server-side, not recalculated here.
+  snapshotKpis: {
+    revenueToday: string; revenueThisWeek: string; revenueThisMonth: string; revenueThisYear: string;
+    outstandingInvoices: string; overdueInvoices: string; overdueInvoiceCount: string;
+    paymentsReceivedThisMonth: string;
+  } | null;
+  receivablesAging: { current: string; days1To30: string; days31To60: string; days60Plus: string } | null;
+  topOverdueInvoices: OverdueInvoice[] | null;
+  estimatePipeline: { status: string; count: string; totalValue: string }[] | null;
+  conversion: { total: number; accepted: number; declined: number; pending: number; expired: number; conversionRatePercent: number | null } | null;
+  followUpCandidates: FollowUpCandidate[] | null;
+  recurringOverdueCandidates: RecurringOverdueCandidate[] | null;
 }
 
 export interface CalendarJob {

@@ -361,6 +361,87 @@ export class ReportsService {
   // =========================================================================
 
   /** Point-in-time aging buckets — not range-bound, same reasoning as the snapshot KPIs. */
+  /**
+   * Dashboard-only: the top N individual overdue invoices, not another
+   * aggregate — getSnapshotKpis/getReceivablesAging above already cover
+   * the totals. Same overdue definition as getSnapshotKpis
+   * (status IN ('sent','partial') AND due_date < today), just returning
+   * the actual rows instead of a sum.
+   */
+  async getTopOverdueInvoices(companyId: string, limit = 5) {
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT
+        i.id, i.invoice_number AS "invoiceNumber", i.balance_due AS "balanceDue", i.due_date AS "dueDate",
+        (CURRENT_DATE - i.due_date)::int AS "daysOverdue",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName"
+      FROM invoices i
+      JOIN customers c ON c.id = i.customer_id AND c.company_id = i.company_id
+      WHERE i.company_id = ${companyId}::uuid AND i.status IN ('sent', 'partial') AND i.due_date < CURRENT_DATE
+      ORDER BY i.due_date ASC
+      LIMIT ${limit}
+    `);
+  }
+
+  /**
+   * Dashboard-only, read-only counterpart to AutomationService's private
+   * runEstimateFollowups — same exact threshold source (the company's
+   * own automationSettings row, same field name, same schema default of
+   * 3 days used when no row exists yet) and same eligibility rule
+   * (status = 'sent' AND sentAt older than the threshold). This never
+   * sends anything and never writes to automation_log — purely a
+   * display query, not a second automation engine. If the sending
+   * logic's definition of "needs follow-up" ever changes, this reads
+   * the same settings row, so it can't silently drift out of sync.
+   */
+  async getFollowUpCandidates(companyId: string, limit = 5) {
+    const settings = await this.prisma.automationSettings.findUnique({ where: { companyId } });
+    const afterDays = settings?.estimateFollowupAfterDays ?? 3;
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT
+        e.id, e.estimate_number AS "estimateNumber", e.total_amount AS "totalAmount", e.sent_at AS "sentAt",
+        (CURRENT_DATE - e.sent_at::date)::int AS "daysSinceSent",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName"
+      FROM estimates e
+      JOIN customers c ON c.id = e.customer_id AND c.company_id = e.company_id
+      WHERE e.company_id = ${companyId}::uuid AND e.status = 'sent'
+        AND e.sent_at <= now() - (${afterDays} || ' days')::interval
+      ORDER BY e.sent_at ASC
+      LIMIT ${limit}
+    `);
+  }
+
+  /**
+   * Dashboard-only, read-only counterpart to AutomationService's private
+   * runRecurringReminders — same threshold source (automationSettings.
+   * recurringReminderIntervalMonths, same schema default of 12 months)
+   * and the same "genuinely overdue, not just overdue for this specific
+   * service type" eligibility (most recent completed job on the
+   * property is older than the cutoff). Never sends anything, never
+   * writes to automation_log.
+   */
+  async getRecurringOverdueCandidates(companyId: string, limit = 5) {
+    const settings = await this.prisma.automationSettings.findUnique({ where: { companyId } });
+    const intervalMonths = settings?.recurringReminderIntervalMonths ?? 12;
+    return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
+      SELECT
+        p.id AS "propertyId", p.address_line1 AS "addressLine1", p.customer_id AS "customerId",
+        COALESCE(c.business_name, c.first_name || ' ' || c.last_name) AS "customerName",
+        lj."scheduledStart" AS "lastServiceDate",
+        (CURRENT_DATE - lj."scheduledStart"::date)::int AS "daysOverdue"
+      FROM properties p
+      JOIN customers c ON c.id = p.customer_id AND c.company_id = p.company_id
+      JOIN LATERAL (
+        SELECT scheduled_start AS "scheduledStart" FROM jobs
+        WHERE jobs.property_id = p.id AND jobs.status = 'completed'
+        ORDER BY scheduled_start DESC LIMIT 1
+      ) lj ON true
+      WHERE p.company_id = ${companyId}::uuid AND p.deleted_at IS NULL
+        AND lj."scheduledStart" <= now() - (${intervalMonths} || ' months')::interval
+      ORDER BY lj."scheduledStart" ASC
+      LIMIT ${limit}
+    `);
+  }
+
   async getReceivablesAging(companyId: string) {
     return this.prisma.withTenantContext(companyId, (tx) => tx.$queryRaw`
       SELECT

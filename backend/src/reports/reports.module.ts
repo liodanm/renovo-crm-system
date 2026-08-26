@@ -8,5 +8,6 @@ import { JobsModule } from '../jobs/jobs.module';
   imports: [JobsModule], // for JobCallbacksService.getCallbackRate — the Owner Scorecard's Callback Rate KPI reuses it directly rather than a second implementation of the same query
   controllers: [ReportsController],
   providers: [PrismaService, ReportsService],
+  exports: [ReportsService], // Dashboard 2.0 composes several existing report methods directly rather than re-implementing them
 })
 export class ReportsModule {}

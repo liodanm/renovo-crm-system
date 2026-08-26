@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { WeatherService } from '../weather/weather.service';
 import { AiSuggestionsService, DashboardStats } from '../ai/ai-suggestions.service';
+import { ReportsService } from '../reports/services/reports.service';
 import { AuthenticatedRequestUser } from '../auth/interfaces/jwt-payload.interface';
 
 function startOfToday(): Date {
@@ -22,6 +23,7 @@ export class DashboardService {
     private readonly prisma: PrismaService,
     private readonly weatherService: WeatherService,
     private readonly aiSuggestionsService: AiSuggestionsService,
+    private readonly reportsService: ReportsService,
   ) {}
 
   /**
@@ -30,6 +32,13 @@ export class DashboardService {
    * nothing about revenue or leads; an owner gets everything. Sections the
    * caller can't see are omitted entirely (not sent as null/zero), so the
    * frontend can distinguish "no data" from "not authorized to see this."
+   *
+   * Dashboard 2.0: every new field below composes an EXISTING
+   * ReportsService method or a small, genuinely new read-only method on
+   * that same service — nothing here recalculates revenue, overdue
+   * balances, estimate pipeline, or follow-up eligibility a second way.
+   * Fetched in the same Promise.all as the original fields, keeping this
+   * one request from the browser's perspective, not several.
    */
   async getSummary(user: AuthenticatedRequestUser) {
     const perms = new Set(user.permissions);
@@ -40,12 +49,39 @@ export class DashboardService {
 
     const isFieldRole = user.roleName === 'crew_lead' || user.roleName === 'crew_member';
 
-    const [todaysJobs, todaysRevenue, pendingEstimates, openLeads, recentPayments] = await Promise.all([
+    // Conversion rate is a snapshot, not a report-page date-range picker
+    // — a trailing 90 days is a reasonable, fixed Dashboard default;
+    // the full, range-adjustable version already exists on the Reports
+    // page for anyone who wants to change it.
+    const conversionWindowStart = new Date();
+    conversionWindowStart.setDate(conversionWindowStart.getDate() - 90);
+
+    const [
+      todaysJobs,
+      todaysRevenue,
+      pendingEstimates,
+      openLeads,
+      recentPayments,
+      snapshotKpis,
+      receivablesAging,
+      topOverdueInvoices,
+      estimatePipeline,
+      conversion,
+      followUpCandidates,
+      recurringOverdueCandidates,
+    ] = await Promise.all([
       canViewJobs ? this.getTodaysJobs(user.companyId, isFieldRole ? user.companyUserId : undefined) : null,
       canViewFinancials ? this.getTodaysRevenue(user.companyId) : null,
       canViewEstimates ? this.getPendingEstimates(user.companyId) : null,
       canViewLeads ? this.getOpenLeads(user.companyId) : null,
       canViewFinancials ? this.getRecentPayments(user.companyId) : null,
+      canViewFinancials ? this.reportsService.getSnapshotKpis(user.companyId, perms.has('estimates.profitability')) : null,
+      canViewFinancials ? this.reportsService.getReceivablesAging(user.companyId) : null,
+      canViewFinancials ? this.reportsService.getTopOverdueInvoices(user.companyId, 5) : null,
+      canViewEstimates ? this.reportsService.getEstimatePipeline(user.companyId) : null,
+      canViewEstimates ? this.reportsService.getEstimateConversionDetail(user.companyId, conversionWindowStart, new Date()) : null,
+      canViewEstimates ? this.reportsService.getFollowUpCandidates(user.companyId, 5) : null,
+      canViewLeads ? this.reportsService.getRecurringOverdueCandidates(user.companyId, 5) : null,
     ]);
 
     return {
@@ -54,6 +90,13 @@ export class DashboardService {
       pendingEstimates,
       openLeads,
       recentPayments,
+      snapshotKpis,
+      receivablesAging,
+      topOverdueInvoices,
+      estimatePipeline,
+      conversion,
+      followUpCandidates,
+      recurringOverdueCandidates,
     };
   }
 
