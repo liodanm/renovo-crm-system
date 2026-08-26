@@ -696,7 +696,17 @@ export function EstimateForm({ existingEstimate, initialCustomerId }: { existing
                       // pricing instead.
                       unitOfMeasure: 'flat_rate',
                       quantity: '1',
-                      unitPrice: catalogItem.defaultUnitPrice ?? '',
+                      // Deliberately not catalogItem.defaultUnitPrice —
+                      // that price corresponds to whatever unit the
+                      // Catalog item is actually configured with (often
+                      // per sq ft or per linear ft), so carrying it over
+                      // under Flat Rate would show a real-looking but
+                      // meaningless number (e.g. a $0.15 per-sq-ft price
+                      // appearing as if it were a $0.15 flat rate).
+                      // 0.00 makes it obvious a real number still needs
+                      // to be entered for this job, rather than risking
+                      // an unnoticed wrong price going out to a customer.
+                      unitPrice: '0.00',
                       notes: catalogItem.defaultNotes ?? undefined,
                       serviceCatalogItemId: catalogItem.id,
                     },
