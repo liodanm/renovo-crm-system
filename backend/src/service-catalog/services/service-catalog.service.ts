@@ -15,9 +15,45 @@ const SELECT_COLUMNS = `
   sort_order AS "sortOrder", created_at AS "createdAt", updated_at AS "updatedAt"
 `;
 
+// Deliberately separate from SELECT_COLUMNS above, not a subset applied
+// in JS — a public/anonymous caller should never even cause the
+// database to read chemicals, equipment, internal prep/aftercare
+// notes, upsell targeting, or terms/notes fields, regardless of what
+// the response layer later does with them. No cost/margin/profit
+// column exists anywhere on this table (confirmed by reading the full
+// schema above) — there is no internal financial data to additionally
+// guard against here, only operational/internal metadata.
+//
+// No price field either: the public Quote Tool never needs a price in
+// this list response — pricing is resolved authoritatively, server-
+// side, from serviceCatalogItemId during actual quote submission
+// (QuoteWidgetService.submitQuote → ServiceCatalogService.findOne).
+// Including a price here would be the exact "expose it just because it
+// exists" mistake this task exists to prevent.
+const PUBLIC_SELECT_COLUMNS = `
+  id, name, service_type AS "serviceType", category, description,
+  default_unit_of_measure AS "defaultUnitOfMeasure"
+`;
+
 @Injectable()
 export class ServiceCatalogService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * The ONLY entry point the public Quote Widget should ever call —
+   * ServiceCatalogService.findAll() (used by every staff-facing screen)
+   * is completely untouched by this method's existence. One additive
+   * method, not a rewrite of the internal catalog service.
+   */
+  async findAllPublic(companyId: string) {
+    const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) =>
+      tx.$queryRawUnsafe(
+        `SELECT ${PUBLIC_SELECT_COLUMNS} FROM service_catalog_items WHERE company_id = $1::uuid AND is_active = true ORDER BY sort_order ASC, name ASC`,
+        companyId,
+      ),
+    );
+    return rows;
+  }
 
   async findAll(companyId: string, activeOnly = false) {
     const rows: any[] = await this.prisma.withTenantContext(companyId, (tx) =>
