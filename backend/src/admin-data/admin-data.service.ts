@@ -83,8 +83,27 @@ export class AdminDataService {
           const payments = await tx.payment.findMany({ where: { invoiceId: { in: invoiceIds }, companyId }, select: { id: true } });
           deletedPaymentIds = payments.map((p) => p.id);
           await tx.payment.deleteMany({ where: { invoiceId: { in: invoiceIds }, companyId } });
+          // Real bug found and fixed here: portal_document_tokens.invoice_id
+          // references invoices(id) with NO ON DELETE CASCADE (deliberately —
+          // see migration 048's own comments on tenant isolation for that
+          // table). Deleting these invoices without first clearing any
+          // linked token rows throws a real Postgres FK violation
+          // (confirmed live in production: P2003 on
+          // portal_document_tokens_estimate_id_fkey). No Prisma model
+          // exists for this table (raw-SQL only, same as the rest of
+          // PortalAuthService and the appointments cleanup just above),
+          // so this matches this file's own established
+          // $executeRawUnsafe + explicit-cast convention rather than
+          // introducing a different raw-query pattern.
+          const invoicePlaceholders = invoiceIds.map((_, i) => `$${i + 1}::uuid`).join(', ');
+          await tx.$executeRawUnsafe(`DELETE FROM portal_document_tokens WHERE invoice_id IN (${invoicePlaceholders})`, ...invoiceIds);
           await tx.invoice.deleteMany({ where: { id: { in: invoiceIds }, companyId } });
         }
+
+        // Same fix as above, for the Estimate's own direct token (an
+        // Estimate can have its own portal_document_tokens row
+        // independent of any invoice generated from it).
+        await tx.$executeRawUnsafe(`DELETE FROM portal_document_tokens WHERE estimate_id = $1::uuid`, id);
 
         await tx.estimate.delete({ where: { id } });
 
@@ -128,6 +147,10 @@ export class AdminDataService {
           const payments = await tx.payment.findMany({ where: { invoiceId: { in: invoiceIds }, companyId }, select: { id: true } });
           deletedPaymentIds = payments.map((p) => p.id);
           await tx.payment.deleteMany({ where: { invoiceId: { in: invoiceIds }, companyId } });
+          // Same portal_document_tokens FK fix as deleteEstimate() above
+          // — see that method's comment for the full reasoning.
+          const invoicePlaceholders = invoiceIds.map((_, i) => `$${i + 1}::uuid`).join(', ');
+          await tx.$executeRawUnsafe(`DELETE FROM portal_document_tokens WHERE invoice_id IN (${invoicePlaceholders})`, ...invoiceIds);
           await tx.invoice.deleteMany({ where: { id: { in: invoiceIds }, companyId } });
         }
 
@@ -193,6 +216,10 @@ export class AdminDataService {
         // Invoice row itself is sufficient for both.
         const payments = await tx.payment.findMany({ where: { invoiceId: id, companyId }, select: { id: true } });
         const deletedPaymentIds = payments.map((p) => p.id);
+
+        // Same portal_document_tokens FK fix as deleteEstimate()/deleteJob()
+        // above — see deleteEstimate()'s comment for the full reasoning.
+        await tx.$executeRawUnsafe(`DELETE FROM portal_document_tokens WHERE invoice_id = $1::uuid`, id);
 
         await tx.invoice.delete({ where: { id } });
 
