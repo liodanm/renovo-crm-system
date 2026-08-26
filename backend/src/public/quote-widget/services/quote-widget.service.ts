@@ -51,7 +51,15 @@ export class QuoteWidgetService {
   async getPublicBranding(companySlug: string) {
     const company = await this.resolveCompany(companySlug);
     const { branding } = await this.companyContext.getCompanyAndBranding(company.id);
-    return branding;
+    // Real gap found while building the public quote frontend: this
+    // endpoint previously returned only the branding sub-object
+    // (logoUrl/colors), discarding the company's own display name —
+    // no existing public endpoint returned it at all, and the public
+    // quote page genuinely needs something to show as the page/company
+    // title. Smallest possible fix per the stop-condition process:
+    // extend this existing response with one additional field rather
+    // than create a second branding endpoint.
+    return { ...branding, companyName: company.name };
   }
 
   async submitQuote(companySlug: string, dto: SubmitQuoteDto): Promise<QuoteSubmissionResult | { received: true }> {
