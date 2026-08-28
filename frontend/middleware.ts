@@ -28,8 +28,17 @@ export const PUBLIC_PATHS = [
 // never merged with PUBLIC_PATHS above. Login/verify are dynamic,
 // per-company routes (/portal/:companySlug/login, .../verify) — checked
 // by pattern, not exact match, since the slug varies per company.
+//
+// Real bug fixed here: /document (the permanent portal-document-token
+// verification page — the actual link every estimate/invoice email
+// sends) was missing from this allowlist. A customer clicking that
+// link has no portal session yet — verifying the token is exactly what
+// creates one — so the middleware was redirecting them to the login
+// page before the verification page ever got to run, silently
+// dropping the ?token=... query string in the process. Every single
+// estimate/invoice email link was affected, not an edge case.
 function isPortalPublicPath(pathname: string): boolean {
-  return /^\/portal\/[^/]+\/(login|verify)/.test(pathname);
+  return /^\/portal\/[^/]+\/(login|verify|document)/.test(pathname);
 }
 
 const PORTAL_HOST_PREFIX = 'portal.';
