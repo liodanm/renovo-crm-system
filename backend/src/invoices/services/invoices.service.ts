@@ -246,14 +246,19 @@ export class InvoicesService {
   async generatePdf(companyId: string, id: string): Promise<{ buffer: Buffer; filename: string }> {
     const invoice = await this.findOne(companyId, id);
     const { company, branding } = await this.companyContext.getCompanyAndBranding(companyId);
-    // Was: `${this.config.get('auth.frontendUrl') ?? ''}/portal` — the
-    // STAFF app's host, same root cause as the email link below. Fixed to
-    // the correct portal host here too (not an auto-login magic link like
-    // the email gets — this URL is baked into the PDF itself, a document
-    // that can be saved/printed/reopened weeks later, well past any
-    // short-lived token's TTL, so a plain, durable portal URL is the
-    // correct choice for this specific context).
-    const portalUrl = this.config.get<string>('PORTAL_URL', 'https://portal.renovocrm.com');
+    // A real, reported bug, not the originally-intended design: this
+    // previously pointed to the bare portal domain with no company
+    // context at all (https://portal.renovocrm.com, nothing after it).
+    // That's the exact page a customer lands on when they open the PDF
+    // (weeks later, from any device) and tap "Pay Now" — and that bare
+    // root page has no way to know which company they belong to, so it
+    // can't even offer a path to request a new login link; it's a dead
+    // end. Fixed to the company's real per-slug login page instead,
+    // which DOES know how to send a fresh magic link — still a plain,
+    // durable URL appropriate for a PDF that outlives any short-lived
+    // token (unchanged reasoning from before), just one that actually
+    // goes somewhere useful.
+    const portalUrl = `${this.config.get<string>('PORTAL_URL', 'https://portal.renovocrm.com')}/${company.slug}/login`;
 
     const buffer = await this.pdfService.generateInvoicePdf({
       invoiceNumber: invoice.invoiceNumber,

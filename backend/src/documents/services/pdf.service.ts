@@ -51,6 +51,7 @@ export interface DocumentCompany {
   phone: string | null;
   email: string | null;
   website: string | null;
+  slug: string;
 }
 
 export interface DocumentCustomer {

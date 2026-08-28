@@ -18,7 +18,7 @@ export class CompanyContextService {
     return this.prisma.withTenantContext(companyId, async (tx) => {
       const rows: any[] = await tx.$queryRawUnsafe(
         `SELECT name, dba, address_line1 AS "addressLine1", city, state, postal_code AS "postalCode",
-                phone, email, website, settings
+                phone, email, website, settings, slug
          FROM companies WHERE id = $1::uuid`,
         companyId,
       );
@@ -35,6 +35,7 @@ export class CompanyContextService {
           phone: row?.phone ?? null,
           email: row?.email ?? null,
           website: row?.website ?? null,
+          slug: row?.slug ?? '',
         },
         branding: {
           logoUrl: branding.logoUrl ?? null,
