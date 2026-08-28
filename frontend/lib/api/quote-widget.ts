@@ -57,7 +57,7 @@ export interface SubmitQuotePayload {
   city: string;
   state: string;
   postalCode: string;
-  services: { serviceCatalogItemId: string; quantity: number }[];
+  services: { serviceCatalogItemId: string; quantity: number; serviceDetails?: Record<string, unknown> }[];
   notes?: string;
   idempotencyKey: string;
   // Honeypot — matches the backend's exact existing field name. Present
@@ -81,9 +81,30 @@ export interface RequestQuotePayload {
   companyWebsite?: string;
 }
 
+export type MeasurementConfidence = 'high' | 'medium' | 'low' | 'unavailable';
+
+export interface PropertyLookupResult {
+  buildingAreaSqFt: number | null;
+  buildingConfidence: MeasurementConfidence;
+  roofAreaSqFt: number | null;
+  roofConfidence: MeasurementConfidence;
+}
+
+export interface PropertyLookupPayload {
+  addressLine1: string;
+  city: string;
+  state: string;
+  postalCode: string;
+}
+
 export const quoteWidgetApi = {
   getBranding: (companySlug: string) => publicFetch<PublicQuoteBranding>(`/public/${companySlug}/quote-widget/branding`),
   getServices: (companySlug: string) => publicFetch<PublicQuoteService[]>(`/public/${companySlug}/quote-widget/services`),
+  lookupProperty: (companySlug: string, payload: PropertyLookupPayload) =>
+    publicFetch<PropertyLookupResult>(`/public/${companySlug}/quote-widget/property-lookup`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   submitQuote: (companySlug: string, payload: SubmitQuotePayload) =>
     publicFetch<QuoteSubmissionResult | { received: true }>(`/public/${companySlug}/quote-widget/quote`, {
       method: 'POST',
