@@ -192,7 +192,7 @@ export function CalendarItemModal({
   return (
     <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-slate-900/40 px-4 py-6 sm:items-center" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl bg-white dark:bg-slate-900 shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-5 py-4">
