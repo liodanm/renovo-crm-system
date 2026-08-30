@@ -62,7 +62,7 @@ export function DeleteCustomerModal({ customerId, customerName, jobsCount, estim
           <div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Remove Customer</h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              This will remove <strong>{customerName}</strong> from your active customer list. Their properties, estimates, jobs, and invoices are kept and can be restored if needed.
+              This will remove <strong>{customerName}</strong> from your active customer list. Their properties, estimates, jobs, and invoices aren't deleted — but there's currently no way to restore this customer to your active list yourself. If you need it back, you'd have to contact support.
             </p>
           </div>
         </div>
