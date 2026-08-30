@@ -156,7 +156,7 @@ function EstimatesPageInner() {
           />
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className={estimates && estimates.length > 0 ? 'mt-4' : 'mt-4 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'}>
           {isLoading && <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</div>}
           {error && <div className="p-8 text-center text-sm text-red-600 dark:text-red-400">Couldn't load estimates. Try refreshing.</div>}
           {estimates && estimates.length === 0 && (
@@ -176,53 +176,44 @@ function EstimatesPageInner() {
           )}
           {estimates && estimates.length > 0 && (
             <>
-              <table className="hidden w-full text-sm lg:table">
-                <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  <tr>
-                    <th className="px-4 py-3.5">Estimate #</th>
-                    <th className="px-4 py-3.5">Customer</th>
-                    <th className="px-4 py-3.5">Property</th>
-                    <th className="px-4 py-3.5">Status</th>
-                    <th className="px-4 py-3.5 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {estimates.map((estimate) => {
-                    const timing = statusTiming(estimate);
-                    const muted = estimate.status === 'declined' || estimate.status === 'expired';
-                    return (
-                      <tr
-                        key={estimate.id}
-                        style={{ borderLeftWidth: '4px', borderLeftStyle: 'solid', borderLeftColor: STATUS_RAIL_HEX[estimate.status] ?? '#94a3b8' }}
-                        className={`transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-800/60 ${muted ? 'opacity-60' : ''}`}
-                      >
-                        <td className="px-4 py-4">
-                          <Link href={`/estimates/${estimate.id}`} className="block text-base font-bold text-[var(--color-brand)] dark:text-blue-300">
-                            {estimate.estimateNumber}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-4">
-                          <Link href={`/estimates/${estimate.id}`} className="block font-medium text-slate-700 dark:text-slate-300">{customerName(estimate.customer)}</Link>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-slate-500 dark:text-slate-400">
-                          <Link href={`/estimates/${estimate.id}`} className="block">{estimate.property.addressLine1}, {estimate.property.city}</Link>
-                        </td>
-                        <td className="px-4 py-4">
-                          <Link href={`/estimates/${estimate.id}`} className="block">
-                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ESTIMATE_STATUS_COLORS[estimate.status]?.className ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
-                              {ESTIMATE_STATUS_COLORS[estimate.status]?.label ?? estimate.status}
-                            </span>
-                            {timing && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{timing}</span>}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-4 text-right text-base font-bold text-slate-900 dark:text-slate-100">
-                          <Link href={`/estimates/${estimate.id}`} className="block">{formatMoney(estimate.totalAmount)}</Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {/* Real <table> rows can never have gaps between them — that
+                  was the actual reason cards kept reading as one
+                  continuous block regardless of padding/border tweaks.
+                  Switched to a CSS Grid row layout so each estimate can
+                  have its own bordered, rounded, gapped container while
+                  columns still line up like a table. */}
+              <div className="hidden lg:grid grid-cols-[1fr_1.3fr_1.6fr_1.1fr_0.9fr] gap-x-4 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <span>Estimate #</span>
+                <span>Customer</span>
+                <span>Property</span>
+                <span>Status</span>
+                <span className="text-right">Total</span>
+              </div>
+              <div className="hidden lg:flex lg:flex-col lg:gap-1.5">
+                {estimates.map((estimate) => {
+                  const timing = statusTiming(estimate);
+                  const muted = estimate.status === 'declined' || estimate.status === 'expired';
+                  return (
+                    <Link
+                      key={estimate.id}
+                      href={`/estimates/${estimate.id}`}
+                      style={{ borderLeftWidth: '4px', borderLeftStyle: 'solid', borderLeftColor: STATUS_RAIL_HEX[estimate.status] ?? '#94a3b8' }}
+                      className={`grid grid-cols-[1fr_1.3fr_1.6fr_1.1fr_0.9fr] items-center gap-x-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-800/60 ${muted ? 'opacity-60' : ''}`}
+                    >
+                      <span className="truncate text-sm font-semibold text-[var(--color-brand)] dark:text-blue-300">{estimate.estimateNumber}</span>
+                      <span className="truncate text-sm font-semibold text-slate-700 dark:text-slate-300">{customerName(estimate.customer)}</span>
+                      <span className="truncate text-sm text-slate-500 dark:text-slate-400">{estimate.property.addressLine1}, {estimate.property.city}</span>
+                      <span className="flex items-center gap-2">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ESTIMATE_STATUS_COLORS[estimate.status]?.className ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
+                          {ESTIMATE_STATUS_COLORS[estimate.status]?.label ?? estimate.status}
+                        </span>
+                        {timing && <span className="truncate text-xs text-slate-400 dark:text-slate-500">{timing}</span>}
+                      </span>
+                      <span className="text-right text-sm font-semibold text-slate-900 dark:text-slate-100">{formatMoney(estimate.totalAmount)}</span>
+                    </Link>
+                  );
+                })}
+              </div>
 
               <div className="space-y-3 p-3 lg:hidden">
                 {estimates.map((estimate) => (
