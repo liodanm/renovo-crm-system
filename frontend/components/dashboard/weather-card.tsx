@@ -65,8 +65,14 @@ export function WeatherCard() {
                 <div className="text-[11px] text-slate-400 dark:text-slate-500">
                   {new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
+                <div className="mt-1 flex justify-center" title={d.condition}>
+                  <ConditionIcon condition={d.condition} />
+                </div>
                 <div className="mt-1 text-xs font-medium text-slate-700 dark:text-slate-300">{d.highF}°</div>
                 <div className="text-[11px] text-slate-400 dark:text-slate-500">{d.lowF}°</div>
+                {d.precipitationProbabilityPct > 0 && (
+                  <div className="mt-0.5 text-[11px] font-medium text-blue-500 dark:text-blue-400">{d.precipitationProbabilityPct}%</div>
+                )}
               </div>
             ))}
           </div>
@@ -79,6 +85,61 @@ export function WeatherCard() {
         </div>
       )}
     </DashboardCard>
+  );
+}
+
+// Matches the exact condition strings WeatherService.describeWeatherCode
+// returns (Clear/Partly Cloudy/Fog/Drizzle/Rain/Snow/Rain Showers/Snow
+// Showers/Thunderstorm/Unknown) — not a separate condition vocabulary.
+function ConditionIcon({ condition }: { condition: string }) {
+  const stroke = 'currentColor';
+  const cls = 'text-slate-400 dark:text-slate-500';
+  const props = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke, strokeWidth: 2, className: cls, 'aria-hidden': true } as const;
+
+  if (condition === 'Clear') {
+    return (
+      <svg {...props}>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      </svg>
+    );
+  }
+  if (condition === 'Thunderstorm') {
+    return (
+      <svg {...props}>
+        <path d="M17 15.5A4.5 4.5 0 0016.5 7a5.5 5.5 0 00-10.7 1.7A4 4 0 007 16.5" />
+        <path d="M13 12l-3 4h3l-2 4" />
+      </svg>
+    );
+  }
+  if (condition === 'Rain' || condition === 'Rain Showers' || condition === 'Drizzle') {
+    return (
+      <svg {...props}>
+        <path d="M17 15.5A4.5 4.5 0 0016.5 7a5.5 5.5 0 00-10.7 1.7A4 4 0 007 16.5" />
+        <path d="M8 17v2M12 17v2M16 17v2" />
+      </svg>
+    );
+  }
+  if (condition === 'Snow' || condition === 'Snow Showers') {
+    return (
+      <svg {...props}>
+        <path d="M17 15.5A4.5 4.5 0 0016.5 7a5.5 5.5 0 00-10.7 1.7A4 4 0 007 16.5" />
+        <path d="M8 18l.01.01M12 18l.01.01M16 18l.01.01" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (condition === 'Fog') {
+    return (
+      <svg {...props}>
+        <path d="M5 10h14M3 14h18M6 18h12" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  // Partly Cloudy / Unknown — the safe, neutral default
+  return (
+    <svg {...props}>
+      <path d="M17 15.5A4.5 4.5 0 0016.5 7a5.5 5.5 0 00-10.7 1.7A4 4 0 007 16.5" />
+    </svg>
   );
 }
 
