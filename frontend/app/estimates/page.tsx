@@ -17,6 +17,22 @@ const NEEDS_RESPONSE_STATUSES = new Set(['draft', 'sent', 'viewed']);
 // second network call, since the full list is already fetched here.
 const PIPELINE_STATUSES = new Set(['draft', 'sent', 'viewed', 'accepted']);
 
+// Explicit hex values, applied via inline style rather than a Tailwind
+// border-color utility class — the rail is assembled from a
+// runtime-interpolated template string, and relying on Tailwind's
+// build-time class scanner to reliably pick up every dynamically-
+// composed class name is exactly the kind of thing that silently drops
+// classes in production. Inline color guarantees the rail always
+// renders, regardless of any purge/JIT scanning edge case.
+const STATUS_RAIL_HEX: Record<string, string> = {
+  draft: '#94a3b8',
+  sent: '#3b82f6',
+  viewed: '#a855f7',
+  accepted: '#10b981',
+  declined: '#ef4444',
+  expired: '#f97316',
+};
+
 function customerName(customer: { firstName: string | null; lastName: string | null; businessName: string | null }): string {
   return customer.businessName ?? (`${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || 'Unknown');
 }
@@ -177,10 +193,11 @@ function EstimatesPageInner() {
                     return (
                       <tr
                         key={estimate.id}
-                        className={`border-l-4 hover:bg-slate-50 dark:hover:bg-slate-800 ${muted ? 'opacity-60' : ''} ${ESTIMATE_STATUS_COLORS[estimate.status]?.borderClassName ?? 'border-slate-300 dark:border-slate-700'}`}
+                        style={{ borderLeftWidth: '4px', borderLeftStyle: 'solid', borderLeftColor: STATUS_RAIL_HEX[estimate.status] ?? '#94a3b8' }}
+                        className={`hover:bg-slate-50 dark:hover:bg-slate-800 ${muted ? 'opacity-60' : ''}`}
                       >
                         <td className="px-4 py-3">
-                          <Link href={`/estimates/${estimate.id}`} className="block font-semibold text-[var(--color-brand)]">
+                          <Link href={`/estimates/${estimate.id}`} className="block text-base font-bold text-[var(--color-brand)] dark:text-blue-300">
                             {estimate.estimateNumber}
                           </Link>
                         </td>
@@ -212,14 +229,13 @@ function EstimatesPageInner() {
                   <MobileListCard
                     key={estimate.id}
                     href={`/estimates/${estimate.id}`}
-                    title={customerName(estimate.customer)}
-                    subtitle={`${estimate.property.addressLine1}, ${estimate.property.city}`}
+                    title={estimate.estimateNumber}
+                    subtitle={`${customerName(estimate.customer)} · ${estimate.property.addressLine1}, ${estimate.property.city}`}
                     statusLabel={`${ESTIMATE_STATUS_COLORS[estimate.status]?.label ?? estimate.status}${statusTiming(estimate) ? ' · ' + statusTiming(estimate) : ''}`}
                     statusClassName={ESTIMATE_STATUS_COLORS[estimate.status]?.className}
-                    borderClassName={ESTIMATE_STATUS_COLORS[estimate.status]?.borderClassName}
+                    railColorHex={STATUS_RAIL_HEX[estimate.status] ?? '#94a3b8'}
                     amount={formatMoney(estimate.totalAmount)}
                     amountLabel="Total"
-                    meta={[{ label: 'Estimate #', value: estimate.estimateNumber }]}
                   />
                 ))}
               </div>

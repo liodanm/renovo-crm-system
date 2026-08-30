@@ -60,6 +60,14 @@ export interface MobileListCardProps {
       border already communicates something more immediately relevant
       in that moment. */
   borderClassName?: string;
+  // Left-only colored rail, distinct from borderClassName's all-sides
+  // outline above (which existing callers may already rely on
+  // unchanged) — a genuinely different visual, added as a new optional
+  // prop rather than repurposing the existing one, so no existing
+  // caller's appearance changes. Applied via inline style, not a
+  // Tailwind class, since this needs to work for arbitrary hex values
+  // resolved at runtime.
+  railColorHex?: string;
 }
 
 export function MobileListCard({
@@ -79,6 +87,7 @@ export function MobileListCard({
   canMoveUp = true,
   canMoveDown = true,
   borderClassName,
+  railColorHex,
 }: MobileListCardProps) {
   const content = (
     <>
@@ -138,10 +147,11 @@ export function MobileListCard({
         ? `${borderClassName} bg-white active:bg-slate-50 dark:bg-slate-900 dark:active:bg-slate-800`
         : 'border-slate-200 bg-white active:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:active:bg-slate-800',
   );
+  const railStyle: React.CSSProperties | undefined = railColorHex ? { borderLeftWidth: '4px', borderLeftStyle: 'solid', borderLeftColor: railColorHex } : undefined;
 
   if (selectionMode) {
     return (
-      <div className={className} onClick={onToggleSelected} role="checkbox" aria-checked={selected} tabIndex={0}>
+      <div className={className} style={railStyle} onClick={onToggleSelected} role="checkbox" aria-checked={selected} tabIndex={0}>
         {content}
       </div>
     );
@@ -150,7 +160,7 @@ export function MobileListCard({
   if (onMoveUp || onMoveDown) {
     return (
       <div className="flex items-stretch gap-2">
-        <Link href={href} className={cn(className, 'flex-1')}>
+        <Link href={href} className={cn(className, 'flex-1')} style={railStyle}>
           {content}
         </Link>
         <div className="flex flex-col gap-1.5">
@@ -178,7 +188,7 @@ export function MobileListCard({
   }
 
   return (
-    <Link href={href} className={className}>
+    <Link href={href} className={className} style={railStyle}>
       {content}
     </Link>
   );
