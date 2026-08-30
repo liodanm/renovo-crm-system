@@ -177,16 +177,16 @@ function EstimatesPageInner() {
           {estimates && estimates.length > 0 && (
             <>
               <table className="hidden w-full text-sm lg:table">
-                <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   <tr>
-                    <th className="px-4 py-3">Estimate #</th>
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Property</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3.5">Estimate #</th>
+                    <th className="px-4 py-3.5">Customer</th>
+                    <th className="px-4 py-3.5">Property</th>
+                    <th className="px-4 py-3.5">Status</th>
+                    <th className="px-4 py-3.5 text-right">Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   {estimates.map((estimate) => {
                     const timing = statusTiming(estimate);
                     const muted = estimate.status === 'declined' || estimate.status === 'expired';
@@ -194,28 +194,28 @@ function EstimatesPageInner() {
                       <tr
                         key={estimate.id}
                         style={{ borderLeftWidth: '4px', borderLeftStyle: 'solid', borderLeftColor: STATUS_RAIL_HEX[estimate.status] ?? '#94a3b8' }}
-                        className={`hover:bg-slate-50 dark:hover:bg-slate-800 ${muted ? 'opacity-60' : ''}`}
+                        className={`transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-800/60 ${muted ? 'opacity-60' : ''}`}
                       >
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4">
                           <Link href={`/estimates/${estimate.id}`} className="block text-base font-bold text-[var(--color-brand)] dark:text-blue-300">
                             {estimate.estimateNumber}
                           </Link>
                         </td>
-                        <td className="px-4 py-3">
-                          <Link href={`/estimates/${estimate.id}`} className="block text-slate-700 dark:text-slate-300">{customerName(estimate.customer)}</Link>
+                        <td className="px-4 py-4">
+                          <Link href={`/estimates/${estimate.id}`} className="block font-medium text-slate-700 dark:text-slate-300">{customerName(estimate.customer)}</Link>
                         </td>
-                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                        <td className="px-4 py-4 text-sm text-slate-500 dark:text-slate-400">
                           <Link href={`/estimates/${estimate.id}`} className="block">{estimate.property.addressLine1}, {estimate.property.city}</Link>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4">
                           <Link href={`/estimates/${estimate.id}`} className="block">
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTIMATE_STATUS_COLORS[estimate.status]?.className ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ESTIMATE_STATUS_COLORS[estimate.status]?.className ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
                               {ESTIMATE_STATUS_COLORS[estimate.status]?.label ?? estimate.status}
                             </span>
                             {timing && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{timing}</span>}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-slate-100">
+                        <td className="px-4 py-4 text-right text-base font-bold text-slate-900 dark:text-slate-100">
                           <Link href={`/estimates/${estimate.id}`} className="block">{formatMoney(estimate.totalAmount)}</Link>
                         </td>
                       </tr>
