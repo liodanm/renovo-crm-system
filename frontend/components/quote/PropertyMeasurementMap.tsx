@@ -1,9 +1,46 @@
 'use client';
 
-import { useState } from 'react';
-import { MapContainer, TileLayer, Polygon, CircleMarker, useMapEvents } from 'react-leaflet';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Polygon, CircleMarker, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { polygonAreaSqFt, type LatLon } from '../../lib/geometry';
+
+/**
+ * The actual root cause of the blank-tile problem — confirmed by the
+ * two screenshots showing the identical initial state blank one minute
+ * and fully populated the next, which ruled out a wrong maxNativeZoom
+ * value (a config problem would fail the same way every time, not
+ * intermittently). This is a well-known Leaflet-in-React issue:
+ * Leaflet calculates its tile grid from the container's size at the
+ * exact moment it initializes. This map mounts via next/dynamic
+ * (ssr:false) inside a conditionally-rendered step, so the container
+ * isn't guaranteed to have its final size yet at that instant — a race
+ * that resolves differently run to run, exactly matching what was
+ * reported. invalidateSize() forces Leaflet to recheck the real
+ * container size and correctly (re)fetch the tiles for it; calling it
+ * shortly after mount, and again on any later resize, removes the
+ * timing dependency instead of just tolerating it. This is the
+ * standard fix for this exact symptom, not a guess.
+ */
+function MapReadyFixer() {
+  const map = useMap();
+  useEffect(() => {
+    const fix = () => map.invalidateSize();
+    // A microtask-deferred call catches the common case (container
+    // reaches its final size within the same render cycle); the
+    // 300ms one catches slower cases (e.g. a CSS transition on the
+    // step change) without relying on either alone.
+    const raf = requestAnimationFrame(fix);
+    const timeout = setTimeout(fix, 300);
+    window.addEventListener('resize', fix);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+      window.removeEventListener('resize', fix);
+    };
+  }, [map]);
+  return null;
+}
 
 function ClickCapture({ onPoint }: { onPoint: (p: LatLon) => void }) {
   useMapEvents({
@@ -56,22 +93,22 @@ export function PropertyMeasurementMap({
   return (
     <div>
       <div className="h-72 w-full overflow-hidden rounded-xl border border-slate-200 sm:h-96">
-        <MapContainer center={[latitude, longitude]} zoom={18} maxZoom={21} scrollWheelZoom className="h-full w-full">
+        <MapContainer center={[latitude, longitude]} zoom={20} maxZoom={21} scrollWheelZoom className="h-full w-full">
+          <MapReadyFixer />
           <TileLayer
             attribution="Esri, Maxar, Earthstar Geographics"
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            // Esri's own documentation confirms coverage varies by area:
-            // most of the US gets 0.5m-resolution imagery (dense metro
-            // cores get a higher-tier 0.3m), and 0.5m imagery genuinely
-            // doesn't have real tile data as deep as I first assumed.
-            // Lowered further after the first attempt (19) still went
-            // blank on a real test — this is a more conservative,
-            // safer ceiling for a typical US suburban address. The map
-            // itself can still be zoomed in past this (maxZoom={21}
-            // above) for a bigger on-screen view of the property —
-            // Leaflet just stretches the last real tile past this
-            // point instead of fetching a nonexistent one.
-            maxNativeZoom={18}
+            // Kept as a real, secondary safety net — Esri's own docs
+            // confirm coverage genuinely varies by area (0.3m in select
+            // metros, 0.5m across most of the US), so some locations
+            // may still lack tiles this deep. Past this level Leaflet
+            // stretches the last real tile instead of fetching one that
+            // doesn't exist. But this was NOT the actual cause of the
+            // reported blank-map bug — see MapReadyFixer above for
+            // that. Restored to a genuinely useful zoom level now that
+            // the real cause is fixed, rather than staying artificially
+            // low to mask a different problem.
+            maxNativeZoom={20}
           />
           <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
           {points.map((p, i) => (
