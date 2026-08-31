@@ -52,11 +52,13 @@ function ClickCapture({ onPoint }: { onPoint: (p: LatLon) => void }) {
 /**
  * Polygon-only for this phase, per the approved plan — linear/point
  * measurement modes are a future extension of this same component, not
- * built yet. Renders on top of Esri World Imagery (free, no API key —
- * see the final report for the licensing check performed before using
- * it here), not the OSM street tiles Scheduling's map uses, since a
- * homeowner needs to visually recognize their driveway/patio/pool deck,
- * which a street map can't show.
+ * built yet. Renders on top of Mapbox Satellite imagery (switched from
+ * Esri World Imagery after repeated real-world testing confirmed the
+ * intermittent blank-tile problem persisted even with the container-
+ * sizing race fixed — see this task's own report for the full
+ * before/after evidence), not the OSM street tiles Scheduling's map
+ * uses, since a homeowner needs to visually recognize their
+ * driveway/patio/pool deck, which a street map can't show.
  *
  * ONE reusable component for driveway/concrete/patio/pool-deck/pavers/
  * pool-cage — not six separate implementations. Which service is being
@@ -90,35 +92,47 @@ export function PropertyMeasurementMap({
   // legitimate small residential surfaces."
   const tooSmall = canFinish && area < 20;
 
+  // Public (client-safe) token — per Mapbox's own model, this is
+  // exactly what public tokens are for, same reasoning documented in
+  // .env.local.example. Read once, not on every render.
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+  if (!mapboxToken) {
+    // Never a blank/broken map with no explanation — same principle
+    // this component already follows for a failed property lookup.
+    // The existing Request-Only path ("Not sure how to measure?") is
+    // reused here rather than inventing a second fallback mechanism.
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-center">
+        <p className="text-sm text-slate-600">Satellite imagery is temporarily unavailable. You can still request a quote and we&apos;ll verify the measurements.</p>
+        <button onClick={onCancel} className="mt-3 rounded-lg bg-[var(--color-brand,#0f766e)] px-4 py-2.5 text-sm font-semibold text-white">
+          Request a Quote Instead
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="h-72 w-full overflow-hidden rounded-xl border border-slate-200 sm:h-96">
         {/* zoom=19 is deliberately the STARTING point, not the ceiling
-            — per explicit guidance: "highest RELIABLE property-level
-            zoom," not maximum. Esri's own documentation confirms real
-            coverage varies by area (0.3m in select metros, 0.5m across
-            most of the US); 19 is a safer default that's very likely to
-            have real tile data everywhere in the service area, while
+            — "highest RELIABLE property-level zoom," not maximum.
             maxZoom={21} still lets the customer zoom in further
-            themselves if they want a bigger view — MapReadyFixer above
-            (not this number) is what actually prevents blank tiles now,
-            so this value is chosen for a reliably tight initial framing
-            of the property, not to work around the bug. */}
+            themselves — MapReadyFixer below (not this number) is what
+            prevents blank tiles, so this value is chosen for reliable
+            initial framing of the property, not to work around a bug. */}
         <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} scrollWheelZoom className="h-full w-full">
           <MapReadyFixer />
           <TileLayer
-            attribution="Esri, Maxar, Earthstar Geographics"
-            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            // Kept as a real, secondary safety net — Esri's own docs
-            // confirm coverage genuinely varies by area (0.3m in select
-            // metros, 0.5m across most of the US), so some locations
-            // may still lack tiles this deep. Past this level Leaflet
-            // stretches the last real tile instead of fetching one that
-            // doesn't exist. But this was NOT the actual cause of the
-            // reported blank-map bug — see MapReadyFixer above for
-            // that. Restored to a genuinely useful zoom level now that
-            // the real cause is fixed, rather than staying artificially
-            // low to mask a different problem.
+            attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            // Mapbox's v4 Raster Tiles API — the correct, documented
+            // format for a plain Leaflet TileLayer (not the newer GL JS
+            // vector-style API, which this app deliberately does NOT
+            // adopt — Leaflet stays exactly as it already was, only the
+            // tile source changes). {r} lets Leaflet request @2x tiles
+            // on high-DPI screens automatically via detectRetina below.
+            url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}{r}.png?access_token=${mapboxToken}`}
+            detectRetina
             maxNativeZoom={20}
           />
           <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
