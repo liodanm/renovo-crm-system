@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Check, ChevronLeft, Loader2, HelpCircle } from 'lucide-react';
+import type { LatLon } from '../../../lib/geometry';
 import { SERVICE_TYPE_ICONS } from '../../../lib/api/service-catalog';
 import {
   quoteWidgetApi,
@@ -113,7 +114,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   const hasResearchableServices = selectedServices.some((s) => RESEARCHABLE_SERVICE_TYPES.has(s.serviceType));
   const mapMeasureQueue = useMemo(() => selectedServices.filter((s) => MAP_MEASURABLE_SERVICE_TYPES.has(s.serviceType)), [selectedServices]);
   const [mapMeasureIndex, setMapMeasureIndex] = useState(0);
-  const [mapMeasurements, setMapMeasurements] = useState<Record<string, { areaSqFt: number }>>({});
+  const [mapMeasurements, setMapMeasurements] = useState<Record<string, { areaSqFt: number; points: LatLon[] }>>({});
   // Set when the customer taps "Not sure how to measure?" on the map
   // step — same effect as the stories/roof-type "I'm not sure" answers
   // below (route to Request-Only), just triggered by a different
@@ -172,11 +173,19 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     if (i > 0) setStep(order[i - 1] as Step);
   }
 
+  const [isLookingUpProperty, setIsLookingUpProperty] = useState(false);
   async function handlePropertyContinue() {
+    // Real gap found in this audit: the Continue button here was only
+    // disabled by address validity, not by an in-flight request — a
+    // double-tap on a slow connection could fire two property lookups
+    // before the step change to 'researching' removes the button from
+    // the DOM. Guarded the same way quote submission already is.
+    if (isLookingUpProperty) return;
     if (!hasResearchableServices && mapMeasureQueue.length === 0) {
       goNext();
       return;
     }
+    setIsLookingUpProperty(true);
     setStep('researching');
     try {
       const result = await quoteWidgetApi.lookupProperty(companySlug, {
@@ -197,6 +206,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
       // property. Never an error shown to the customer.
       setLookupResult({ latitude: null, longitude: null, buildingAreaSqFt: null, buildingConfidence: 'unavailable', roofAreaSqFt: null, roofConfidence: 'unavailable' });
     }
+    setIsLookingUpProperty(false);
     if (mapMeasureQueue.length > 0) {
       setMapMeasureIndex(0);
       setStep('mapMeasure');
@@ -220,9 +230,9 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     setStep((i >= 0 && i < order.length - 1 ? order[i + 1] : 'contact') as Step);
   }
 
-  function handleMapMeasureComplete(areaSqFt: number) {
+  function handleMapMeasureComplete(areaSqFt: number, points: LatLon[]) {
     const service = mapMeasureQueue[mapMeasureIndex];
-    setMapMeasurements((prev) => ({ ...prev, [service.id]: { areaSqFt } }));
+    setMapMeasurements((prev) => ({ ...prev, [service.id]: { areaSqFt, points } }));
     // Same quantities map every other service (researched or manual)
     // already writes into — the submit payload has exactly one place
     // it reads quantity from, for every service uniformly.
@@ -240,6 +250,18 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     // stories/roof-type "I'm not sure" answers already use.
     setUncertaintyOverride(true);
     proceedPastMapMeasurement();
+  }
+
+  // Review screen's "Edit Measurement" for a customer-drawn area —
+  // reopens the map for that specific service with its prior points
+  // already loaded (via initialPoints above), everything else in the
+  // quote left untouched.
+  function editMapMeasurement(serviceId: string) {
+    const index = mapMeasureQueue.findIndex((s) => s.id === serviceId);
+    if (index >= 0) {
+      setMapMeasureIndex(index);
+      setStep('mapMeasure');
+    }
   }
 
   const canContinueService = selectedServiceIds.size > 0 && selectedServices.every((s) => s.quoteMode === 'request' || s.defaultUnitOfMeasure === 'flat_rate' || Number(quantities[s.id]) > 0);
@@ -456,7 +478,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 <input value={address.postalCode} onChange={(e) => setAddress({ ...address, postalCode: e.target.value })} inputMode="numeric" className={inputClass} />
               </Field>
             </div>
-            <BackAndContinue onBack={goBack} onNext={handlePropertyContinue} disabled={!canContinueProperty} color={brandColor} />
+            <BackAndContinue onBack={goBack} onNext={handlePropertyContinue} disabled={!canContinueProperty || isLookingUpProperty} color={brandColor} />
           </div>
         )}
 
@@ -472,6 +494,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 <PropertyMeasurementMap
                   latitude={lookupResult.latitude}
                   longitude={lookupResult.longitude}
+                  initialPoints={mapMeasurements[mapMeasureQueue[mapMeasureIndex]?.id]?.points}
                   onComplete={handleMapMeasureComplete}
                   onCancel={handleMapMeasureCancel}
                 />
@@ -661,6 +684,54 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 <p className="mt-1 text-sm text-slate-700">{address.addressLine1}</p>
                 <p className="text-sm text-slate-700">{address.city}, {address.state} {address.postalCode}</p>
               </div>
+              {!routesToRequestOnly && (hasResearchableServices || mapMeasureQueue.length > 0) && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Property Measurements</p>
+                  <div className="mt-1.5 space-y-2">
+                    {selectedServices.some((s) => s.serviceType === 'house_wash') && lookupResult && (
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-slate-700">🏠 Home Area: <span className="font-semibold">{Number(adjustedBuildingArea).toLocaleString()} sq ft</span></p>
+                          <p className="text-xs text-slate-400">
+                            {buildingAdjusting || lookupResult.buildingConfidence === 'unavailable' ? 'You provided this measurement' : `Property data · ${CONFIDENCE_LABEL[lookupResult.buildingConfidence] ?? 'Estimated'}`}
+                          </p>
+                        </div>
+                        <button onClick={() => setStep('confirm')} className="shrink-0 text-xs font-medium underline" style={{ color: brandColor }}>Adjust</button>
+                      </div>
+                    )}
+                    {selectedServices.some((s) => s.serviceType === 'roof_soft_wash') && lookupResult && (
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-slate-700">🏠 Roof Area: <span className="font-semibold">{Number(adjustedRoofArea).toLocaleString()} sq ft</span></p>
+                          <p className="text-xs text-slate-400">{roofAdjusting ? 'You provided this measurement' : 'Estimated from the property\'s building footprint'}</p>
+                        </div>
+                        <button onClick={() => setStep('confirm')} className="shrink-0 text-xs font-medium underline" style={{ color: brandColor }}>Adjust</button>
+                      </div>
+                    )}
+                    {mapMeasureQueue.map((s) => mapMeasurements[s.id] && (
+                      <div key={s.id} className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-slate-700">📐 {s.name}: <span className="font-semibold">{mapMeasurements[s.id].areaSqFt.toLocaleString()} sq ft</span></p>
+                          <p className="text-xs text-slate-400">Measured by you on the satellite map</p>
+                        </div>
+                        <button onClick={() => editMapMeasurement(s.id)} className="shrink-0 text-xs font-medium underline" style={{ color: brandColor }}>Edit Measurement</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!routesToRequestOnly && (needsStories || needsRoofType || needsExteriorMaterial) && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Service Details</p>
+                  <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
+                    {needsStories && stories && stories !== 'not_sure' && <li>Stories: {stories}</li>}
+                    {needsRoofType && roofType && roofType !== 'not_sure' && <li>Roof Type: {roofType[0].toUpperCase() + roofType.slice(1)}</li>}
+                    {needsExteriorMaterial && exteriorMaterial && exteriorMaterial !== 'not_sure' && (
+                      <li>Exterior: {exteriorMaterial === 'concrete_block' ? 'Concrete/Block' : exteriorMaterial[0].toUpperCase() + exteriorMaterial.slice(1)}</li>
+                    )}
+                  </ul>
+                </div>
+              )}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Contact</p>
                 <p className="mt-1 text-sm text-slate-700">{contact.firstName} {contact.lastName}</p>

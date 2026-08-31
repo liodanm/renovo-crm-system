@@ -29,17 +29,29 @@ function ClickCapture({ onPoint }: { onPoint: (p: LatLon) => void }) {
 export function PropertyMeasurementMap({
   latitude,
   longitude,
+  initialPoints,
   onComplete,
   onCancel,
 }: {
   latitude: number;
   longitude: number;
+  // Lets "Edit Measurement" on Review reopen the map with the
+  // customer's prior outline already in place, rather than forcing a
+  // full redraw — existing React state is enough for this, no new
+  // persistence needed.
+  initialPoints?: LatLon[];
   onComplete: (areaSqFt: number, points: LatLon[]) => void;
   onCancel: () => void;
 }) {
-  const [points, setPoints] = useState<LatLon[]>([]);
+  const [points, setPoints] = useState<LatLon[]>(initialPoints ?? []);
   const area = polygonAreaSqFt(points);
   const canFinish = points.length >= 3;
+  // A genuine floor, not an arbitrary one — a real residential surface
+  // (even a small walkway segment) is comfortably above this; anything
+  // below it is almost always an accidental cluster of taps rather than
+  // a real outline. Deliberately generous, per "don't over-restrict
+  // legitimate small residential surfaces."
+  const tooSmall = canFinish && area < 20;
 
   return (
     <div>
@@ -60,14 +72,17 @@ export function PropertyMeasurementMap({
       </div>
 
       <div className="mt-3">
-        {points.length === 0 && <p className="text-sm text-slate-500">Tap each corner of the area you&apos;d like cleaned.</p>}
+        {points.length === 0 && <p className="text-sm text-slate-500">The image above is your property. Tap around the edges of the area you&apos;d like cleaned.</p>}
         {points.length > 0 && points.length < 3 && (
-          <p className="text-sm text-slate-500">Tap {3 - points.length} more corner{3 - points.length === 1 ? '' : 's'}.</p>
+          <p className="text-sm text-slate-500">Please outline the area by adding at least {3 - points.length} more point{3 - points.length === 1 ? '' : 's'}.</p>
         )}
-        {canFinish && (
+        {canFinish && !tooSmall && (
           <p className="text-sm font-medium text-slate-700">
-            Estimated area: <span className="font-semibold">{Math.round(area).toLocaleString()} sq ft</span>
+            Approximate area: <span className="font-semibold">{Math.round(area).toLocaleString()} sq ft</span>
           </p>
+        )}
+        {tooSmall && (
+          <p className="text-sm text-amber-600">That area looks too small — please check your outline, or add a couple more points to capture the full area.</p>
         )}
       </div>
 
@@ -94,14 +109,14 @@ export function PropertyMeasurementMap({
         <button
           type="button"
           onClick={() => onComplete(Math.round(area), points)}
-          disabled={!canFinish}
+          disabled={!canFinish || tooSmall}
           className="ml-auto rounded-lg bg-[var(--color-brand,#0f766e)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
         >
-          Finish Measuring
+          Use This Measurement
         </button>
       </div>
 
-      <p className="mt-2 text-xs text-slate-400">Satellite measurement is approximate.</p>
+      <p className="mt-2 text-xs text-slate-400">This measurement is approximate.</p>
     </div>
   );
 }
