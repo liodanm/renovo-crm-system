@@ -264,7 +264,16 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     }
   }
 
-  const canContinueService = selectedServiceIds.size > 0 && selectedServices.every((s) => s.quoteMode === 'request' || s.defaultUnitOfMeasure === 'flat_rate' || Number(quantities[s.id]) > 0);
+  const canContinueService =
+    selectedServiceIds.size > 0 &&
+    selectedServices.every(
+      (s) =>
+        s.quoteMode === 'request' ||
+        s.defaultUnitOfMeasure === 'flat_rate' ||
+        RESEARCHABLE_SERVICE_TYPES.has(s.serviceType) ||
+        MAP_MEASURABLE_SERVICE_TYPES.has(s.serviceType) ||
+        Number(quantities[s.id]) > 0,
+    );
   const canContinueProperty = !!(address.addressLine1.trim() && address.city.trim() && address.state.trim() && address.postalCode.trim());
   const canContinueContact = !!(contact.firstName.trim() && /\S+@\S+\.\S+/.test(contact.email) && contact.phone.trim().length >= 7);
 
@@ -431,7 +440,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                         {selected && <Check className="h-4 w-4 text-white" />}
                       </span>
                     </button>
-                    {selected && s.quoteMode === 'instant' && s.defaultUnitOfMeasure !== 'flat_rate' && (
+                    {selected && s.quoteMode === 'instant' && s.defaultUnitOfMeasure !== 'flat_rate' && !RESEARCHABLE_SERVICE_TYPES.has(s.serviceType) && !MAP_MEASURABLE_SERVICE_TYPES.has(s.serviceType) && (
                       <div className="mt-2 pl-4">
                         <label className="block text-xs font-medium text-slate-600">{UNIT_QUESTIONS[s.defaultUnitOfMeasure] ?? 'Quantity'}</label>
                         <input
