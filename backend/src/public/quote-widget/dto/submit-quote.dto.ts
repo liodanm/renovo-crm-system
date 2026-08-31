@@ -1,4 +1,4 @@
-import { IsArray, IsEmail, IsIn, IsNumber, IsObject, IsOptional, IsPositive, IsString, IsUUID, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { IsArray, IsEmail, IsIn, IsNumber, IsObject, IsOptional, IsPositive, IsString, IsUUID, Max, MaxLength, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QuoteSelectedServiceDto {
@@ -9,11 +9,19 @@ export class QuoteSelectedServiceDto {
   @IsUUID()
   serviceCatalogItemId: string;
 
-  // The manual measurement (Phase 1 has no measurement provider) — e.g.
-  // square footage, linear feet, or a plain count, matching whatever
-  // unitOfMeasure the referenced catalog item uses.
+  // The manual measurement (customer-typed, property-intelligence
+  // pre-filled, or customer-drawn via the satellite measurement tool) —
+  // e.g. square footage, linear feet, or a plain count, matching
+  // whatever unitOfMeasure the referenced catalog item uses.
+  // @IsPositive() already rejects zero/negative; @Max() rejects an
+  // implausibly large value (e.g. a fabricated "50,000 sq ft driveway")
+  // without being so tight it would reject a genuinely large residential
+  // or small-commercial property — this is deliberately generous, not a
+  // precise per-service-type limit, since a single field here covers
+  // every unit type (sq ft, linear ft, hours, count) uniformly.
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
+  @Max(20_000)
   quantity: number;
 
   // Homeowner-friendly answers (stories, roof type, staining, etc.) —

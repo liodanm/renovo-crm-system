@@ -24,6 +24,13 @@ model Company {
   // migration 010 and estimate-profit.util.ts for the full resolution
   // order this feeds into.
   defaultLaborRate  Decimal   @default(0) @map("default_labor_rate") @db.Decimal(10, 2)
+  // A real, existing database column read/written by many services all
+  // session via raw SQL (branding, lead sources, automation settings,
+  // estimateSettings, the Quote Tool's roof-area multiplier) — it was
+  // never declared here on the typed Prisma model itself, which is why
+  // a plain typed `company.settings` access (not raw SQL) failed to
+  // compile. This was a genuine gap in the schema, not a sync issue.
+  settings          Json?
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
   deletedAt         DateTime? @map("deleted_at")

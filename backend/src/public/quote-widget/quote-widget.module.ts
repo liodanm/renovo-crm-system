@@ -7,6 +7,7 @@ import { ServiceCatalogModule } from '../../service-catalog/service-catalog.modu
 import { EstimatesModule } from '../../estimates/estimates.module';
 import { PortalModule } from '../../portal/portal.module';
 import { DocumentsModule } from '../../documents/documents.module';
+import { PropertyIntelligenceService } from '../../property-intelligence/property-intelligence.service';
 
 /**
  * The single home for the public Instant Quote Widget (Phase 1) and its
@@ -18,10 +19,23 @@ import { DocumentsModule } from '../../documents/documents.module';
  * PROJECT_CONTEXT.md's Quote Widget section for the full verified
  * architecture. TenantContextService is @Global() (tenant-context.module.ts)
  * and needs no import here.
+ *
+ * GeocodingService is deliberately NOT re-provided here — it's now
+ * exported by CustomersModule (already imported below) and shares that
+ * one instance. GeocodingService holds real per-instance rate-limit
+ * state (a `lastRequestAt` timestamp guarding Nominatim's 1 req/sec
+ * policy); giving this module its own separate instance would let two
+ * independent rate-limit clocks both fire near-simultaneously and
+ * exceed the real limit together — a genuine correctness bug, not just
+ * a style preference, caught and fixed while wiring this up.
+ * PropertyIntelligenceService has no such shared-state concern (Redis
+ * itself is the single source of truth for its cache) and has no
+ * dedicated module of its own yet, matching GeocodingService's own
+ * precedent, so it's provided directly.
  */
 @Module({
   imports: [CustomersModule, ServiceCatalogModule, EstimatesModule, PortalModule, DocumentsModule],
   controllers: [QuoteWidgetController],
-  providers: [PrismaService, QuoteWidgetService],
+  providers: [PrismaService, QuoteWidgetService, PropertyIntelligenceService],
 })
 export class QuoteWidgetModule {}

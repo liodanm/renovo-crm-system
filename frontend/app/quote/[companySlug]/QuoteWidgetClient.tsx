@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Check, ChevronLeft, Loader2, HelpCircle } from 'lucide-react';
 import { SERVICE_TYPE_ICONS } from '../../../lib/api/service-catalog';
 import {
@@ -10,6 +11,11 @@ import {
   type PublicQuoteService,
   type PropertyLookupResult,
 } from '../../../lib/api/quote-widget';
+
+// Leaflet touches window/document at import time — must never run
+// during SSR, same reason ScheduleMapInner (Scheduling's own map) is
+// loaded this exact same way.
+const PropertyMeasurementMap = dynamic(() => import('../../../components/quote/PropertyMeasurementMap').then((m) => m.PropertyMeasurementMap), { ssr: false });
 
 const UNIT_LABELS: Record<string, string> = { sq_ft: 'sq ft', linear_ft: 'linear ft', each: 'each', hours: 'hours', flat_rate: 'flat rate' };
 const UNIT_QUESTIONS: Record<string, string> = {
@@ -27,6 +33,12 @@ const UNIT_QUESTIONS: Record<string, string> = {
 // estimate. Any other service type (driveway, fence, pool cage, etc.)
 // falls straight through to the existing manual-entry input, unchanged.
 const RESEARCHABLE_SERVICE_TYPES = new Set(['house_wash', 'roof_soft_wash']);
+// Services this phase's map-measurement tool supports — matches the
+// approved plan's initial list, using this app's actual serviceType
+// values (confirmed by checking SERVICE_TYPES; there's no separate
+// "concrete" or "pool_cage" type today — screen_enclosure is the
+// closest existing analog to pool cage).
+const MAP_MEASURABLE_SERVICE_TYPES = new Set(['driveway_cleaning', 'pool_deck', 'patio', 'paver_cleaning', 'screen_enclosure']);
 
 const CONFIDENCE_LABEL: Record<string, string> = {
   high: 'High confidence',
@@ -34,8 +46,8 @@ const CONFIDENCE_LABEL: Record<string, string> = {
   low: 'Rough estimate — please confirm',
 };
 
-type Step = 'service' | 'property' | 'researching' | 'confirm' | 'contact' | 'review' | 'success';
-const STEP_ORDER: Exclude<Step, 'success' | 'researching'>[] = ['service', 'property', 'confirm', 'contact', 'review'];
+type Step = 'service' | 'property' | 'mapMeasure' | 'researching' | 'confirm' | 'contact' | 'review' | 'success';
+const STEP_ORDER: Exclude<Step, 'success' | 'researching' | 'mapMeasure'>[] = ['service', 'property', 'confirm', 'contact', 'review'];
 
 function currency(value: string | number): string {
   return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -99,6 +111,14 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   // review) rather than trying to split one submission into two.
   const isRequestOnly = selectedServices.some((s) => s.quoteMode === 'request');
   const hasResearchableServices = selectedServices.some((s) => RESEARCHABLE_SERVICE_TYPES.has(s.serviceType));
+  const mapMeasureQueue = useMemo(() => selectedServices.filter((s) => MAP_MEASURABLE_SERVICE_TYPES.has(s.serviceType)), [selectedServices]);
+  const [mapMeasureIndex, setMapMeasureIndex] = useState(0);
+  const [mapMeasurements, setMapMeasurements] = useState<Record<string, { areaSqFt: number }>>({});
+  // Set when the customer taps "Not sure how to measure?" on the map
+  // step — same effect as the stories/roof-type "I'm not sure" answers
+  // below (route to Request-Only), just triggered by a different
+  // question.
+  const [uncertaintyOverride, setUncertaintyOverride] = useState(false);
   const needsStories = hasResearchableServices;
   const needsRoofType = selectedServices.some((s) => s.serviceType === 'roof_soft_wash');
   const needsExteriorMaterial = selectedServices.some((s) => s.serviceType === 'house_wash');
@@ -111,6 +131,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   // the same mixed-cart policy already established, just with one more
   // real-world reason a cart can end up there.
   const uncertaintyRequiresManualReview =
+    uncertaintyOverride ||
     (needsStories && stories === 'not_sure') ||
     (needsRoofType && roofType === 'not_sure') ||
     (needsExteriorMaterial && exteriorMaterial === 'not_sure');
@@ -152,7 +173,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   }
 
   async function handlePropertyContinue() {
-    if (!hasResearchableServices) {
+    if (!hasResearchableServices && mapMeasureQueue.length === 0) {
       goNext();
       return;
     }
@@ -171,11 +192,54 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
       // Property lookup failure must never break the Quote Tool — an
       // empty result just means the confirm step shows every
       // researchable service as "couldn't find this automatically,
-      // please enter it" instead of a pre-filled card. Never an error
-      // shown to the customer, matching the explicit requirement.
-      setLookupResult({ buildingAreaSqFt: null, buildingConfidence: 'unavailable', roofAreaSqFt: null, roofConfidence: 'unavailable' });
+      // please enter it" instead of a pre-filled card, and the map step
+      // (if reached) falls back to a generic US center rather than the
+      // property. Never an error shown to the customer.
+      setLookupResult({ latitude: null, longitude: null, buildingAreaSqFt: null, buildingConfidence: 'unavailable', roofAreaSqFt: null, roofConfidence: 'unavailable' });
     }
-    setStep('confirm');
+    if (mapMeasureQueue.length > 0) {
+      setMapMeasureIndex(0);
+      setStep('mapMeasure');
+    } else if (hasResearchableServices) {
+      setStep('confirm');
+    } else {
+      goNext();
+    }
+  }
+
+  // Runs after the map-measurement queue finishes — moves on to the
+  // existing confirm step if there's still automatic research to show,
+  // otherwise straight to the next step in the normal sequence.
+  function proceedPastMapMeasurement() {
+    if (hasResearchableServices) {
+      setStep('confirm');
+      return;
+    }
+    const order = effectiveOrder();
+    const i = order.indexOf('property');
+    setStep((i >= 0 && i < order.length - 1 ? order[i + 1] : 'contact') as Step);
+  }
+
+  function handleMapMeasureComplete(areaSqFt: number) {
+    const service = mapMeasureQueue[mapMeasureIndex];
+    setMapMeasurements((prev) => ({ ...prev, [service.id]: { areaSqFt } }));
+    // Same quantities map every other service (researched or manual)
+    // already writes into — the submit payload has exactly one place
+    // it reads quantity from, for every service uniformly.
+    setQuantities((prev) => ({ ...prev, [service.id]: String(areaSqFt) }));
+    if (mapMeasureIndex + 1 < mapMeasureQueue.length) {
+      setMapMeasureIndex((i) => i + 1);
+    } else {
+      proceedPastMapMeasurement();
+    }
+  }
+
+  function handleMapMeasureCancel() {
+    // "Not sure how to measure?" — never invent a measurement. Routes
+    // the whole submission to Request-Only, same mechanism the
+    // stories/roof-type "I'm not sure" answers already use.
+    setUncertaintyOverride(true);
+    proceedPastMapMeasurement();
   }
 
   const canContinueService = selectedServiceIds.size > 0 && selectedServices.every((s) => s.quoteMode === 'request' || s.defaultUnitOfMeasure === 'flat_rate' || Number(quantities[s.id]) > 0);
@@ -393,6 +457,33 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
               </Field>
             </div>
             <BackAndContinue onBack={goBack} onNext={handlePropertyContinue} disabled={!canContinueProperty} color={brandColor} />
+          </div>
+        )}
+
+        {step === 'mapMeasure' && mapMeasureQueue[mapMeasureIndex] && (
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">Let&apos;s measure your {mapMeasureQueue[mapMeasureIndex].name.toLowerCase()}</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              You don&apos;t need to know the measurements — we&apos;ll calculate the area for you.
+              {mapMeasureQueue.length > 1 && ` (${mapMeasureIndex + 1} of ${mapMeasureQueue.length})`}
+            </p>
+            <div className="mt-4">
+              {lookupResult?.latitude != null && lookupResult?.longitude != null ? (
+                <PropertyMeasurementMap
+                  latitude={lookupResult.latitude}
+                  longitude={lookupResult.longitude}
+                  onComplete={handleMapMeasureComplete}
+                  onCancel={handleMapMeasureCancel}
+                />
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-white p-6 text-center">
+                  <p className="text-sm text-slate-600">We couldn&apos;t automatically locate this property on the map.</p>
+                  <button onClick={handleMapMeasureCancel} className="mt-3 rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: brandColor }}>
+                    Request a Quote Instead
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

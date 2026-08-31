@@ -4,6 +4,7 @@ import { Public } from '../../auth/decorators/public.decorator';
 import { QuoteWidgetService } from './services/quote-widget.service';
 import { SubmitQuoteDto } from './dto/submit-quote.dto';
 import { RequestQuoteDto } from './dto/request-quote.dto';
+import { PropertyLookupDto } from './dto/property-lookup.dto';
 
 /**
  * The single home for the public-facing Instant Quote Widget, per the
@@ -48,5 +49,19 @@ export class QuoteWidgetController {
   @Post('request')
   submitRequest(@Param('companySlug') companySlug: string, @Body() dto: RequestQuoteDto) {
     return this.quoteWidget.submitRequest(companySlug, dto);
+  }
+
+  // Deliberately its own, more generous throttle than submitQuote/
+  // submitRequest above — this happens BEFORE a customer commits to
+  // submitting anything at all, potentially several times as they type
+  // and correct their address, so reusing the 5/hour submit limit here
+  // would make normal use feel broken. Still a real, bounded limit
+  // though — this calls a real external service (OSM Overpass), so
+  // this endpoint must never become an unlimited proxy to it.
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
+  @Post('property-lookup')
+  lookupProperty(@Param('companySlug') companySlug: string, @Body() dto: PropertyLookupDto) {
+    return this.quoteWidget.lookupProperty(companySlug, dto);
   }
 }

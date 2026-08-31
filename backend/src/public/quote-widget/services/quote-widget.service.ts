@@ -9,9 +9,12 @@ import { EstimatesService } from '../../../estimates/services/estimates.service'
 import { PortalAuthService } from '../../../portal/services/portal-auth.service';
 import { CompanyContextService } from '../../../documents/services/company-context.service';
 import { CustomerNotesService } from '../../../customers/services/customer-notes.service';
+import { GeocodingService } from '../../../geocoding/geocoding.service';
+import { PropertyIntelligenceService, MeasurementConfidence } from '../../../property-intelligence/property-intelligence.service';
 import { createOwnerNotification } from '../../../common/utils/owner-notification.util';
 import { SubmitQuoteDto } from '../dto/submit-quote.dto';
 import { RequestQuoteDto } from '../dto/request-quote.dto';
+import { PropertyLookupDto } from '../dto/property-lookup.dto';
 import { toCreateCustomerDto, toCreatePropertyDto, toCreateEstimateDto, toLineItemDto } from '../mappers/quote-widget.mappers';
 
 const CREATED_BY_LABEL = 'Quote Widget';
@@ -45,6 +48,8 @@ export class QuoteWidgetService {
     private readonly portalAuth: PortalAuthService,
     private readonly companyContext: CompanyContextService,
     private readonly customerNotes: CustomerNotesService,
+    private readonly geocoding: GeocodingService,
+    private readonly propertyIntelligence: PropertyIntelligenceService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
@@ -294,6 +299,83 @@ export class QuoteWidgetService {
       throw new NotFoundException('This quote page is not available');
     }
     return company;
+  }
+
+  /**
+   * $0-cost property research: geocode (existing, free) → OSM building
+   * footprint (new, free) → an estimated roof area derived from that
+   * footprint via a per-company-configurable multiplier stored in the
+   * existing companies.settings JSONB blob (no migration — same
+   * jsonb_set-merge pattern branding/estimateSettings already use).
+   *
+   * Every number returned here is explicitly labeled with its own
+   * confidence — this method never claims certainty it doesn't have,
+   * and the frontend is expected to always show it as "Estimated" /
+   * "Approximate", never as an exact measurement. When nothing usable
+   * is found, this returns confidence: 'unavailable' for both
+   * measurements rather than throwing — property lookup failure must
+   * never break the Quote Tool, only reduce how much of it can be
+   * pre-filled.
+   */
+  async lookupProperty(companySlug: string, dto: PropertyLookupDto) {
+    const company = await this.resolveCompany(companySlug);
+
+    const geocoded = await this.geocoding.geocode(dto.addressLine1, dto.city, dto.state, dto.postalCode);
+    if (!geocoded) {
+      this.logger.log({ event: 'quote_widget.property_lookup_geocode_failed', companyId: company.id });
+      return {
+        latitude: null,
+        longitude: null,
+        buildingAreaSqFt: null,
+        buildingConfidence: 'unavailable' as MeasurementConfidence,
+        roofAreaSqFt: null,
+        roofConfidence: 'unavailable' as MeasurementConfidence,
+      };
+    }
+
+    const footprint = await this.propertyIntelligence.lookupBuildingFootprint(geocoded.latitude, geocoded.longitude);
+    this.logger.log({ event: 'quote_widget.property_lookup_completed', companyId: company.id, confidence: footprint.confidence });
+
+    if (footprint.confidence === 'unavailable') {
+      return {
+        // Coordinates are still real and useful here — geocoding
+        // succeeded even though no building footprint was found, and
+        // the frontend's map-measurement step needs them regardless of
+        // whether a footprint exists (a driveway-only quote, for
+        // example, never needed the footprint at all).
+        latitude: geocoded.latitude,
+        longitude: geocoded.longitude,
+        buildingAreaSqFt: null,
+        buildingConfidence: 'unavailable' as MeasurementConfidence,
+        roofAreaSqFt: null,
+        roofConfidence: 'unavailable' as MeasurementConfidence,
+      };
+    }
+
+    // Roof estimation is always 'low' confidence — it's a derived guess
+    // (multiplier) on top of an already-imperfect footprint, and
+    // PropertyIntelligenceService itself never returns better than
+    // 'medium' for a found footprint (see that service's own
+    // reasoning: OSM never confirms a building is *the* residence at
+    // this address). A derived number can't be more confident than
+    // its input.
+    const roofConfidence: MeasurementConfidence = 'low';
+
+    // Same jsonb_set-merge pattern branding/estimateSettings already
+    // use, read here rather than written — no migration, and a company
+    // that has never touched this setting gets the same 1.10 default
+    // used throughout this whole feature's design.
+    const settings = company.settings as { propertyIntelligence?: { roofAreaMultiplier?: number } } | null;
+    const roofMultiplier = typeof settings?.propertyIntelligence?.roofAreaMultiplier === 'number' ? settings.propertyIntelligence.roofAreaMultiplier : 1.1;
+
+    return {
+      latitude: geocoded.latitude,
+      longitude: geocoded.longitude,
+      buildingAreaSqFt: footprint.areaSqFt,
+      buildingConfidence: footprint.confidence,
+      roofAreaSqFt: Math.round(footprint.areaSqFt * roofMultiplier),
+      roofConfidence,
+    };
   }
 
   /**

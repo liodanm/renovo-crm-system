@@ -84,6 +84,8 @@ export interface RequestQuotePayload {
 export type MeasurementConfidence = 'high' | 'medium' | 'low' | 'unavailable';
 
 export interface PropertyLookupResult {
+  latitude: number | null;
+  longitude: number | null;
   buildingAreaSqFt: number | null;
   buildingConfidence: MeasurementConfidence;
   roofAreaSqFt: number | null;

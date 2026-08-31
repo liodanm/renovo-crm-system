@@ -28,6 +28,6 @@ import { SettingsModule } from '../settings/settings.module';
     DuplicateDetectionService,
     GeocodingService,
   ],
-  exports: [CustomersService, CustomerPropertiesService, CustomerNotesService],
+  exports: [CustomersService, CustomerPropertiesService, CustomerNotesService, GeocodingService],
 })
 export class CustomersModule {}

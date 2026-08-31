@@ -58,6 +58,14 @@ function buildService(overrides: Partial<Record<string, any>> = {}) {
     create: jest.fn().mockResolvedValue({ id: 'note-1' }),
     ...overrides.customerNotes,
   };
+  const geocoding = {
+    geocode: jest.fn().mockResolvedValue({ latitude: 26.2, longitude: -80.2 }),
+    ...overrides.geocoding,
+  };
+  const propertyIntelligence = {
+    lookupBuildingFootprint: jest.fn().mockResolvedValue({ areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap' }),
+    ...overrides.propertyIntelligence,
+  };
   const redis = {
     get: jest.fn((key: string) => Promise.resolve(redisStore.get(key) ?? null)),
     set: jest.fn((key: string, value: string) => {
@@ -77,10 +85,12 @@ function buildService(overrides: Partial<Record<string, any>> = {}) {
     portalAuth as any,
     companyContext as any,
     customerNotes as any,
+    geocoding as any,
+    propertyIntelligence as any,
     redis as any,
   );
 
-  return { service, prisma, tenantContext, customers, properties, serviceCatalog, estimates, portalAuth, companyContext, customerNotes, redis, redisStore };
+  return { service, prisma, tenantContext, customers, properties, serviceCatalog, estimates, portalAuth, companyContext, customerNotes, geocoding, propertyIntelligence, redis, redisStore };
 }
 
 function submitDto(overrides: Partial<any> = {}) {
