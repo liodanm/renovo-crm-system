@@ -6,38 +6,38 @@ import 'leaflet/dist/leaflet.css';
 import { polygonAreaSqFt, type LatLon } from '../../lib/geometry';
 
 /**
- * The actual root cause of the blank-tile problem — confirmed by the
- * two screenshots showing the identical initial state blank one minute
- * and fully populated the next, which ruled out a wrong maxNativeZoom
- * value (a config problem would fail the same way every time, not
- * intermittently). This is a well-known Leaflet-in-React issue:
- * Leaflet calculates its tile grid from the container's size at the
- * exact moment it initializes. This map mounts via next/dynamic
- * (ssr:false) inside a conditionally-rendered step, so the container
- * isn't guaranteed to have its final size yet at that instant — a race
- * that resolves differently run to run, exactly matching what was
- * reported. invalidateSize() forces Leaflet to recheck the real
- * container size and correctly (re)fetch the tiles for it; calling it
- * shortly after mount, and again on any later resize, removes the
- * timing dependency instead of just tolerating it. This is the
- * standard fix for this exact symptom, not a guess.
+ * The actual root cause of the blank-tile problem — confirmed by two
+ * screenshots showing the identical initial state blank one minute and
+ * fully populated the next, which ruled out a wrong maxNativeZoom value
+ * (a config problem fails the same way every time, not intermittently).
+ * This is a well-known Leaflet-in-React issue: Leaflet calculates its
+ * tile grid from the container's size at the exact moment it
+ * initializes. This map mounts via next/dynamic (ssr:false) inside a
+ * conditionally-rendered step, so the container isn't guaranteed to
+ * have its final size yet at that instant.
+ *
+ * Upgraded from a timeout-based guess to a ResizeObserver: the
+ * rAF/timeout version (this component's first attempt) fired
+ * invalidateSize() after a *guessed* delay, which is still a race
+ * against however long the container actually takes to settle — on a
+ * slower device or a longer transition, that guess could still lose.
+ * ResizeObserver instead fires exactly when the container's real size
+ * changes, with no timing assumption at all — this is the fully
+ * deterministic fix, not a better-tuned guess.
  */
 function MapReadyFixer() {
   const map = useMap();
   useEffect(() => {
+    const container = map.getContainer();
     const fix = () => map.invalidateSize();
-    // A microtask-deferred call catches the common case (container
-    // reaches its final size within the same render cycle); the
-    // 300ms one catches slower cases (e.g. a CSS transition on the
-    // step change) without relying on either alone.
-    const raf = requestAnimationFrame(fix);
-    const timeout = setTimeout(fix, 300);
-    window.addEventListener('resize', fix);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(timeout);
-      window.removeEventListener('resize', fix);
-    };
+    // Fires immediately once on mount too, covering the common case
+    // where the container is already correctly sized — ResizeObserver
+    // alone only fires on a subsequent *change*, not on the initial
+    // observe.
+    fix();
+    const observer = new ResizeObserver(fix);
+    observer.observe(container);
+    return () => observer.disconnect();
   }, [map]);
   return null;
 }
@@ -93,7 +93,18 @@ export function PropertyMeasurementMap({
   return (
     <div>
       <div className="h-72 w-full overflow-hidden rounded-xl border border-slate-200 sm:h-96">
-        <MapContainer center={[latitude, longitude]} zoom={20} maxZoom={21} scrollWheelZoom className="h-full w-full">
+        {/* zoom=19 is deliberately the STARTING point, not the ceiling
+            — per explicit guidance: "highest RELIABLE property-level
+            zoom," not maximum. Esri's own documentation confirms real
+            coverage varies by area (0.3m in select metros, 0.5m across
+            most of the US); 19 is a safer default that's very likely to
+            have real tile data everywhere in the service area, while
+            maxZoom={21} still lets the customer zoom in further
+            themselves if they want a bigger view — MapReadyFixer above
+            (not this number) is what actually prevents blank tiles now,
+            so this value is chosen for a reliably tight initial framing
+            of the property, not to work around the bug. */}
+        <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} scrollWheelZoom className="h-full w-full">
           <MapReadyFixer />
           <TileLayer
             attribution="Esri, Maxar, Earthstar Geographics"
