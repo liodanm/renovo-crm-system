@@ -56,21 +56,22 @@ export function PropertyMeasurementMap({
   return (
     <div>
       <div className="h-72 w-full overflow-hidden rounded-xl border border-slate-200 sm:h-96">
-        <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} scrollWheelZoom className="h-full w-full">
+        <MapContainer center={[latitude, longitude]} zoom={18} maxZoom={21} scrollWheelZoom className="h-full w-full">
           <TileLayer
             attribution="Esri, Maxar, Earthstar Geographics"
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            // Real bug this fixes: Esri's free World Imagery tiles only
-            // have actual image data up to roughly this zoom level for
-            // most residential areas — zooming in further (which the
-            // map's own maxZoom={21} above still allows, for a bigger
-            // on-screen view while outlining) was requesting tiles that
-            // don't exist, rendering blank/gray. maxNativeZoom tells
-            // Leaflet to stop fetching past this level and instead
-            // stretch the last real tile it has, so the customer always
-            // sees imagery — just less sharp past this point — never a
-            // blank map.
-            maxNativeZoom={19}
+            // Esri's own documentation confirms coverage varies by area:
+            // most of the US gets 0.5m-resolution imagery (dense metro
+            // cores get a higher-tier 0.3m), and 0.5m imagery genuinely
+            // doesn't have real tile data as deep as I first assumed.
+            // Lowered further after the first attempt (19) still went
+            // blank on a real test — this is a more conservative,
+            // safer ceiling for a typical US suburban address. The map
+            // itself can still be zoomed in past this (maxZoom={21}
+            // above) for a bigger on-screen view of the property —
+            // Leaflet just stretches the last real tile past this
+            // point instead of fetching a nonexistent one.
+            maxNativeZoom={18}
           />
           <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
           {points.map((p, i) => (
