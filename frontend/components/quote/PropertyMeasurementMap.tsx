@@ -127,7 +127,18 @@ export function PropertyMeasurementMap({
             themselves — MapReadyFixer below (not this number) is what
             prevents blank tiles, so this value is chosen for reliable
             initial framing of the property, not to work around a bug. */}
-        <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} scrollWheelZoom className="h-full w-full">
+        {/* zoomAnimation disabled: the single most important clue in
+            this whole investigation is that the exact same symptom
+            (blank up close, fine zoomed out) happened with Esri AND
+            with Mapbox — two unrelated tile providers failing
+            identically means this was never a provider problem. That
+            points at the zoom TRANSITION itself, not the tile source.
+            Leaflet's animated zoom is a well-known source of tile-
+            loading races in React wrapper contexts; disabling it makes
+            zoom changes apply instantly instead of animating, removing
+            that entire class of timing issue. Never tested until now
+            in this investigation. */}
+        <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} zoomAnimation={false} scrollWheelZoom className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             // Mapbox's v4 Raster Tiles API — the correct, documented
