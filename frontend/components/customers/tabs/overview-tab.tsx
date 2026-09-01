@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { CalendarClock, ChevronRight } from 'lucide-react';
+import { CalendarClock, ChevronRight, Star, X } from 'lucide-react';
 import { customersApi, CustomerProfile, ServiceHistory } from '../../../lib/api/customers';
 import { CardSkeleton } from '../../dashboard/dashboard-card';
 import { cn } from '../../../lib/utils';
+import { ApiError } from '../../../lib/api/api-client';
+import { settingsApi } from '../../../lib/api/settings';
 
 function formatMoney(value: string | number): string {
   return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -34,17 +36,21 @@ export function OverviewTab({
   customer,
   serviceHistory,
   onUpdated,
+  onServiceHistoryUpdated,
   onNavigateTab,
 }: {
   customer: CustomerProfile;
   serviceHistory: ServiceHistory | undefined;
   onUpdated: () => void;
+  onServiceHistoryUpdated: () => void;
   onNavigateTab: (tab: 'Properties' | 'Activity') => void;
 }) {
   const [isEditingTags, setIsEditingTags] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState(customer.tags);
   const [savingTags, setSavingTags] = useState(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isMarkingReceived, setIsMarkingReceived] = useState(false);
 
   // Recent Activity reuses the exact same endpoint the Activity tab
   // itself calls — not a second activity system, just a shorter slice
@@ -68,6 +74,16 @@ export function OverviewTab({
   }
   function removeTag(tag: string) {
     saveTags(tags.filter((t) => t !== tag));
+  }
+
+  async function handleMarkReviewReceived() {
+    setIsMarkingReceived(true);
+    try {
+      await customersApi.markReviewReceived(customer.id);
+      onServiceHistoryUpdated();
+    } finally {
+      setIsMarkingReceived(false);
+    }
   }
 
   // Deterministic, existing-data rules only — no invented scoring, no
@@ -179,8 +195,21 @@ export function OverviewTab({
         )}
       </div>
 
-      {/* ---- RIGHT: Customer Info, Property, Tags, Custom Fields ---- */}
+      {/* ---- RIGHT: Reviews, Customer Info, Property, Tags, Custom Fields ---- */}
       <div className="space-y-4">
+        <Section title="Reviews">
+          {!serviceHistory && <CardSkeleton lines={2} />}
+          {serviceHistory && (
+            <ReviewsSectionBody
+              customer={customer}
+              intelligence={serviceHistory.intelligence}
+              isMarkingReceived={isMarkingReceived}
+              onRequestClick={() => setIsRequestModalOpen(true)}
+              onMarkReceivedClick={handleMarkReviewReceived}
+            />
+          )}
+        </Section>
+
         <Section title="Contact">
           <dl className="space-y-1.5 text-sm">
             <InfoRow label="Phone" value={customer.phone} href={customer.phone ? `tel:${customer.phone}` : undefined} />
@@ -256,6 +285,17 @@ export function OverviewTab({
           </Section>
         )}
       </div>
+
+      {isRequestModalOpen && (
+        <RequestReviewModal
+          customer={customer}
+          onClose={() => setIsRequestModalOpen(false)}
+          onSent={() => {
+            setIsRequestModalOpen(false);
+            onServiceHistoryUpdated();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -302,3 +342,178 @@ function HistoryRow({ href, left, right, status, date }: { href: string; left: s
     </Link>
   );
 }
+
+/**
+ * The four states the audit's Customer Review Management spec calls
+ * for: Review Received / Review Requested / Not Requested / Unable to
+ * Request. "Unable to Request" is checked first and wins regardless of
+ * reviewStatus — a customer with no phone can't have a real pending
+ * request in any meaningful sense, no matter what the backend log says.
+ *
+ * "reviewCooldownUntil" (from serviceHistory.intelligence, computed
+ * server-side in getServiceHistory) is shown proactively here — the
+ * customer sees the real next-eligible date before ever clicking
+ * anything, not only as an error message after a blocked attempt.
+ */
+function ReviewsSectionBody({
+  customer,
+  intelligence,
+  isMarkingReceived,
+  onRequestClick,
+  onMarkReceivedClick,
+}: {
+  customer: CustomerProfile;
+  intelligence: ServiceHistory['intelligence'];
+  isMarkingReceived: boolean;
+  onRequestClick: () => void;
+  onMarkReceivedClick: () => void;
+}) {
+  const hasPhone = Boolean(customer.phone);
+  const cooldownActive = intelligence.reviewCooldownUntil && new Date(intelligence.reviewCooldownUntil) > new Date();
+
+  if (intelligence.reviewStatus === 'received') {
+    return (
+      <div>
+        <div className="flex items-center gap-1 text-amber-500">
+          {[0, 1, 2, 3, 4].map((i) => <Star key={i} className="h-4 w-4 fill-current" />)}
+        </div>
+        <p className="mt-1.5 text-sm font-medium text-slate-800 dark:text-slate-100">Review Received</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Manually recorded · Google
+          {intelligence.reviewReceivedAt && ` · ${new Date(intelligence.reviewReceivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+        </p>
+      </div>
+    );
+  }
+
+  if (!hasPhone) {
+    return (
+      <div>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Unable to request review</p>
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">No valid mobile phone number on file.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
+        {intelligence.reviewStatus === 'never_requested' ? 'Not Requested' : 'Review Requested'}
+      </p>
+      {intelligence.reviewLastRequestedAt && (
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+          Requested {new Date(intelligence.reviewLastRequestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          {' · '}
+          SMS {intelligence.reviewStatus === 'failed' ? 'Failed' : 'Sent'}
+        </p>
+      )}
+      {cooldownActive && intelligence.reviewCooldownUntil && (
+        <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+          Already requested recently — next eligible {new Date(intelligence.reviewCooldownUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          onClick={onRequestClick}
+          disabled={Boolean(cooldownActive)}
+          className="rounded-lg bg-[var(--color-brand)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+        >
+          {intelligence.reviewStatus === 'never_requested' ? 'Request Review by Text' : 'Request Again'}
+        </button>
+        <button
+          onClick={onMarkReceivedClick}
+          disabled={isMarkingReceived}
+          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40"
+        >
+          {isMarkingReceived ? 'Saving…' : 'Mark Review Received'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Confirmation modal — customer name/phone + a preview of what will be
+ * sent, before anything actually goes out. The preview text mirrors
+ * the backend's own default template (buildReviewRequestMessage's
+ * fallback in review-message.util.ts) using the company's real name
+ * (fetched via the existing settingsApi.getCompany(), not duplicated
+ * or invented) and a placeholder for the review link, since the real
+ * URL is resolved server-side at send time from Settings > Integrations
+ * — not fetched again here just to render a preview. If the company
+ * has customized their review-request template in Settings >
+ * Automation, the actual message sent may differ from this preview;
+ * said so directly in the UI rather than silently showing something
+ * that might not match what's actually sent.
+ */
+function RequestReviewModal({ customer, onClose, onSent }: { customer: CustomerProfile; onClose: () => void; onSent: () => void }) {
+  const { data: company } = useSWR('company-settings-preview', () => settingsApi.getCompany());
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<{ message: string; nextEligibleAt?: string } | null>(null);
+
+  const firstName = customer.firstName || 'there';
+  const previewMessage = `Hi ${firstName}, thank you for choosing ${company?.name ?? '…'}! If you were happy with our service, we'd really appreciate a quick Google review. It only takes a minute: [Google Review Link] Thank you!`;
+
+  async function handleSend() {
+    setIsSending(true);
+    setError(null);
+    try {
+      await customersApi.requestReview(customer.id);
+      onSent();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const details = err.details as { nextEligibleAt?: string } | undefined;
+        setError({ message: err.message, nextEligibleAt: details?.nextEligibleAt });
+      } else {
+        setError({ message: 'Unable to send the review request. Please try again.' });
+      }
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white dark:bg-slate-900 p-5 shadow-xl">
+        <div className="flex items-start justify-between">
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Request Review by Text</h3>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <dl className="mt-3 space-y-1 text-sm">
+          <div className="flex justify-between"><dt className="text-slate-400 dark:text-slate-500">To</dt><dd className="text-slate-700 dark:text-slate-300">{customer.firstName} {customer.lastName}</dd></div>
+          <div className="flex justify-between"><dt className="text-slate-400 dark:text-slate-500">Phone</dt><dd className="text-slate-700 dark:text-slate-300">{customer.phone}</dd></div>
+        </dl>
+
+        <div className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-800 p-3 text-sm text-slate-700 dark:text-slate-300">{previewMessage}</div>
+        <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+          The real Google Review link is filled in automatically from Settings → Integrations. If you've customized this message in Settings → Automation, the actual text sent may differ slightly from this preview.
+        </p>
+
+        {error && (
+          <p className="mt-3 text-xs text-red-600 dark:text-red-400">
+            {error.message}
+            {error.nextEligibleAt && ` Next eligible: ${new Date(error.nextEligibleAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.`}
+          </p>
+        )}
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">
+            Cancel
+          </button>
+          <button
+            onClick={handleSend}
+            disabled={isSending}
+            className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+          >
+            {isSending ? 'Sending…' : 'Send Review Request'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

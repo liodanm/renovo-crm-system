@@ -43,7 +43,8 @@ function buildMockTx() {
     customFieldValue: { findMany: jest.fn() },
     serviceCatalogItem: { findMany: jest.fn() },
     automationSettings: { findUnique: jest.fn() },
-    automationLog: { findFirst: jest.fn() },
+    automationLog: { findFirst: jest.fn(), create: jest.fn() },
+    company: { findUnique: jest.fn() },
     customerNote: { findMany: jest.fn(), updateMany: jest.fn() },
     property: { updateMany: jest.fn() },
     photo: { updateMany: jest.fn() },
@@ -57,6 +58,8 @@ describe('CustomersService — tenant-context hardening regression tests', () =>
   let withTenantContextCalls: { companyId: string }[];
   let prisma: any;
   let service: CustomersService;
+  let integrations: { getBusinessLinks: jest.Mock };
+  let sms: { send: jest.Mock };
 
   beforeEach(() => {
     mockTx = buildMockTx();
@@ -71,8 +74,10 @@ describe('CustomersService — tenant-context hardening regression tests', () =>
 
     const settings = { getLeadSources: jest.fn().mockResolvedValue({ options: [] }) };
     const duplicateDetection = {};
+    integrations = { getBusinessLinks: jest.fn().mockResolvedValue({ googleReviewUrl: 'https://g.page/r/example/review' }) };
+    sms = { send: jest.fn().mockResolvedValue({ sent: true }) };
 
-    service = new CustomersService(prisma, duplicateDetection as any, settings as any);
+    service = new CustomersService(prisma, duplicateDetection as any, settings as any, integrations as any, sms as any);
   });
 
   it('create() establishes tenant context with the exact companyId passed in — the core public-endpoint-safety property', async () => {
@@ -188,5 +193,113 @@ describe('CustomersService — tenant-context hardening regression tests', () =>
     expect(mockTx.customer.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ companyId: 'company-A', id: 'customer-1' }) }),
     );
+  });
+});
+
+describe('CustomersService.requestReviewManual', () => {
+  let mockTx: ReturnType<typeof buildMockTx>;
+  let prisma: any;
+  let service: CustomersService;
+  let integrations: { getBusinessLinks: jest.Mock };
+  let sms: { send: jest.Mock };
+
+  const baseCustomer = { id: 'cust-1', companyId: 'company-A', firstName: 'Jane', phone: '+15555550100', deletedAt: null };
+
+  beforeEach(() => {
+    mockTx = buildMockTx();
+    prisma = { withTenantContext: jest.fn((companyId: string, fn: (tx: any) => any) => fn(mockTx)) };
+    integrations = { getBusinessLinks: jest.fn().mockResolvedValue({ googleReviewUrl: 'https://g.page/r/example/review' }) };
+    sms = { send: jest.fn().mockResolvedValue({ sent: true }) };
+
+    const settings = {};
+    const duplicateDetection = {};
+    service = new CustomersService(prisma, duplicateDetection as any, settings as any, integrations as any, sms as any);
+
+    mockTx.customer.findFirst.mockResolvedValue(baseCustomer);
+    mockTx.automationLog.findFirst.mockResolvedValue(null); // no prior request — no cooldown
+    mockTx.automationLog.create.mockResolvedValue({});
+    mockTx.company.findUnique.mockResolvedValue({ name: 'Relentless Pressure Wash' });
+    mockTx.automationSettings.findUnique.mockResolvedValue({ templates: {} });
+  });
+
+  it('rejects when the customer has no phone number on file, before attempting anything else', async () => {
+    mockTx.customer.findFirst.mockResolvedValue({ ...baseCustomer, phone: null });
+
+    await expect(service.requestReviewManual('company-A', 'cust-1')).rejects.toThrow('No valid phone number');
+    expect(sms.send).not.toHaveBeenCalled();
+    expect(mockTx.automationLog.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects when no Google Review URL has been configured', async () => {
+    integrations.getBusinessLinks.mockResolvedValue({ googleReviewUrl: null });
+
+    await expect(service.requestReviewManual('company-A', 'cust-1')).rejects.toThrow('No Google Review URL');
+    expect(sms.send).not.toHaveBeenCalled();
+  });
+
+  it('rejects with cooldown details when a request was already sent within 30 days', async () => {
+    const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+    mockTx.automationLog.findFirst.mockResolvedValue({ sentAt: fifteenDaysAgo });
+
+    await expect(service.requestReviewManual('company-A', 'cust-1')).rejects.toMatchObject({
+      response: expect.objectContaining({ message: 'A review request was already sent recently.' }),
+    });
+    expect(sms.send).not.toHaveBeenCalled();
+  });
+
+  it('allows a new request once the 30-day cooldown has fully elapsed', async () => {
+    const thirtyOneDaysAgo = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
+    mockTx.automationLog.findFirst.mockResolvedValue({ sentAt: thirtyOneDaysAgo });
+
+    const result = await service.requestReviewManual('company-A', 'cust-1');
+
+    expect(result.sent).toBe(true);
+    expect(sms.send).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends via the shared SmsService with a message containing the customer name, company name, and review URL', async () => {
+    await service.requestReviewManual('company-A', 'cust-1');
+
+    expect(sms.send).toHaveBeenCalledWith(
+      '+15555550100',
+      expect.stringContaining('Jane') && expect.any(String),
+    );
+    const [, message] = sms.send.mock.calls[0];
+    expect(message).toContain('Jane');
+    expect(message).toContain('Relentless Pressure Wash');
+    expect(message).toContain('https://g.page/r/example/review');
+  });
+
+  it('records the send in AutomationLog with ruleType review_request, so getServiceHistory() status computation applies unchanged', async () => {
+    await service.requestReviewManual('company-A', 'cust-1');
+
+    expect(mockTx.automationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          companyId: 'company-A',
+          customerId: 'cust-1',
+          ruleType: 'review_request',
+          channel: 'sms',
+          status: 'sent',
+        }),
+      }),
+    );
+  });
+
+  it('records a failed status and throws when the SMS provider fails to send', async () => {
+    sms.send.mockResolvedValue({ sent: false, error: 'twilio_error_500' });
+
+    await expect(service.requestReviewManual('company-A', 'cust-1')).rejects.toThrow('Unable to send the review request');
+
+    expect(mockTx.automationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed', errorDetail: 'twilio_error_500' }) }),
+    );
+  });
+
+  it('throws NotFoundException for a customer belonging to a different company — no cross-tenant send', async () => {
+    mockTx.customer.findFirst.mockResolvedValue(null);
+
+    await expect(service.requestReviewManual('company-A', 'customer-in-company-B')).rejects.toThrow('Customer not found');
+    expect(sms.send).not.toHaveBeenCalled();
   });
 });

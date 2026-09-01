@@ -112,6 +112,8 @@ export interface ServiceHistory {
     overdueForCleaning: boolean;
     reviewStatus: 'received' | 'sent' | 'failed' | 'never_requested';
     reviewReceivedAt: string | null;
+    reviewLastRequestedAt: string | null;
+    reviewCooldownUntil: string | null;
   };
   jobs: Array<{ id: string; title: string; status: string; serviceType: string | null; scheduledStart: string | null; price: number; address: string }>;
   estimates: Array<{ id: string; status: string; totalAmount: number; sentAt: string | null; createdAt: string }>;
@@ -194,6 +196,7 @@ export const customersApi = {
 
   getServiceHistory: (id: string) => apiFetch<ServiceHistory>(`/customers/${id}/service-history`),
   markReviewReceived: (id: string) => apiFetch<void>(`/customers/${id}/mark-review-received`, { method: 'POST' }),
+  requestReview: (id: string) => apiFetch<{ sent: boolean; sentAt: string }>(`/customers/${id}/request-review`, { method: 'POST' }),
 
   getActivity: (id: string) => apiFetch<ActivityEvent[]>(`/customers/${id}/activity`),
 

@@ -6,8 +6,17 @@ import { UpdateCustomerDto } from '../dto/update-customer.dto';
 import { QueryCustomersDto } from '../dto/query-customers.dto';
 import { DuplicateDetectionService } from './duplicate-detection.service';
 import { SettingsService } from '../../settings/services/settings.service';
+import { IntegrationsService } from '../../settings/services/integrations.service';
+import { SmsService } from '../../sms/sms.service';
+import { buildReviewRequestMessage } from '../../common/utils/review-message.util';
 
 const DEFAULT_PAGE_SIZE = 25;
+// Server-side cooldown for MANUAL review-request sends — a separate
+// concept from the automated path's dedupe key (which is per-job, not
+// per-customer-per-30-days). Kept as one named constant, referenced
+// both here and in getProfile()'s reviewCooldownUntil calculation,
+// rather than the same "30" appearing twice and risking drift.
+const REVIEW_REQUEST_COOLDOWN_DAYS = 30;
 
 @Injectable()
 export class CustomersService {
@@ -15,6 +24,8 @@ export class CustomersService {
     private readonly prisma: PrismaService,
     private readonly duplicateDetection: DuplicateDetectionService,
     private readonly settings: SettingsService,
+    private readonly integrations: IntegrationsService,
+    private readonly sms: SmsService,
   ) {}
 
   /**
@@ -402,6 +413,109 @@ export class CustomersService {
     });
   }
 
+  /**
+   * Manual, on-demand "Request Review by Text" — distinct from
+   * AutomationService.runReviewRequests, which already sends this
+   * automatically on a delay after job completion. This is the
+   * explicit, owner-initiated version: Customer Detail page → Request
+   * Review by Text → confirm → send now, for a customer the owner
+   * wants to nudge outside the automated schedule.
+   *
+   * Reuses, rather than duplicates:
+   *   - SmsService for the actual send (same Twilio path automation uses)
+   *   - AutomationLog for recording the send (same table/shape
+   *     automation writes to, same ruleType: 'review_request' — so
+   *     getProfile()'s existing reviewStatus computation keeps working
+   *     for both manual and automatic sends with no changes there)
+   *   - IntegrationsService.getBusinessLinks() for the Google Review
+   *     URL — the EXISTING Settings > Integrations > Business Links
+   *     field already used on payment receipts, not a new setting
+   *   - buildReviewRequestMessage() for the message text, including
+   *     AutomationSettings.templates.review_request as an optional
+   *     override, same template source automation already reads
+   *
+   * The 30-day cooldown here is enforced server-side by construction
+   * (this method is the only manual send path, and it always checks
+   * before sending) — never trust a frontend-only guard for this.
+   */
+  async requestReviewManual(companyId: string, customerId: string) {
+    return this.prisma.withTenantContext(companyId, async (tx) => {
+      const customer = await this.assertExists(tx, companyId, customerId);
+
+      if (!customer.phone) {
+        throw new BadRequestException('No valid phone number is available for this customer.');
+      }
+
+      const lastLog = await tx.automationLog.findFirst({
+        where: { companyId, customerId, ruleType: 'review_request' },
+        orderBy: { sentAt: 'desc' },
+        select: { sentAt: true },
+      });
+      if (lastLog) {
+        const nextEligibleAt = new Date(lastLog.sentAt.getTime() + REVIEW_REQUEST_COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
+        if (nextEligibleAt > new Date()) {
+          throw new BadRequestException({
+            message: 'A review request was already sent recently.',
+            requestedAt: lastLog.sentAt,
+            nextEligibleAt,
+          });
+        }
+      }
+
+      // Reused, not re-derived — the exact same field Settings >
+      // Integrations > Business Links already maintains and Payment
+      // Receipts already read.
+      const { googleReviewUrl } = await this.integrations.getBusinessLinks(companyId);
+      if (!googleReviewUrl) {
+        throw new BadRequestException(
+          'No Google Review URL has been configured. Add one in Settings → Integrations → Business Links.',
+        );
+      }
+
+      const [company, automationSettings] = await Promise.all([
+        tx.company.findUnique({ where: { id: companyId }, select: { name: true } }),
+        tx.automationSettings.findUnique({ where: { companyId }, select: { templates: true } }),
+      ]);
+      if (!company) throw new NotFoundException('Company not found');
+
+      const templates = (automationSettings?.templates as { review_request?: { body?: string } } | null) ?? null;
+      const message = buildReviewRequestMessage({
+        customerFirstName: customer.firstName,
+        companyName: company.name,
+        reviewUrl: googleReviewUrl,
+        template: templates?.review_request?.body,
+      });
+
+      const result = await this.sms.send(customer.phone, message);
+
+      // Same table/shape AutomationService.sendOnce() writes to, so
+      // reviewStatus in getProfile() reflects manual sends identically
+      // to automated ones. dedupeKey is unique per attempt (not
+      // per-job like automation's) — the cooldown check above is the
+      // real duplicate-prevention rule here; this unique key exists
+      // only to satisfy the table's existing (companyId, dedupeKey)
+      // constraint, not to BE the cooldown.
+      await tx.automationLog.create({
+        data: {
+          companyId,
+          customerId,
+          ruleType: 'review_request',
+          dedupeKey: `review_request_manual:${customerId}:${Date.now()}`,
+          channel: 'sms',
+          messageBody: message,
+          status: result.sent ? 'sent' : 'failed',
+          errorDetail: result.sent ? null : result.error,
+        },
+      });
+
+      if (!result.sent) {
+        throw new BadRequestException('Unable to send the review request. Please try again.');
+      }
+
+      return { sent: true, sentAt: new Date() };
+    });
+  }
+
   async getProfile(companyId: string, customerId: string) {
     return this.prisma.withTenantContext(companyId, async (tx) => {
       const customer = await tx.customer.findFirst({
@@ -664,6 +778,19 @@ export class CustomersService {
     // and already comes back on the customer detail response the
     // frontend already fetches, so there's no reason for this endpoint
     // to compute its own second version of the same number.
+    //
+    // reviewLastRequestedAt / reviewCooldownUntil: added for the manual
+    // Request Review feature's UI — lets the Reviews section show "next
+    // eligible" BEFORE the customer clicks anything, rather than only
+    // surfacing the cooldown as an error after a failed attempt.
+    // REVIEW_REQUEST_COOLDOWN_DAYS below is the same constant
+    // requestReviewManual() enforces server-side — one number, not two
+    // independently-maintained copies.
+    const reviewLastRequestedAt = reviewRequestLog?.sentAt ?? null;
+    const reviewCooldownUntil = reviewLastRequestedAt
+      ? new Date(reviewLastRequestedAt.getTime() + REVIEW_REQUEST_COOLDOWN_DAYS * 24 * 60 * 60 * 1000)
+      : null;
+
     return {
       summary: {
         totalJobs: jobs.length,
@@ -687,6 +814,8 @@ export class CustomersService {
         overdueForCleaning,
         reviewStatus,
         reviewReceivedAt: customer.reviewReceivedAt,
+        reviewLastRequestedAt,
+        reviewCooldownUntil,
       },
       jobs: jobs.map((j) => ({
         id: j.id,
