@@ -134,10 +134,20 @@ export function PropertyMeasurementMap({
             // format for a plain Leaflet TileLayer (not the newer GL JS
             // vector-style API, which this app deliberately does NOT
             // adopt — Leaflet stays exactly as it already was, only the
-            // tile source changes). {r} lets Leaflet request @2x tiles
-            // on high-DPI screens automatically via detectRetina below.
-            url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}{r}.png?access_token=${mapboxToken}`}
-            detectRetina
+            // tile source changes).
+            //
+            // detectRetina removed: real, concrete difference from the
+            // original working Esri config, which never had it. On a
+            // display with >100% scaling (common on Windows), this
+            // makes Leaflet request Mapbox's @2x tile variant instead
+            // of the regular one — and while the regular tile for the
+            // exact test property was directly confirmed to exist,
+            // @2x coverage isn't guaranteed to be identical. This
+            // matches the reported symptom precisely: blank near the
+            // actual zoom level, working once zoomed out to different
+            // tiles. {r} is removed from the URL along with it, since
+            // it has no effect without detectRetina enabled.
+            url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=${mapboxToken}`}
             maxNativeZoom={20}
           />
           {/* Rendered AFTER TileLayer now — see MapReadyFixer's own
