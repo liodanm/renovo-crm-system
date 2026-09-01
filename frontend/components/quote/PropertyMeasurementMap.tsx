@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Polygon, CircleMarker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Marker, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { polygonAreaSqFt, type LatLon } from '../../lib/geometry';
+import { polygonAreaSqFt, movePolygonPoint, MIN_MEASUREMENT_AREA_SQFT, type LatLon } from '../../lib/geometry';
 
 /**
  * The actual root cause of the blank-tile problem — confirmed by two
@@ -56,6 +57,89 @@ function ClickCapture({ onPoint }: { onPoint: (p: LatLon) => void }) {
 }
 
 /**
+ * Draggable vertex markers, built with L.divIcon rather than the
+ * default L.Icon — deliberately avoids Leaflet's default marker-icon
+ * image assets entirely (a well-known source of broken-icon issues in
+ * bundler setups; the CircleMarker this replaces sidestepped the same
+ * problem by using an SVG path layer instead). divIcon content is
+ * plain inline-styled HTML, so no new image files or CSS are needed.
+ *
+ * className: '' on both variants strips Leaflet's default
+ * `leaflet-div-icon` styling (a white bordered square) — without this
+ * override, that default box would show behind/around our own dot.
+ *
+ * Sized 44x44 for the touch target specifically per Apple/Android's
+ * documented minimum recommended touch-target size — the visible dot
+ * inside stays small (16px, 22px while active) so the marker still
+ * reads as a precise point, not a big blob, while remaining easy to
+ * grab with a finger. iconAnchor is the icon's center, so the visual
+ * dot's center — not the invisible touch padding — is what actually
+ * sits on the lat/lon coordinate.
+ *
+ * Built once at module scope, not per-render/per-point — these are
+ * static, reused across every vertex; recreating them inside the
+ * component would be wasted work on every drag-triggered re-render.
+ */
+const VERTEX_ICON = L.divIcon({
+  className: '',
+  html: '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;"><div style="width:16px;height:16px;border-radius:9999px;background:#0f766e;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.45);"></div></div>',
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
+
+const VERTEX_ICON_ACTIVE = L.divIcon({
+  className: '',
+  html: '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;"><div style="width:22px;height:22px;border-radius:9999px;background:#0f766e;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.55);"></div></div>',
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
+
+function DraggableVertex({
+  point,
+  index,
+  isActive,
+  onDragStart,
+  onDrag,
+  onDragEnd,
+}: {
+  point: LatLon;
+  index: number;
+  isActive: boolean;
+  onDragStart: (index: number) => void;
+  onDrag: (index: number, p: LatLon) => void;
+  onDragEnd: () => void;
+}) {
+  return (
+    <Marker
+      position={[point.lat, point.lon]}
+      icon={isActive ? VERTEX_ICON_ACTIVE : VERTEX_ICON}
+      draggable
+      // Without this, Leaflet's default `bubblingMouseEvents: true`
+      // means a plain TAP (not a drag) on an existing vertex would
+      // also bubble a 'click' up to the map's own click handler
+      // (ClickCapture above), silently adding a duplicate new point
+      // right on top of the vertex the customer was just trying to
+      // grab. This is exactly the kind of add-vs-drag interaction
+      // conflict called out as something to get right.
+      bubblingMouseEvents={false}
+      title={`Point ${index + 1} — drag to adjust`}
+      // Leaflet's own Marker.Drag handler calls stopPropagation
+      // internally as part of its drag implementation — dragging a
+      // marker does not pan the map underneath it. This is built-in
+      // Leaflet behavior, not something this component reimplements.
+      eventHandlers={{
+        dragstart: () => onDragStart(index),
+        drag: (e) => {
+          const ll = (e.target as L.Marker).getLatLng();
+          onDrag(index, { lat: ll.lat, lon: ll.lng });
+        },
+        dragend: () => onDragEnd(),
+      }}
+    />
+  );
+}
+
+/**
  * Polygon-only for this phase, per the approved plan — linear/point
  * measurement modes are a future extension of this same component, not
  * built yet. Renders on top of Mapbox Satellite imagery (switched from
@@ -89,14 +173,21 @@ export function PropertyMeasurementMap({
   onCancel: () => void;
 }) {
   const [points, setPoints] = useState<LatLon[]>(initialPoints ?? []);
+  // Tracks which vertex (if any) is currently being dragged, purely
+  // for visual feedback (the larger/highlighted marker state) — not
+  // used for any geometry logic, which stays entirely in `points`.
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const area = polygonAreaSqFt(points);
   const canFinish = points.length >= 3;
   // A genuine floor, not an arbitrary one — a real residential surface
   // (even a small walkway segment) is comfortably above this; anything
   // below it is almost always an accidental cluster of taps rather than
   // a real outline. Deliberately generous, per "don't over-restrict
-  // legitimate small residential surfaces."
-  const tooSmall = canFinish && area < 20;
+  // legitimate small residential surfaces." Threshold now lives in
+  // geometry.ts (MIN_MEASUREMENT_AREA_SQFT) so it's unit-testable
+  // alongside the drag-updates-area behavior, rather than a second
+  // hardcoded number living only here.
+  const tooSmall = canFinish && area < MIN_MEASUREMENT_AREA_SQFT;
 
   // Public (client-safe) token — per Mapbox's own model, this is
   // exactly what public tokens are for, same reasoning documented in
@@ -196,7 +287,15 @@ export function PropertyMeasurementMap({
           <MapReadyFixer />
           <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
           {points.map((p, i) => (
-            <CircleMarker key={i} center={[p.lat, p.lon]} radius={7} pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#0f766e', fillOpacity: 1 }} />
+            <DraggableVertex
+              key={i}
+              point={p}
+              index={i}
+              isActive={draggingIndex === i}
+              onDragStart={setDraggingIndex}
+              onDrag={(index, newPoint) => setPoints((prev) => movePolygonPoint(prev, index, newPoint))}
+              onDragEnd={() => setDraggingIndex(null)}
+            />
           ))}
           {points.length >= 2 && (
             <Polygon positions={points.map((p) => [p.lat, p.lon] as [number, number])} pathOptions={{ color: '#0f766e', weight: 3, fillOpacity: 0.25 }} />
