@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -49,9 +49,24 @@ function MapReadyFixer() {
   return null;
 }
 
-function ClickCapture({ onPoint }: { onPoint: (p: LatLon) => void }) {
+function ClickCapture({ onPoint, isSuppressed }: { onPoint: (p: LatLon) => void; isSuppressed: () => boolean }) {
   useMapEvents({
-    click: (e) => onPoint({ lat: e.latlng.lat, lon: e.latlng.lng }),
+    click: (e) => {
+      // A documented, still-open Leaflet/Chrome issue: after a fast
+      // marker drag, releasing the mouse can fire a spurious 'click'
+      // on the MAP itself (not the marker) — during a quick drag the
+      // marker visually lags the cursor, so by release the pointer is
+      // no longer over the marker, and the click's target ends up
+      // being the map underneath it. bubblingMouseEvents={false} on
+      // the vertex marker (see DraggableVertex) does NOT catch this,
+      // since that click never touches the marker's DOM at all — it's
+      // a map click from the start. Without this guard, every vertex
+      // drag would silently add an unwanted extra point where the
+      // drag ended. isSuppressed() is only true for a brief window
+      // right after a dragend (see justFinishedDragRef below).
+      if (isSuppressed()) return;
+      onPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
+    },
   });
   return null;
 }
@@ -64,51 +79,54 @@ function ClickCapture({ onPoint }: { onPoint: (p: LatLon) => void }) {
  * problem by using an SVG path layer instead). divIcon content is
  * plain inline-styled HTML, so no new image files or CSS are needed.
  *
- * className: '' on both variants strips Leaflet's default
- * `leaflet-div-icon` styling (a white bordered square) — without this
- * override, that default box would show behind/around our own dot.
+ * A SINGLE static icon now, not two swapped variants. An earlier
+ * version of this file used a second "active" icon, swapped via a
+ * React-driven `isActive` prop on `dragstart`. That was the actual
+ * root cause of vertices needing a second press to move: changing a
+ * react-leaflet Marker's `icon` prop calls Leaflet's `marker.setIcon()`
+ * under the hood, which tears down and REBUILDS the marker's DOM
+ * element — including its internal drag handler — from scratch.
+ * Because the swap was triggered from inside `dragstart` itself, it
+ * fired while the mouse button was still down and Leaflet was
+ * actively tracking movement against the OLD element: dragstart fired
+ * (that's what triggered the swap), but the drag itself never applied,
+ * because the node being dragged was replaced out from under the
+ * gesture. A second, fresh press then worked, since no swap happens
+ * mid-gesture that time. Fixed by never touching `icon` during a drag
+ * at all — the "active/grabbing" visual state now comes from real CSS
+ * `:active` (Tailwind's `active:` variant, present directly in this
+ * HTML string — Tailwind's build-time scanner picks up class names
+ * from source text, including inside template literals like this
+ * one), which reads the browser's actual press-state on this exact
+ * DOM element and is immune to this entire class of bug by
+ * construction: no React re-render, no prop change, no icon rebuild.
+ *
+ * className: '' strips Leaflet's default `leaflet-div-icon` styling (a
+ * white bordered square) — without this override, that default box
+ * would show behind/around our own dot.
  *
  * Sized 44x44 for the touch target specifically per Apple/Android's
  * documented minimum recommended touch-target size — the visible dot
- * inside stays small (16px, 22px while active) so the marker still
- * reads as a precise point, not a big blob, while remaining easy to
- * grab with a finger. iconAnchor is the icon's center, so the visual
- * dot's center — not the invisible touch padding — is what actually
- * sits on the lat/lon coordinate.
+ * inside stays small (16px, scaling up slightly on :active) so the
+ * marker still reads as a precise point, not a big blob, while
+ * remaining easy to grab with a finger. iconAnchor is the icon's
+ * center, so the visual dot's center — not the invisible touch
+ * padding — is what actually sits on the lat/lon coordinate.
  *
- * touch-action:none and user-select:none on the OUTER wrapper (the
- * actual marker root Leaflet attaches its drag listener to) are the
- * concrete fix for "feels like it needs two taps/clicks to start
- * dragging": without touch-action:none, mobile browsers can spend the
- * first touch deciding whether the gesture is a page-scroll before
- * handing it to Leaflet's drag handler, and without user-select:none,
- * a desktop mousedown can begin a text-selection gesture instead of a
- * drag. Neither is Leaflet's own doing — its native drag events fire
- * correctly on a real drag either way — this just removes the
- * browser-level ambiguity that made the very first press feel like it
- * "didn't count."
+ * touch-action:none and user-select:none on the outer wrapper (the
+ * actual marker root Leaflet attaches its drag listener to) prevent a
+ * separate, real ambiguity: without touch-action:none, mobile browsers
+ * can spend the first touch deciding whether the gesture is a
+ * page-scroll before handing it to Leaflet's drag handler; without
+ * user-select:none, a desktop mousedown can begin a text-selection
+ * gesture instead of a drag.
  *
- * cursor is `grab` normally and swapped to `grabbing` on the specific
- * marker currently being dragged (via the isActive flag this
- * component already tracks) — set directly inline rather than via a
- * CSS :active pseudo-class, since inline style can't express that but
- * JS-driven active state (already needed for the visual "active dot"
- * feedback) can just as easily drive the cursor too.
- *
- * Built once at module scope, not per-render/per-point — these are
- * static, reused across every vertex; recreating them inside the
- * component would be wasted work on every drag-triggered re-render.
+ * Built once at module scope, not per-render/per-point — static,
+ * reused across every vertex.
  */
 const VERTEX_ICON = L.divIcon({
   className: '',
-  html: '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;cursor:grab;"><div style="width:16px;height:16px;border-radius:9999px;background:#0f766e;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.45);"></div></div>',
-  iconSize: [44, 44],
-  iconAnchor: [22, 22],
-});
-
-const VERTEX_ICON_ACTIVE = L.divIcon({
-  className: '',
-  html: '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;cursor:grabbing;"><div style="width:22px;height:22px;border-radius:9999px;background:#0f766e;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.55);"></div></div>',
+  html: '<div class="cursor-grab active:cursor-grabbing" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;"><div class="transition-transform duration-75 active:scale-125" style="width:16px;height:16px;border-radius:9999px;background:#0f766e;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.45);"></div></div>',
   iconSize: [44, 44],
   iconAnchor: [22, 22],
 });
@@ -148,30 +166,30 @@ const PROPERTY_PIN_ICON = L.divIcon({
 function DraggableVertex({
   point,
   index,
-  isActive,
-  onDragStart,
   onDrag,
   onDragEnd,
 }: {
   point: LatLon;
   index: number;
-  isActive: boolean;
-  onDragStart: (index: number) => void;
   onDrag: (index: number, p: LatLon) => void;
   onDragEnd: () => void;
 }) {
   return (
     <Marker
       position={[point.lat, point.lon]}
-      icon={isActive ? VERTEX_ICON_ACTIVE : VERTEX_ICON}
+      icon={VERTEX_ICON}
       draggable
       // Without this, Leaflet's default `bubblingMouseEvents: true`
-      // means a plain TAP (not a drag) on an existing vertex would
-      // also bubble a 'click' up to the map's own click handler
-      // (ClickCapture above), silently adding a duplicate new point
+      // means a plain TAP directly on an existing vertex (not a drag)
+      // would also bubble a 'click' up to the map's own click handler
+      // (ClickCapture below), silently adding a duplicate new point
       // right on top of the vertex the customer was just trying to
-      // grab. This is exactly the kind of add-vs-drag interaction
-      // conflict called out as something to get right.
+      // grab. This covers the case where the click lands ON the
+      // marker; it does NOT cover a second, separate Leaflet/Chrome
+      // issue where a click can land on the MAP itself right after a
+      // fast drag ends (see justFinishedDragRef in the parent
+      // component for that one — bubblingMouseEvents can't help there
+      // since that click never touches this marker's DOM at all).
       bubblingMouseEvents={false}
       title={`Point ${index + 1} — drag to adjust`}
       // Leaflet's own Marker.Drag handler calls stopPropagation
@@ -179,7 +197,6 @@ function DraggableVertex({
       // marker does not pan the map underneath it. This is built-in
       // Leaflet behavior, not something this component reimplements.
       eventHandlers={{
-        dragstart: () => onDragStart(index),
         drag: (e) => {
           const ll = (e.target as L.Marker).getLatLng();
           onDrag(index, { lat: ll.lat, lon: ll.lng });
@@ -224,10 +241,16 @@ export function PropertyMeasurementMap({
   onCancel: () => void;
 }) {
   const [points, setPoints] = useState<LatLon[]>(initialPoints ?? []);
-  // Tracks which vertex (if any) is currently being dragged, purely
-  // for visual feedback (the larger/highlighted marker state) — not
-  // used for any geometry logic, which stays entirely in `points`.
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  // Guards against the spurious post-drag map click described in
+  // ClickCapture above. A ref, not state — this doesn't need to
+  // trigger a re-render, and MUST NOT be React state, since the whole
+  // point of this fix is avoiding exactly the kind of render-driven
+  // side effect that caused the original single-press-drag bug (see
+  // VERTEX_ICON's comment). Set true on dragend, cleared on a short
+  // timeout — long enough to cover the delay before Chrome's spurious
+  // click fires, short enough that a genuine, deliberate tap shortly
+  // after finishing a drag still works normally.
+  const justFinishedDragRef = useRef(false);
   const area = polygonAreaSqFt(points);
   const canFinish = points.length >= 3;
   // A genuine floor, not an arbitrary one — a real residential surface
@@ -348,16 +371,22 @@ export function PropertyMeasurementMap({
               never bubble a click to the map and accidentally add a
               polygon point at the property's exact coordinates. */}
           <Marker position={[latitude, longitude]} icon={PROPERTY_PIN_ICON} interactive={false} keyboard={false} />
-          <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
+          <ClickCapture
+            onPoint={(p) => setPoints((prev) => [...prev, p])}
+            isSuppressed={() => justFinishedDragRef.current}
+          />
           {points.map((p, i) => (
             <DraggableVertex
               key={i}
               point={p}
               index={i}
-              isActive={draggingIndex === i}
-              onDragStart={setDraggingIndex}
               onDrag={(index, newPoint) => setPoints((prev) => movePolygonPoint(prev, index, newPoint))}
-              onDragEnd={() => setDraggingIndex(null)}
+              onDragEnd={() => {
+                justFinishedDragRef.current = true;
+                setTimeout(() => {
+                  justFinishedDragRef.current = false;
+                }, 300);
+              }}
             />
           ))}
           {points.length >= 2 && (
