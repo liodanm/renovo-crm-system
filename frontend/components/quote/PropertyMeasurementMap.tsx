@@ -76,23 +76,74 @@ function ClickCapture({ onPoint }: { onPoint: (p: LatLon) => void }) {
  * dot's center — not the invisible touch padding — is what actually
  * sits on the lat/lon coordinate.
  *
+ * touch-action:none and user-select:none on the OUTER wrapper (the
+ * actual marker root Leaflet attaches its drag listener to) are the
+ * concrete fix for "feels like it needs two taps/clicks to start
+ * dragging": without touch-action:none, mobile browsers can spend the
+ * first touch deciding whether the gesture is a page-scroll before
+ * handing it to Leaflet's drag handler, and without user-select:none,
+ * a desktop mousedown can begin a text-selection gesture instead of a
+ * drag. Neither is Leaflet's own doing — its native drag events fire
+ * correctly on a real drag either way — this just removes the
+ * browser-level ambiguity that made the very first press feel like it
+ * "didn't count."
+ *
+ * cursor is `grab` normally and swapped to `grabbing` on the specific
+ * marker currently being dragged (via the isActive flag this
+ * component already tracks) — set directly inline rather than via a
+ * CSS :active pseudo-class, since inline style can't express that but
+ * JS-driven active state (already needed for the visual "active dot"
+ * feedback) can just as easily drive the cursor too.
+ *
  * Built once at module scope, not per-render/per-point — these are
  * static, reused across every vertex; recreating them inside the
  * component would be wasted work on every drag-triggered re-render.
  */
 const VERTEX_ICON = L.divIcon({
   className: '',
-  html: '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;"><div style="width:16px;height:16px;border-radius:9999px;background:#0f766e;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.45);"></div></div>',
+  html: '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;cursor:grab;"><div style="width:16px;height:16px;border-radius:9999px;background:#0f766e;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.45);"></div></div>',
   iconSize: [44, 44],
   iconAnchor: [22, 22],
 });
 
 const VERTEX_ICON_ACTIVE = L.divIcon({
   className: '',
-  html: '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;"><div style="width:22px;height:22px;border-radius:9999px;background:#0f766e;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.55);"></div></div>',
+  html: '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;cursor:grabbing;"><div style="width:22px;height:22px;border-radius:9999px;background:#0f766e;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.55);"></div></div>',
   iconSize: [44, 44],
   iconAnchor: [22, 22],
 });
+
+/**
+ * Fixed property-location marker — "this is the house you're
+ * measuring," visually distinct from the teal circular vertex dots on
+ * purpose (a classic pin/teardrop shape, different color) so it can
+ * never be mistaken for a draggable measurement point. Built the same
+ * asset-free divIcon way as the vertex icons, for the same reason
+ * (no marker-icon image path issues). Non-interactive by design (see
+ * `interactive={false}` on its <Marker> usage below) — Leaflet
+ * attaches no mouse/touch handlers at all to a non-interactive
+ * marker, which is a stronger, simpler guarantee of "not draggable,
+ * never adds a polygon point" than toggling draggable=false alone
+ * would be.
+ */
+const PROPERTY_PIN_ICON = L.divIcon({
+  className: '',
+  html: `
+    <div style="width:36px;height:48px;position:relative;">
+      <svg width="36" height="48" viewBox="0 0 36 48" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,0.45));">
+        <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#1d4ed8"/>
+        <circle cx="18" cy="18" r="7" fill="#ffffff"/>
+      </svg>
+    </div>`,
+  iconSize: [36, 48],
+  // Anchor at the bottom TIP of the pin (where it "points" at the
+  // ground), not the center — a pin's whole visual language depends
+  // on its point marking the exact spot, unlike the vertex dots which
+  // anchor at their own center.
+  iconAnchor: [18, 48],
+});
+
+
 
 function DraggableVertex({
   point,
@@ -271,20 +322,32 @@ export function PropertyMeasurementMap({
             // the container-sizing and zoomAnimation theories tried
             // earlier, both of which were real but not sufficient.
             //
-            // maxNativeZoom TEMPORARILY raised 18 -> 20 to test real
-            // coverage for actual customer addresses now that the
-            // render bug above is fixed — this is safe to test now:
-            // worst case Leaflet just re-serves/scales the z18 tile
-            // (blurry, like before), it can no longer go blank. If
-            // Network tab shows real sharper 200 responses at z19/20
-            // for real addresses, keep this value. If it's mostly
-            // 404s/re-served z18 data, revert to 18 — don't leave this
-            // at 20 without checking real results first.
+            // maxNativeZoom=20 — RESOLVED, not a pending experiment.
+            // Raised from 18 (the originally-fixed baseline) and
+            // confirmed live via DevTools Network tab: real, fresh 200
+            // responses at this zoom for an actual customer address,
+            // modestly sharper imagery, no blank tiles. This IS "one
+            // additional usable zoom level" beyond the original fix.
+            //
+            // Deliberately NOT raised to 21 (matching maxZoom): doing
+            // so would remove Leaflet's safe-overzoom-scaling margin
+            // entirely (maxZoom must stay > maxNativeZoom for that
+            // fallback to have room to operate), which is the exact
+            // mechanism that fixed the original blank-tile bug.
+            // Reliability over resolution, per explicit priority.
             url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=${mapboxToken}`}
             maxZoom={21}
             maxNativeZoom={20}
           />
           <MapReadyFixer />
+          {/* Fixed property pin — "this is the house you're measuring."
+              Rendered before the polygon/vertices so it sits visually
+              underneath them if they ever overlap. interactive={false}
+              means Leaflet attaches no event handlers to it at all: it
+              cannot be dragged, cannot be clicked, and a tap on it will
+              never bubble a click to the map and accidentally add a
+              polygon point at the property's exact coordinates. */}
+          <Marker position={[latitude, longitude]} icon={PROPERTY_PIN_ICON} interactive={false} keyboard={false} />
           <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
           {points.map((p, i) => (
             <DraggableVertex
