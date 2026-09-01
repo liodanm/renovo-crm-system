@@ -29,13 +29,19 @@ function MapReadyFixer() {
   const map = useMap();
   useEffect(() => {
     const container = map.getContainer();
-    const fix = () => map.invalidateSize();
-    // Fires immediately once on mount too, covering the common case
-    // where the container is already correctly sized — ResizeObserver
-    // alone only fires on a subsequent *change*, not on the initial
-    // observe.
-    fix();
-    const observer = new ResizeObserver(fix);
+    // Real, concrete hypothesis being tested here, not another guess:
+    // this component was previously declared BEFORE <TileLayer> in the
+    // JSX below, meaning invalidateSize() could fire before Leaflet had
+    // actually attached the tile layer internally (react-leaflet adds
+    // layers to the map via their own effect, not synchronously during
+    // render). Moved to render AFTER <TileLayer> instead, so this
+    // effect only runs once the tile layer is already attached.
+    // ResizeObserver fires once immediately on observe() per spec (in
+    // every modern browser) plus again on any real size change — no
+    // separate manual invalidateSize() call is needed alongside it,
+    // and having both was a possible source of the exact race being
+    // fixed here.
+    const observer = new ResizeObserver(() => map.invalidateSize());
     observer.observe(container);
     return () => observer.disconnect();
   }, [map]);
@@ -122,7 +128,6 @@ export function PropertyMeasurementMap({
             prevents blank tiles, so this value is chosen for reliable
             initial framing of the property, not to work around a bug. */}
         <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} scrollWheelZoom className="h-full w-full">
-          <MapReadyFixer />
           <TileLayer
             attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             // Mapbox's v4 Raster Tiles API — the correct, documented
@@ -135,6 +140,9 @@ export function PropertyMeasurementMap({
             detectRetina
             maxNativeZoom={20}
           />
+          {/* Rendered AFTER TileLayer now — see MapReadyFixer's own
+              comment for exactly why this ordering matters. */}
+          <MapReadyFixer />
           <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
           {points.map((p, i) => (
             <CircleMarker key={i} center={[p.lat, p.lon]} radius={7} pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#0f766e', fillOpacity: 1 }} />
