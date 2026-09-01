@@ -127,18 +127,27 @@ export function PropertyMeasurementMap({
             themselves — MapReadyFixer below (not this number) is what
             prevents blank tiles, so this value is chosen for reliable
             initial framing of the property, not to work around a bug. */}
-        {/* zoomAnimation disabled: the single most important clue in
-            this whole investigation is that the exact same symptom
-            (blank up close, fine zoomed out) happened with Esri AND
-            with Mapbox — two unrelated tile providers failing
-            identically means this was never a provider problem. That
-            points at the zoom TRANSITION itself, not the tile source.
-            Leaflet's animated zoom is a well-known source of tile-
-            loading races in React wrapper contexts; disabling it makes
-            zoom changes apply instantly instead of animating, removing
-            that entire class of timing issue. Never tested until now
-            in this investigation. */}
-        <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} zoomAnimation={false} scrollWheelZoom className="h-full w-full">
+        {/* zoomAnimation intentionally left ENABLED (default) — a
+            previous version of this file disabled it based on the
+            (reasonable at the time, but wrong) theory that the zoom
+            transition itself was racing with tile loading. Live
+            DevTools Network-tab evidence disproved that: with
+            maxNativeZoom set below the view's zoom, zooming further
+            in generates ZERO new tile requests (same cached tile
+            files repeat, all 200s) — meaning the already-loaded tile
+            simply isn't being scaled onto screen for the deeper zoom,
+            not that a tile is missing. That matches the documented
+            signature of Leaflet/Leaflet#7227: tiles past
+            maxNativeZoom rely on the same CSS animation-class
+            machinery (`.leaflet-fade-anim`) that zoomAnimation and
+            fadeAnimation both drive to make a capped-zoom tile's
+            scale-up visible. Re-enabling zoomAnimation is the fix
+            being tested for this; if the map still blanks after this
+            change ships, the DOM-presence-but-not-rendered evidence
+            still stands and the next place to look is fadeAnimation
+            or a CSS override on .leaflet-fade-anim/.leaflet-tile,
+            not another zoom-number guess. */}
+        <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} scrollWheelZoom className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             // Mapbox's v4 Raster Tiles API — the correct, documented
