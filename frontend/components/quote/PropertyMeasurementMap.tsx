@@ -179,9 +179,19 @@ export function PropertyMeasurementMap({
             // load too — same missing prop, same bug, independent of
             // the container-sizing and zoomAnimation theories tried
             // earlier, both of which were real but not sufficient.
+            //
+            // maxNativeZoom TEMPORARILY raised 18 -> 20 to test real
+            // coverage for actual customer addresses now that the
+            // render bug above is fixed — this is safe to test now:
+            // worst case Leaflet just re-serves/scales the z18 tile
+            // (blurry, like before), it can no longer go blank. If
+            // Network tab shows real sharper 200 responses at z19/20
+            // for real addresses, keep this value. If it's mostly
+            // 404s/re-served z18 data, revert to 18 — don't leave this
+            // at 20 without checking real results first.
             url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=${mapboxToken}`}
             maxZoom={21}
-            maxNativeZoom={18}
+            maxNativeZoom={20}
           />
           <MapReadyFixer />
           <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
