@@ -153,13 +153,28 @@ export function PropertyMeasurementMap({
             // makes Leaflet request Mapbox's @2x tile variant instead
             // of the regular one — and while the regular tile for the
             // exact test property was directly confirmed to exist,
-            // @2x coverage isn't guaranteed to be identical. This
-            // matches the reported symptom precisely: blank near the
-            // actual zoom level, working once zoomed out to different
-            // tiles. {r} is removed from the URL along with it, since
-            // it has no effect without detectRetina enabled.
+            // @2x coverage isn't guaranteed to be identical. {r} is
+            // removed from the URL along with it, since it has no
+            // effect without detectRetina enabled.
+            //
+            // maxNativeZoom=18, not 20: this is the actual root cause
+            // of the blank-on-zoom-in bug. Mapbox's own tileset docs
+            // state mapbox.satellite coverage is global to z16,
+            // regional to z18, and select-metro-only beyond that —
+            // requesting z19/z20 as if they were guaranteed-real tiles
+            // (the previous maxNativeZoom=20) returns a real 404
+            // outside those select metro areas, which is why the
+            // imagery went blank specifically when zooming IN (past
+            // real coverage) and came back when zooming OUT (back to
+            // real coverage) — for ANY customer address, not just the
+            // one this was tested against. maxZoom={21} on the
+            // MapContainer below is left as-is: Leaflet will scale up
+            // the last real z18 tile for closer zoom levels instead of
+            // requesting tiles that don't exist, so imagery never goes
+            // blank — just progressively less sharp past z18 in areas
+            // without extended Mapbox coverage.
             url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=${mapboxToken}`}
-            maxNativeZoom={20}
+            maxNativeZoom={18}
           />
           {/* Rendered AFTER TileLayer now — see MapReadyFixer's own
               comment for exactly why this ordering matters. */}
