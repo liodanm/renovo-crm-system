@@ -159,14 +159,28 @@ export function PropertyMeasurementMap({
             // {r} in the URL since it has no effect without it.
             //
             // maxNativeZoom=18: caps which zoom Leaflet treats as
-            // "real" tiles vs. client-side-scaled. NOTE: this value's
-            // effect on the blank-tile bug specifically is NOT yet
-            // proven — see MinimalMapDiagnostic.tsx, which isolates
-            // this exact tile config outside the rest of the app to
-            // determine whether the remaining bug is here (Mapbox/
-            // Leaflet/this config) or elsewhere in Renovo's component
-            // tree/CSS.
+            // "real" tiles vs. client-side-scaled.
+            //
+            // maxZoom={21} — REQUIRED HERE, not just on MapContainer
+            // above. This was the actual root cause of the blank-on-
+            // zoom bug, confirmed by the exact symptom: blank
+            // immediately at the default zoom (19), fine after
+            // zooming OUT to 18 (= maxNativeZoom), blank again at the
+            // very next zoom step in (19) — a hard cliff exactly at
+            // maxNativeZoom+1, not a gradual falloff. That precise
+            // pattern matches a documented Leaflet gotcha
+            // (Leaflet/Leaflet#4034): maxNativeZoom tells Leaflet
+            // which zoom has real tiles, but Leaflet will NOT
+            // autoscale that tile for deeper zooms unless maxZoom is
+            // ALSO set on the TileLayer itself — setting it only on
+            // MapContainer (as this file did before) is not enough,
+            // and produces exactly this cliff-edge blank. This also
+            // explains why MinimalMapDiagnostic.tsx was blank on
+            // load too — same missing prop, same bug, independent of
+            // the container-sizing and zoomAnimation theories tried
+            // earlier, both of which were real but not sufficient.
             url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=${mapboxToken}`}
+            maxZoom={21}
             maxNativeZoom={18}
           />
           <MapReadyFixer />

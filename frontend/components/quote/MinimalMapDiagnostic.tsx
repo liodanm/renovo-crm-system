@@ -76,6 +76,7 @@ export function MinimalMapDiagnostic() {
         <TileLayer
           attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=${mapboxToken}`}
+          maxZoom={21}
           maxNativeZoom={18}
         />
         <MapReadyFixer />
