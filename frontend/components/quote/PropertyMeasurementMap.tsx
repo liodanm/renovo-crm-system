@@ -119,74 +119,56 @@ export function PropertyMeasurementMap({
   }
 
   return (
-    <div>
-      <div className="h-72 w-full overflow-hidden rounded-xl border border-slate-200 sm:h-96">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-950">
+      {/* Full-viewport overlay, not an inline box — per Leo's request to
+          match the immersive, edge-to-edge measurement experience (e.g.
+          Lavo CRM) instead of a small embedded box. The map itself,
+          MapReadyFixer, ClickCapture, and all measurement state below
+          are UNCHANGED from the inline version — this is purely a
+          layout/positioning change, not a rework of the measurement
+          logic or the tile config currently being diagnosed. */}
+      <button
+        type="button"
+        onClick={onCancel}
+        aria-label="Close"
+        className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md"
+      >
+        ✕
+      </button>
+
+      <div className="relative flex-1">
         {/* zoom=19 is deliberately the STARTING point, not the ceiling
             — "highest RELIABLE property-level zoom," not maximum.
             maxZoom={21} still lets the customer zoom in further
-            themselves — MapReadyFixer below (not this number) is what
-            prevents blank tiles, so this value is chosen for reliable
-            initial framing of the property, not to work around a bug. */}
-        {/* zoomAnimation intentionally left ENABLED (default) — a
-            previous version of this file disabled it based on the
-            (reasonable at the time, but wrong) theory that the zoom
-            transition itself was racing with tile loading. Live
-            DevTools Network-tab evidence disproved that: with
-            maxNativeZoom set below the view's zoom, zooming further
-            in generates ZERO new tile requests (same cached tile
-            files repeat, all 200s) — meaning the already-loaded tile
-            simply isn't being scaled onto screen for the deeper zoom,
-            not that a tile is missing. That matches the documented
-            signature of Leaflet/Leaflet#7227: tiles past
-            maxNativeZoom rely on the same CSS animation-class
-            machinery (`.leaflet-fade-anim`) that zoomAnimation and
-            fadeAnimation both drive to make a capped-zoom tile's
-            scale-up visible. Re-enabling zoomAnimation is the fix
-            being tested for this; if the map still blanks after this
-            change ships, the DOM-presence-but-not-rendered evidence
-            still stands and the next place to look is fadeAnimation
-            or a CSS override on .leaflet-fade-anim/.leaflet-tile,
-            not another zoom-number guess. */}
+            themselves. */}
+        {/* zoomAnimation left at Leaflet's default (enabled). A prior
+            version of this file disabled it, based on a theory that
+            was later disproven live (see git history / prior delivery
+            notes) — re-enabling it did NOT fix the blank-tile bug
+            either. That theory is now ruled out, not just untested. */}
         <MapContainer center={[latitude, longitude]} zoom={19} maxZoom={21} scrollWheelZoom className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             // Mapbox's v4 Raster Tiles API — the correct, documented
             // format for a plain Leaflet TileLayer (not the newer GL JS
             // vector-style API, which this app deliberately does NOT
-            // adopt — Leaflet stays exactly as it already was, only the
-            // tile source changes).
+            // adopt).
             //
-            // detectRetina removed: real, concrete difference from the
-            // original working Esri config, which never had it. On a
-            // display with >100% scaling (common on Windows), this
-            // makes Leaflet request Mapbox's @2x tile variant instead
-            // of the regular one — and while the regular tile for the
-            // exact test property was directly confirmed to exist,
-            // @2x coverage isn't guaranteed to be identical. {r} is
-            // removed from the URL along with it, since it has no
-            // effect without detectRetina enabled.
+            // detectRetina removed: makes Leaflet request Mapbox's @2x
+            // tile variant on high-DPI displays; removed along with
+            // {r} in the URL since it has no effect without it.
             //
-            // maxNativeZoom=18, not 20: this is the actual root cause
-            // of the blank-on-zoom-in bug. Mapbox's own tileset docs
-            // state mapbox.satellite coverage is global to z16,
-            // regional to z18, and select-metro-only beyond that —
-            // requesting z19/z20 as if they were guaranteed-real tiles
-            // (the previous maxNativeZoom=20) returns a real 404
-            // outside those select metro areas, which is why the
-            // imagery went blank specifically when zooming IN (past
-            // real coverage) and came back when zooming OUT (back to
-            // real coverage) — for ANY customer address, not just the
-            // one this was tested against. maxZoom={21} on the
-            // MapContainer below is left as-is: Leaflet will scale up
-            // the last real z18 tile for closer zoom levels instead of
-            // requesting tiles that don't exist, so imagery never goes
-            // blank — just progressively less sharp past z18 in areas
-            // without extended Mapbox coverage.
+            // maxNativeZoom=18: caps which zoom Leaflet treats as
+            // "real" tiles vs. client-side-scaled. NOTE: this value's
+            // effect on the blank-tile bug specifically is NOT yet
+            // proven — see MinimalMapDiagnostic.tsx, which isolates
+            // this exact tile config outside the rest of the app to
+            // determine whether the remaining bug is here (Mapbox/
+            // Leaflet/this config) or elsewhere in Renovo's component
+            // tree/CSS.
             url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=${mapboxToken}`}
             maxNativeZoom={18}
           />
-          {/* Rendered AFTER TileLayer now — see MapReadyFixer's own
-              comment for exactly why this ordering matters. */}
           <MapReadyFixer />
           <ClickCapture onPoint={(p) => setPoints((prev) => [...prev, p])} />
           {points.map((p, i) => (
@@ -196,13 +178,27 @@ export function PropertyMeasurementMap({
             <Polygon positions={points.map((p) => [p.lat, p.lon] as [number, number])} pathOptions={{ color: '#0f766e', weight: 3, fillOpacity: 0.25 }} />
           )}
         </MapContainer>
+
+        {/* Floating instruction banner — same copy as before, now
+            overlaid on the map itself (matches the reference UX)
+            instead of living below it. Only shown before any points
+            are placed, same condition as before. */}
+        {points.length === 0 && (
+          <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-slate-900/90 px-4 py-2 text-center text-sm font-medium text-white shadow-lg">
+            Tap around the edges of the area you&apos;d like cleaned
+          </div>
+        )}
+        {points.length > 0 && points.length < 3 && (
+          <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-slate-900/90 px-4 py-2 text-center text-sm font-medium text-white shadow-lg">
+            Add at least {3 - points.length} more point{3 - points.length === 1 ? '' : 's'} to close the shape
+          </div>
+        )}
       </div>
 
-      <div className="mt-3">
-        {points.length === 0 && <p className="text-sm text-slate-500">The image above is your property. Tap around the edges of the area you&apos;d like cleaned.</p>}
-        {points.length > 0 && points.length < 3 && (
-          <p className="text-sm text-slate-500">Please outline the area by adding at least {3 - points.length} more point{3 - points.length === 1 ? '' : 's'}.</p>
-        )}
+      {/* Bottom control panel — floats over the map like the reference
+          UX, rather than sitting in normal document flow below a small
+          box. Same buttons/handlers/state as before, just repositioned. */}
+      <div className="border-t border-slate-800 bg-white px-4 py-3 sm:px-6 sm:py-4">
         {canFinish && !tooSmall && (
           <p className="text-sm font-medium text-slate-700">
             Approximate area: <span className="font-semibold">{Math.round(area).toLocaleString()} sq ft</span>
@@ -211,39 +207,39 @@ export function PropertyMeasurementMap({
         {tooSmall && (
           <p className="text-sm text-amber-600">That area looks too small — please check your outline, or add a couple more points to capture the full area.</p>
         )}
-      </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setPoints((prev) => prev.slice(0, -1))}
-          disabled={points.length === 0}
-          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 disabled:opacity-40"
-        >
-          Undo
-        </button>
-        <button
-          type="button"
-          onClick={() => setPoints([])}
-          disabled={points.length === 0}
-          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 disabled:opacity-40"
-        >
-          Clear
-        </button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600">
-          Not sure how to measure?
-        </button>
-        <button
-          type="button"
-          onClick={() => onComplete(Math.round(area), points)}
-          disabled={!canFinish || tooSmall}
-          className="ml-auto rounded-lg bg-[var(--color-brand,#0f766e)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
-        >
-          Use This Measurement
-        </button>
-      </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPoints((prev) => prev.slice(0, -1))}
+            disabled={points.length === 0}
+            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 disabled:opacity-40"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={() => setPoints([])}
+            disabled={points.length === 0}
+            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 disabled:opacity-40"
+          >
+            Clear
+          </button>
+          <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600">
+            Not sure how to measure?
+          </button>
+          <button
+            type="button"
+            onClick={() => onComplete(Math.round(area), points)}
+            disabled={!canFinish || tooSmall}
+            className="ml-auto rounded-lg bg-[var(--color-brand,#0f766e)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            Use This Measurement
+          </button>
+        </div>
 
-      <p className="mt-2 text-xs text-slate-400">This measurement is approximate.</p>
+        <p className="mt-2 text-xs text-slate-400">This measurement is approximate.</p>
+      </div>
     </div>
   );
 }
