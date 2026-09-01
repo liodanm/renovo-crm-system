@@ -27,7 +27,8 @@
  *     line-by-line against this file, not another tile-config change.
  */
 
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { useEffect } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Same generic Coral Springs, FL coordinates as the market this bug has
@@ -37,6 +38,26 @@ import 'leaflet/dist/leaflet.css';
 // missing-imagery/coverage problem specifically).
 const TEST_LAT = 26.2711;
 const TEST_LON = -80.2706;
+
+/**
+ * Identical to production's MapReadyFixer (PropertyMeasurementMap.tsx).
+ * Left OUT of the first version of this diagnostic on the assumption
+ * it was irrelevant "extra" code to strip for minimalism — that was a
+ * mistake. Without it, this page went blank on initial load (before
+ * any zooming), a DIFFERENT bug (container-sizing race) than the one
+ * under investigation (blank-after-zoom). Re-added so this test
+ * actually isolates the zoom bug instead of tripping over an unrelated
+ * one.
+ */
+function MapReadyFixer() {
+  const map = useMap();
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
 
 export function MinimalMapDiagnostic() {
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
@@ -57,6 +78,7 @@ export function MinimalMapDiagnostic() {
           url={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=${mapboxToken}`}
           maxNativeZoom={18}
         />
+        <MapReadyFixer />
       </MapContainer>
     </div>
   );
