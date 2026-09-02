@@ -330,6 +330,7 @@ export class QuoteWidgetService {
         buildingConfidence: 'unavailable' as MeasurementConfidence,
         roofAreaSqFt: null,
         roofConfidence: 'unavailable' as MeasurementConfidence,
+        buildingFootprint: null,
       };
     }
 
@@ -349,6 +350,7 @@ export class QuoteWidgetService {
         buildingConfidence: 'unavailable' as MeasurementConfidence,
         roofAreaSqFt: null,
         roofConfidence: 'unavailable' as MeasurementConfidence,
+        buildingFootprint: null,
       };
     }
 
@@ -375,6 +377,12 @@ export class QuoteWidgetService {
       buildingConfidence: footprint.confidence,
       roofAreaSqFt: Math.round(footprint.areaSqFt * roofMultiplier),
       roofConfidence,
+      // Public response deliberately exposes ONLY a plain {lat, lon}[]
+      // array — never the raw Overpass element, its OSM way id, tags,
+      // or any other provider-internal metadata. This is the same
+      // normalized shape PropertyMeasurementMap's initialPoints prop
+      // already accepts; the frontend needs nothing else to render it.
+      buildingFootprint: footprint.buildingFootprint,
     };
   }
 

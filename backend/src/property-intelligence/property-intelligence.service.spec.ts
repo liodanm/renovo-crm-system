@@ -50,6 +50,28 @@ describe('PropertyIntelligenceService — geometry correctness', () => {
     expect(result.areaSqFt).toBeLessThan(10000);
   });
 
+  it('Test — returns the actual building footprint geometry (not just the derived area), same {lat, lon} shape it was already computed in', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ elements: [{ geometry: RECT_GEOMETRY }] }),
+    }) as any;
+    const { service } = buildService();
+
+    const result = await service.lookupBuildingFootprint(26.2714, -80.2705);
+
+    expect(result.buildingFootprint).toEqual(RECT_GEOMETRY);
+  });
+
+  it('Test — buildingFootprint is null (not an empty array or undefined) when no building was found', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ elements: [] }) }) as any;
+    const { service } = buildService();
+
+    const result = await service.lookupBuildingFootprint(26.2714, -80.2705);
+
+    expect(result.confidence).toBe('unavailable');
+    expect(result.buildingFootprint).toBeNull();
+  });
+
   it('Test — Overpass query includes a bounding box around the given coordinates', async () => {
     const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ elements: [] }) });
     global.fetch = fetchMock as any;

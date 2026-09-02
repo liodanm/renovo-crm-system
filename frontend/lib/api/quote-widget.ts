@@ -90,6 +90,11 @@ export interface PropertyLookupResult {
   buildingConfidence: MeasurementConfidence;
   roofAreaSqFt: number | null;
   roofConfidence: MeasurementConfidence;
+  // Same {lat, lon}[] shape PropertyMeasurementMap's initialPoints
+  // already accepts — the actual detected footprint, when available,
+  // so House Wash can seed the map instead of opening blank. null,
+  // never a fabricated shape, when no footprint was found.
+  buildingFootprint: { lat: number; lon: number }[] | null;
 }
 
 export interface PropertyLookupPayload {

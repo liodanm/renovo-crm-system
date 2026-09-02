@@ -9,6 +9,15 @@ export interface BuildingFootprintResult {
   areaSqFt: number;
   confidence: MeasurementConfidence;
   source: 'openstreetmap';
+  // Normalized {lat, lon}[] — same shape frontend's LatLon already
+  // uses, same shape PropertyMeasurementMap's initialPoints already
+  // accepts. This was ALWAYS computed internally (it's exactly
+  // `buildings[largestIndex].geometry`, already used to derive
+  // areaSqFt via polygonAreaSqFt below) and simply never returned —
+  // not a new query, not new geometry, just no longer discarding data
+  // already fetched. null when no footprint was found/confidence is
+  // 'unavailable' — never a placeholder/fabricated shape.
+  buildingFootprint: { lat: number; lon: number }[] | null;
 }
 
 // Rounded to ~11m precision — two different addresses on the same
@@ -90,7 +99,7 @@ export class PropertyIntelligenceService {
       });
       if (!response.ok) {
         this.logger.warn(`Overpass returned ${response.status} for (${latitude}, ${longitude})`);
-        return { areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap' };
+        return { areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap', buildingFootprint: null };
       }
 
       const data = await response.json();
@@ -98,7 +107,7 @@ export class PropertyIntelligenceService {
       const buildings = ways.filter((w) => w.geometry && w.geometry.length >= 4);
 
       if (buildings.length === 0) {
-        return { areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap' };
+        return { areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap', buildingFootprint: null };
       }
 
       // Multiple buildings in the bounding box (detached garage, shed,
@@ -114,7 +123,7 @@ export class PropertyIntelligenceService {
       // sliver polygon producing a 12 sq ft or 400,000 sq ft "house"
       // should never be presented to a customer as a confident number.
       if (areaSqFt < 200 || areaSqFt > 15_000) {
-        return { areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap' };
+        return { areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap', buildingFootprint: null };
       }
 
       // Confidence is deliberately conservative: OSM never confirms
@@ -122,13 +131,22 @@ export class PropertyIntelligenceService {
       // near this point), so 'high' is never claimed here — only a
       // staff- or provider-verified measurement would earn that later.
       const confidence: MeasurementConfidence = buildings.length === 1 ? 'medium' : 'low';
-      return { areaSqFt: Math.round(areaSqFt), confidence, source: 'openstreetmap' };
+      return {
+        areaSqFt: Math.round(areaSqFt),
+        confidence,
+        source: 'openstreetmap',
+        // The exact geometry already used to compute areaSqFt above —
+        // Overpass's own {lat, lon} shape, already identical to
+        // frontend's LatLon, passed through as-is rather than
+        // re-fetched or reshaped.
+        buildingFootprint: buildings[largestIndex].geometry!,
+      };
     } catch (err) {
       // Same principle as GeocodingService: a down provider must never
       // block the Quote Tool — it just means less automation this time,
       // not a broken page.
       this.logger.error(`Overpass lookup failed for (${latitude}, ${longitude})`, err as Error);
-      return { areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap' };
+      return { areaSqFt: 0, confidence: 'unavailable', source: 'openstreetmap', buildingFootprint: null };
     }
   }
 }

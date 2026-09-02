@@ -115,6 +115,17 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   const mapMeasureQueue = useMemo(() => selectedServices.filter((s) => MAP_MEASURABLE_SERVICE_TYPES.has(s.serviceType)), [selectedServices]);
   const [mapMeasureIndex, setMapMeasureIndex] = useState(0);
   const [mapMeasurements, setMapMeasurements] = useState<Record<string, { areaSqFt: number; points: LatLon[] }>>({});
+  // Roof Cleaning / House Wash are NOT in MAP_MEASURABLE_SERVICE_TYPES
+  // and deliberately never enter mapMeasureQueue — their flow is
+  // property-intelligence-FIRST (automatic roof/building estimate),
+  // with the satellite map as an on-demand fallback/adjustment, not a
+  // mandatory upfront step the way driveway/pool_deck/etc. are. This
+  // is that on-demand override: when set, the map step measures THIS
+  // one service instead of advancing through mapMeasureQueue, and
+  // returns straight back to 'confirm' when done — it is a side-trip,
+  // not a continuation of the map-measurable-services queue.
+  const [adHocMapService, setAdHocMapService] = useState<{ id: string; name: string; serviceType: string } | null>(null);
+  const activeMapService = adHocMapService ?? mapMeasureQueue[mapMeasureIndex];
   // Set when the customer taps "Not sure how to measure?" on the map
   // step — same effect as the stories/roof-type "I'm not sure" answers
   // below (route to Request-Only), just triggered by a different
@@ -204,7 +215,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
       // please enter it" instead of a pre-filled card, and the map step
       // (if reached) falls back to a generic US center rather than the
       // property. Never an error shown to the customer.
-      setLookupResult({ latitude: null, longitude: null, buildingAreaSqFt: null, buildingConfidence: 'unavailable', roofAreaSqFt: null, roofConfidence: 'unavailable' });
+      setLookupResult({ latitude: null, longitude: null, buildingAreaSqFt: null, buildingConfidence: 'unavailable', roofAreaSqFt: null, roofConfidence: 'unavailable', buildingFootprint: null });
     }
     setIsLookingUpProperty(false);
     if (mapMeasureQueue.length > 0) {
@@ -231,6 +242,27 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   }
 
   function handleMapMeasureComplete(areaSqFt: number, points: LatLon[]) {
+    if (adHocMapService) {
+      // The ad-hoc side-trip: store the result the same way every
+      // other map measurement is stored, ALSO feed it into the exact
+      // state adjustedRoofArea/adjustedBuildingArea already reads for
+      // display and serviceDetails — no second data path introduced,
+      // this just makes a map-measured value arrive through the same
+      // variable a manually-typed one always has.
+      const service = adHocMapService;
+      setMapMeasurements((prev) => ({ ...prev, [service.id]: { areaSqFt, points } }));
+      setQuantities((prev) => ({ ...prev, [service.id]: String(areaSqFt) }));
+      if (service.serviceType === 'roof_soft_wash') {
+        setAdjustedRoofArea(String(areaSqFt));
+        setRoofAdjusting(true);
+      } else if (service.serviceType === 'house_wash') {
+        setAdjustedBuildingArea(String(areaSqFt));
+        setBuildingAdjusting(true);
+      }
+      setAdHocMapService(null);
+      setStep('confirm');
+      return;
+    }
     const service = mapMeasureQueue[mapMeasureIndex];
     setMapMeasurements((prev) => ({ ...prev, [service.id]: { areaSqFt, points } }));
     // Same quantities map every other service (researched or manual)
@@ -245,6 +277,16 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   }
 
   function handleMapMeasureCancel() {
+    if (adHocMapService) {
+      // Backing out of the ad-hoc side-trip is just "never mind" —
+      // unlike the main queue's cancel, this must NOT route the whole
+      // submission to Request-Only. The customer already has (or can
+      // still get) a perfectly usable automatic/manual value for this
+      // one service; they just decided not to use the map for it.
+      setAdHocMapService(null);
+      setStep('confirm');
+      return;
+    }
     // "Not sure how to measure?" — never invent a measurement. Routes
     // the whole submission to Request-Only, same mechanism the
     // stories/roof-type "I'm not sure" answers already use.
@@ -255,11 +297,20 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   // Review screen's "Edit Measurement" for a customer-drawn area —
   // reopens the map for that specific service with its prior points
   // already loaded (via initialPoints above), everything else in the
-  // quote left untouched.
+  // quote left untouched. Extended beyond the original
+  // mapMeasureQueue-only services: roof/house_wash measurements
+  // (however they were obtained — automatic, ad-hoc map, or manual)
+  // can also be reopened for adjustment via the same ad-hoc path.
   function editMapMeasurement(serviceId: string) {
     const index = mapMeasureQueue.findIndex((s) => s.id === serviceId);
     if (index >= 0) {
       setMapMeasureIndex(index);
+      setStep('mapMeasure');
+      return;
+    }
+    const service = selectedServices.find((s) => s.id === serviceId);
+    if (service && (service.serviceType === 'roof_soft_wash' || service.serviceType === 'house_wash')) {
+      setAdHocMapService(service);
       setStep('mapMeasure');
     }
   }
@@ -491,19 +542,33 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
           </div>
         )}
 
-        {step === 'mapMeasure' && mapMeasureQueue[mapMeasureIndex] && (
+        {step === 'mapMeasure' && activeMapService && (
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Let&apos;s measure your {mapMeasureQueue[mapMeasureIndex].name.toLowerCase()}</h1>
+            <h1 className="text-xl font-semibold text-slate-900">Let&apos;s measure your {activeMapService.name.toLowerCase()}</h1>
             <p className="mt-1 text-sm text-slate-500">
-              You don&apos;t need to know the measurements — we&apos;ll calculate the area for you.
-              {mapMeasureQueue.length > 1 && ` (${mapMeasureIndex + 1} of ${mapMeasureQueue.length})`}
+              {adHocMapService?.serviceType === 'house_wash' && !mapMeasurements[activeMapService.id]
+                ? "Here's the area we found for your home. Adjust it if it doesn't look right."
+                : "You don't need to know the measurements — we'll calculate the area for you."}
+              {!adHocMapService && mapMeasureQueue.length > 1 && ` (${mapMeasureIndex + 1} of ${mapMeasureQueue.length})`}
             </p>
             <div className="mt-4">
               {lookupResult?.latitude != null && lookupResult?.longitude != null ? (
                 <PropertyMeasurementMap
                   latitude={lookupResult.latitude}
                   longitude={lookupResult.longitude}
-                  initialPoints={mapMeasurements[mapMeasureQueue[mapMeasureIndex]?.id]?.points}
+                  initialPoints={
+                    // The customer's own prior edit (if they've
+                    // already adjusted this once) ALWAYS wins over
+                    // re-seeding from the original detected footprint
+                    // — never silently replace a customer's edit with
+                    // Property Intelligence's original result. Only
+                    // House Wash seeds from buildingFootprint at all;
+                    // Roof Cleaning must never have its polygon seeded
+                    // from the building footprint (footprint ≠ roof
+                    // area — see property-intelligence audit).
+                    mapMeasurements[activeMapService.id]?.points ??
+                    (adHocMapService?.serviceType === 'house_wash' ? (lookupResult?.buildingFootprint ?? undefined) : undefined)
+                  }
                   onComplete={handleMapMeasureComplete}
                   onCancel={handleMapMeasureCancel}
                 />
@@ -540,6 +605,13 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                   onChange={setAdjustedBuildingArea}
                   adjusting={buildingAdjusting}
                   onAdjust={() => setBuildingAdjusting(true)}
+                  onMeasureOnMap={() => {
+                    const service = selectedServices.find((s) => s.serviceType === 'house_wash');
+                    if (service) {
+                      setAdHocMapService(service);
+                      setStep('mapMeasure');
+                    }
+                  }}
                   brandColor={brandColor}
                 />
               )}
@@ -553,6 +625,13 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                   onChange={setAdjustedRoofArea}
                   adjusting={roofAdjusting}
                   onAdjust={() => setRoofAdjusting(true)}
+                  onMeasureOnMap={() => {
+                    const service = selectedServices.find((s) => s.serviceType === 'roof_soft_wash');
+                    if (service) {
+                      setAdHocMapService(service);
+                      setStep('mapMeasure');
+                    }
+                  }}
                   brandColor={brandColor}
                 />
               )}
@@ -856,6 +935,7 @@ function MeasurementCard({
   onChange,
   adjusting,
   onAdjust,
+  onMeasureOnMap,
   brandColor,
 }: {
   label: string;
@@ -866,22 +946,45 @@ function MeasurementCard({
   onChange: (v: string) => void;
   adjusting: boolean;
   onAdjust: () => void;
+  onMeasureOnMap: () => void;
   brandColor: string;
 }) {
-  const showInput = adjusting || confidence === 'unavailable' || areaSqFt == null;
+  const isUnavailable = confidence === 'unavailable' || areaSqFt == null;
+  // "adjusting" now means specifically "customer chose to type a
+  // number manually" — the last resort. Clicking the normal "Adjust"
+  // link on an already-available estimate opens the satellite map
+  // (onMeasureOnMap) instead of revealing this field directly; typing
+  // a number is still possible, but one deliberate step further away
+  // than it used to be, per "manual entry is the final fallback, not
+  // the primary experience."
+  const showManualInput = adjusting;
+
+  if (isUnavailable && !showManualInput) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
+          <HelpCircle className="h-4 w-4 shrink-0 text-slate-400" /> We couldn&apos;t automatically measure your property.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button onClick={onMeasureOnMap} className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: brandColor }}>
+            Measure on Satellite
+          </button>
+          <button onClick={onAdjust} className="text-sm font-medium text-slate-500 underline">
+            Enter square footage manually
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <p className="text-sm font-medium text-slate-500">{label}</p>
       {sublabel && <p className="text-xs text-slate-400">{sublabel}</p>}
 
-      {showInput ? (
+      {showManualInput ? (
         <div className="mt-2">
-          {confidence === 'unavailable' && !adjusting && (
-            <p className="mb-2 flex items-center gap-1.5 text-sm text-slate-500">
-              <HelpCircle className="h-4 w-4 shrink-0 text-slate-400" /> We couldn&apos;t find this automatically — please enter it below.
-            </p>
-          )}
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -901,7 +1004,7 @@ function MeasurementCard({
             <p className="text-2xl font-semibold text-slate-900">Approximately {Number(value || areaSqFt).toLocaleString()} sq ft</p>
             <p className="mt-0.5 text-xs text-slate-400">{CONFIDENCE_LABEL[confidence] ?? 'Estimated'}</p>
           </div>
-          <button onClick={onAdjust} className="shrink-0 text-sm font-medium underline" style={{ color: brandColor }}>
+          <button onClick={onMeasureOnMap} className="shrink-0 text-sm font-medium underline" style={{ color: brandColor }}>
             Adjust
           </button>
         </div>
