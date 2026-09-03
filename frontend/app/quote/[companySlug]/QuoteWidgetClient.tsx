@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Check, ChevronLeft, Loader2, HelpCircle } from 'lucide-react';
+import { Check, ChevronLeft, Loader2, HelpCircle, X } from 'lucide-react';
 import type { LatLon } from '../../../lib/geometry';
 import { SERVICE_TYPE_ICONS } from '../../../lib/api/service-catalog';
 import {
@@ -39,7 +39,27 @@ const RESEARCHABLE_SERVICE_TYPES = new Set(['house_wash', 'roof_soft_wash']);
 // values (confirmed by checking SERVICE_TYPES; there's no separate
 // "concrete" or "pool_cage" type today — screen_enclosure is the
 // closest existing analog to pool cage).
-const MAP_MEASURABLE_SERVICE_TYPES = new Set(['driveway_cleaning', 'pool_deck', 'patio', 'paver_cleaning', 'screen_enclosure']);
+// Driveway removed — no longer map-measured, has its own size-preset
+// UI below (see DRIVEWAY_SIZE_OPTIONS). Pool deck/patio/pavers/screen
+// enclosure are untouched and still fully map-based, unchanged.
+const MAP_MEASURABLE_SERVICE_TYPES = new Set(['pool_deck', 'patio', 'paver_cleaning', 'screen_enclosure']);
+
+/**
+ * Real, approved values — not invented. Each tier maps to a sq-ft
+ * equivalent that flows through the EXACT SAME quantities/pricing
+ * pipeline a manually-typed or map-measured square footage already
+ * uses (`quantities[service.id]`, read by the existing per-sq-ft
+ * catalog pricing) — no new pricing mechanism, no migration. Only
+ * five tiers — a sixth (3XL) was discussed and explicitly withdrawn,
+ * not omitted by oversight.
+ */
+const DRIVEWAY_SIZE_OPTIONS = [
+  { value: '1_car', label: '1 Car Driveway', sqft: 400 },
+  { value: '2_car', label: '2 Car Driveway', sqft: 600 },
+  { value: '4_car', label: '4 Car Driveway', sqft: 1200 },
+  { value: 'xl', label: 'XL Driveway', sqft: 1500 },
+  { value: '2xl', label: '2XL Driveway', sqft: 2000 },
+] as const;
 
 const CONFIDENCE_LABEL: Record<string, string> = {
   high: 'High confidence',
@@ -111,6 +131,8 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   const [stories, setStories] = useState<'' | '1' | '2' | '3+' | 'not_sure'>('');
   const [roofType, setRoofType] = useState<'' | 'shingle' | 'tile' | 'metal' | 'flat' | 'not_sure'>('');
   const [gutters, setGutters] = useState<'' | 'yes' | 'no'>('');
+  const [drivewaySize, setDrivewaySize] = useState<'' | (typeof DRIVEWAY_SIZE_OPTIONS)[number]['value']>('');
+  const [isDrivewayModalOpen, setIsDrivewayModalOpen] = useState(false);
   const [exteriorMaterial, setExteriorMaterial] = useState<'' | 'stucco' | 'siding' | 'brick' | 'concrete_block' | 'other' | 'not_sure'>('');
   // No existing property-type source/question was found anywhere in
   // the codebase (confirmed again this session) — this list is
@@ -384,6 +406,10 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
       details.measurementMethod = 'building_footprint_multiplier';
       details.measurementConfidence = lookupResult?.roofConfidence ?? 'unavailable';
     }
+    if (serviceType === 'driveway_cleaning' && drivewaySize) {
+      details.drivewaySize = drivewaySize;
+      details.measurementSource = 'size_preset';
+    }
     return details;
   }
 
@@ -399,6 +425,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     if (exteriorMaterial) parts.push(`Exterior: ${exteriorMaterial === 'not_sure' ? 'not sure' : exteriorMaterial}`);
     if (propertyType) parts.push(`Property type: ${propertyType === 'not_sure' ? 'not sure' : propertyType}`);
     if (adjustedBuildingArea) parts.push(`Home size: ${adjustedBuildingArea} sq ft`);
+    if (drivewaySize) parts.push(`Driveway size: ${DRIVEWAY_SIZE_OPTIONS.find((o) => o.value === drivewaySize)?.label ?? drivewaySize}`);
     return parts.length > 0 ? parts.join('. ') : undefined;
   }
 
@@ -690,7 +717,21 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                         {selected && <Check className="h-4 w-4 text-white" />}
                       </span>
                     </button>
-                    {selected && s.quoteMode === 'instant' && s.defaultUnitOfMeasure !== 'flat_rate' && !RESEARCHABLE_SERVICE_TYPES.has(s.serviceType) && !MAP_MEASURABLE_SERVICE_TYPES.has(s.serviceType) && (
+                    {selected && s.serviceType === 'driveway_cleaning' && s.quoteMode === 'instant' && (
+                      <div className="mt-2 pl-4">
+                        <button
+                          type="button"
+                          onClick={() => setIsDrivewayModalOpen(true)}
+                          className="rounded-lg border-2 px-4 py-2.5 text-sm font-medium"
+                          style={{ borderColor: drivewaySize ? brandColor : '#e2e8f0', color: drivewaySize ? brandColor : '#334155' }}
+                        >
+                          {drivewaySize
+                            ? DRIVEWAY_SIZE_OPTIONS.find((o) => o.value === drivewaySize)?.label
+                            : 'Select Driveway Size'}
+                        </button>
+                      </div>
+                    )}
+                    {selected && s.quoteMode === 'instant' && s.defaultUnitOfMeasure !== 'flat_rate' && s.serviceType !== 'driveway_cleaning' && !RESEARCHABLE_SERVICE_TYPES.has(s.serviceType) && !MAP_MEASURABLE_SERVICE_TYPES.has(s.serviceType) && (
                       <div className="mt-2 pl-4">
                         <label className="block text-xs font-medium text-slate-600">{UNIT_QUESTIONS[s.defaultUnitOfMeasure] ?? 'Quantity'}</label>
                         <input
@@ -712,6 +753,22 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
               })}
             </div>
             <BackAndContinue onBack={goBack} onNext={handleServiceContinue} disabled={!canContinueService} color={brandColor} />
+            {isDrivewayModalOpen && (
+              <DrivewaySizeModal
+                selected={drivewaySize}
+                onSelect={setDrivewaySize}
+                onDone={() => {
+                  const driveway = selectedServices.find((s) => s.serviceType === 'driveway_cleaning');
+                  const option = DRIVEWAY_SIZE_OPTIONS.find((o) => o.value === drivewaySize);
+                  if (driveway && option) {
+                    setQuantities((prev) => ({ ...prev, [driveway.id]: String(option.sqft) }));
+                  }
+                  setIsDrivewayModalOpen(false);
+                }}
+                onClose={() => setIsDrivewayModalOpen(false)}
+                brandColor={brandColor}
+              />
+            )}
           </div>
         )}
 
@@ -912,7 +969,17 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Services</p>
                 <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
                   {selectedServices.map((s) => (
-                    <li key={s.id}>{s.name}</li>
+                    <li key={s.id}>
+                      {s.name}
+                      {/* Business-friendly size, not the raw sq-ft
+                          equivalent used internally for pricing — same
+                          "customer sees the size, not the number"
+                          principle the service-selection card already
+                          uses for this same value. */}
+                      {s.serviceType === 'driveway_cleaning' && drivewaySize && (
+                        <span className="text-slate-400"> — {DRIVEWAY_SIZE_OPTIONS.find((o) => o.value === drivewaySize)?.label}</span>
+                      )}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -1180,6 +1247,78 @@ function MeasurementCard({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Matches the reference screenshot's interaction pattern (icon header,
+ * "Select Size" grid, obvious selected state, prominent Done button) —
+ * NOT its values (S/M/L/XL/2XL, 800-2000 sqft were that competitor's
+ * own business data, never used here) or its visual styling/branding.
+ * Renovo's actual five approved tiers (DRIVEWAY_SIZE_OPTIONS) drive
+ * this entirely; sq-ft is intentionally not shown on the cards
+ * themselves — per the task's own instruction, the customer should
+ * primarily see the business-friendly size ("2 Car Driveway"), not a
+ * technical number, matching how the service card displays the
+ * selection afterward too.
+ */
+function DrivewaySizeModal({
+  selected,
+  onSelect,
+  onDone,
+  onClose,
+  brandColor,
+}: {
+  selected: string;
+  onSelect: (value: (typeof DRIVEWAY_SIZE_OPTIONS)[number]['value']) => void;
+  onDone: () => void;
+  onClose: () => void;
+  brandColor: string;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${brandColor}1a` }}>
+              <SERVICE_TYPE_ICONS.driveway_cleaning className="h-5 w-5" style={{ color: brandColor }} />
+            </span>
+            <h3 className="text-sm font-semibold text-slate-800">Configure Driveway Cleaning</h3>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="mt-4 text-sm font-medium text-slate-700">Select Driveway Size</p>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {DRIVEWAY_SIZE_OPTIONS.map((opt) => {
+            const isSelected = selected === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onSelect(opt.value)}
+                className="rounded-lg border-2 px-3 py-4 text-center text-sm font-semibold transition"
+                style={{ borderColor: isSelected ? brandColor : '#e2e8f0', color: isSelected ? brandColor : '#334155', backgroundColor: isSelected ? `${brandColor}0d` : 'white' }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          disabled={!selected}
+          onClick={onDone}
+          className="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
+          style={{ backgroundColor: brandColor }}
+        >
+          Done
+        </button>
+      </div>
     </div>
   );
 }
