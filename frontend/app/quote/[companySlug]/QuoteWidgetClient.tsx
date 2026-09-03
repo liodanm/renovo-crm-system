@@ -54,11 +54,11 @@ const MAP_MEASURABLE_SERVICE_TYPES = new Set(['pool_deck', 'patio', 'paver_clean
  * not omitted by oversight.
  */
 const DRIVEWAY_SIZE_OPTIONS = [
-  { value: '1_car', label: '1 Car Driveway', sqft: 400 },
   { value: '2_car', label: '2 Car Driveway', sqft: 600 },
-  { value: '4_car', label: '4 Car Driveway', sqft: 1200 },
-  { value: 'xl', label: 'XL Driveway', sqft: 1500 },
-  { value: '2xl', label: '2XL Driveway', sqft: 2000 },
+  { value: '4_car', label: '4 Car Driveway', sqft: 950 },
+  { value: '6_car', label: '6 Car Driveway', sqft: 1400 },
+  { value: 'xl', label: 'XL Driveway', sqft: 2200 },
+  { value: '2xl', label: '2XL Driveway', sqft: 3500 },
 ] as const;
 
 const CONFIDENCE_LABEL: Record<string, string> = {
@@ -1257,11 +1257,12 @@ function MeasurementCard({
  * NOT its values (S/M/L/XL/2XL, 800-2000 sqft were that competitor's
  * own business data, never used here) or its visual styling/branding.
  * Renovo's actual five approved tiers (DRIVEWAY_SIZE_OPTIONS) drive
- * this entirely; sq-ft is intentionally not shown on the cards
- * themselves — per the task's own instruction, the customer should
- * primarily see the business-friendly size ("2 Car Driveway"), not a
- * technical number, matching how the service card displays the
- * selection afterward too.
+ * this entirely. Sq-ft IS shown here (secondary line under each size
+ * label), per explicit request, so the customer has a concrete sense
+ * of scale when choosing — but the SERVICE CARD and Review screen
+ * still show only the business-friendly size ("2 Car Driveway"), not
+ * the number, once a selection is made; the number is a decision aid
+ * on this screen only, not how the choice is displayed afterward.
  */
 function DrivewaySizeModal({
   selected,
@@ -1300,10 +1301,13 @@ function DrivewaySizeModal({
                 key={opt.value}
                 type="button"
                 onClick={() => onSelect(opt.value)}
-                className="rounded-lg border-2 px-3 py-4 text-center text-sm font-semibold transition"
-                style={{ borderColor: isSelected ? brandColor : '#e2e8f0', color: isSelected ? brandColor : '#334155', backgroundColor: isSelected ? `${brandColor}0d` : 'white' }}
+                className="rounded-lg border-2 px-3 py-4 text-center transition"
+                style={{ borderColor: isSelected ? brandColor : '#e2e8f0', backgroundColor: isSelected ? `${brandColor}0d` : 'white' }}
               >
-                {opt.label}
+                <span className="block text-sm font-semibold" style={{ color: isSelected ? brandColor : '#334155' }}>
+                  {opt.label.replace(' Driveway', '')}
+                </span>
+                <span className="mt-1 block text-xs text-slate-400">{opt.sqft.toLocaleString()} sqft</span>
               </button>
             );
           })}
