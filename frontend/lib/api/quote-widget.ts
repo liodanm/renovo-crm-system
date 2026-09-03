@@ -95,13 +95,24 @@ export interface PropertyLookupResult {
   // so House Wash can seed the map instead of opening blank. null,
   // never a fabricated shape, when no footprint was found.
   buildingFootprint: { lat: number; lon: number }[] | null;
+  // The geocoder's own parsed address — real structured components,
+  // not guessed/split from the customer's single-line input. null
+  // only when geocoding itself failed entirely.
+  resolvedAddress: {
+    displayName: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  } | null;
 }
 
 export interface PropertyLookupPayload {
-  addressLine1: string;
-  city: string;
-  state: string;
-  postalCode: string;
+  // Single-line entry — the Quote Tool's new address field sends
+  // only this. Structured fields kept optional/unused by this
+  // frontend going forward, but still accepted by the backend for
+  // any other caller.
+  address: string;
 }
 
 export const quoteWidgetApi = {

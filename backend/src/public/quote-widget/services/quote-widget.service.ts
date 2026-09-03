@@ -320,7 +320,13 @@ export class QuoteWidgetService {
   async lookupProperty(companySlug: string, dto: PropertyLookupDto) {
     const company = await this.resolveCompany(companySlug);
 
-    const geocoded = await this.geocoding.geocode(dto.addressLine1, dto.city, dto.state, dto.postalCode);
+    // Single-line address (new) takes priority when both are somehow
+    // sent; falls back to the existing structured-fields path
+    // unchanged — same geocoder, same underlying Nominatim call
+    // either way (see GeocodingService.geocode/geocodeFreeText).
+    const geocoded = dto.address
+      ? await this.geocoding.geocodeFreeText(dto.address)
+      : await this.geocoding.geocode(dto.addressLine1 ?? '', dto.city ?? '', dto.state ?? '', dto.postalCode ?? '');
     if (!geocoded) {
       this.logger.log({ event: 'quote_widget.property_lookup_geocode_failed', companyId: company.id });
       return {
@@ -331,8 +337,23 @@ export class QuoteWidgetService {
         roofAreaSqFt: null,
         roofConfidence: 'unavailable' as MeasurementConfidence,
         buildingFootprint: null,
+        resolvedAddress: null,
       };
     }
+
+    // Real, structured address components — from the geocoder's own
+    // parsed result (see GeocodingService's addressdetails=1), not
+    // guessed/regex-split from the customer's free-text input. Used
+    // for both the property-confirmation display and, later, the
+    // structured address fields the Customer/Estimate record still
+    // requires at submission time.
+    const resolvedAddress = {
+      displayName: geocoded.displayName,
+      addressLine1: geocoded.resolvedAddressLine1,
+      city: geocoded.resolvedCity,
+      state: geocoded.resolvedState,
+      postalCode: geocoded.resolvedPostalCode,
+    };
 
     const footprint = await this.propertyIntelligence.lookupBuildingFootprint(geocoded.latitude, geocoded.longitude);
     this.logger.log({ event: 'quote_widget.property_lookup_completed', companyId: company.id, confidence: footprint.confidence });
@@ -351,6 +372,7 @@ export class QuoteWidgetService {
         roofAreaSqFt: null,
         roofConfidence: 'unavailable' as MeasurementConfidence,
         buildingFootprint: null,
+        resolvedAddress,
       };
     }
 
@@ -383,6 +405,7 @@ export class QuoteWidgetService {
       // normalized shape PropertyMeasurementMap's initialPoints prop
       // already accepts; the frontend needs nothing else to render it.
       buildingFootprint: footprint.buildingFootprint,
+      resolvedAddress,
     };
   }
 

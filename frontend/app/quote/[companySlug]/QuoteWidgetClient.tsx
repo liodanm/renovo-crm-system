@@ -47,8 +47,8 @@ const CONFIDENCE_LABEL: Record<string, string> = {
   low: 'Rough estimate — please confirm',
 };
 
-type Step = 'service' | 'property' | 'mapMeasure' | 'researching' | 'confirm' | 'contact' | 'review' | 'success';
-const STEP_ORDER: Exclude<Step, 'success' | 'researching' | 'mapMeasure'>[] = ['service', 'property', 'confirm', 'contact', 'review'];
+type Step = 'property' | 'researching' | 'propertyConfirm' | 'service' | 'mapMeasure' | 'confirm' | 'contact' | 'review' | 'success';
+const STEP_ORDER: Exclude<Step, 'success' | 'researching' | 'mapMeasure'>[] = ['property', 'propertyConfirm', 'service', 'confirm', 'contact', 'review'];
 
 function currency(value: string | number): string {
   return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -59,10 +59,19 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   const [services, setServices] = useState<PublicQuoteService[] | null>(null);
   const [loadError, setLoadError] = useState<'not_found' | 'generic' | null>(null);
 
-  const [step, setStep] = useState<Step>('service');
+  const [step, setStep] = useState<Step>('property');
   const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, string>>({});
-  const [address, setAddress] = useState({ addressLine1: '', city: '', state: '', postalCode: '' });
+  // Single-line address — the customer types the whole address into
+  // one field. Sent to the backend as-is (PropertyLookupPayload.address);
+  // GeocodingService.geocodeFreeText handles it directly (the same
+  // Nominatim call this app already made, which was always a
+  // free-text query under the hood regardless of how many separate
+  // input boxes fed into it). Structured components for the
+  // permanent Customer/Estimate record come back from the geocoder's
+  // OWN parsed result (lookupResult.resolvedAddress) once lookup
+  // succeeds — never guessed/split from this string ourselves.
+  const [singleLineAddress, setSingleLineAddress] = useState('');
   const [contact, setContact] = useState({ firstName: '', lastName: '', email: '', phone: '' });
   // Real bots that fill every visible field will fill this too — a
   // sighted human never sees it. Sent as companyWebsite, matching the
@@ -101,6 +110,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   // variable used before its declaration), not just a style choice.
   const [stories, setStories] = useState<'' | '1' | '2' | '3+' | 'not_sure'>('');
   const [roofType, setRoofType] = useState<'' | 'shingle' | 'tile' | 'metal' | 'flat' | 'not_sure'>('');
+  const [gutters, setGutters] = useState<'' | 'yes' | 'no'>('');
   const [exteriorMaterial, setExteriorMaterial] = useState<'' | 'stucco' | 'siding' | 'brick' | 'concrete_block' | 'other' | 'not_sure'>('');
 
   const selectedServices = useMemo(() => (services ?? []).filter((s) => selectedServiceIds.has(s.id)), [services, selectedServiceIds]);
@@ -133,6 +143,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   const [uncertaintyOverride, setUncertaintyOverride] = useState(false);
   const needsStories = hasResearchableServices;
   const needsRoofType = selectedServices.some((s) => s.serviceType === 'roof_soft_wash');
+  const needsGutters = selectedServices.some((s) => s.serviceType === 'roof_soft_wash');
   const needsExteriorMaterial = selectedServices.some((s) => s.serviceType === 'house_wash');
   // "I'm not sure" is a real, honest answer, not a blocker — but a
   // service that genuinely can't be safely priced without knowing this
@@ -185,6 +196,12 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   }
 
   const [isLookingUpProperty, setIsLookingUpProperty] = useState(false);
+  // Property is now Step 1 — lookup ALWAYS runs on Continue here,
+  // unlike the old service-first flow where it could skip the lookup
+  // entirely for a cart that didn't need it (at that point services
+  // were already known). Now services haven't been chosen yet, so
+  // there's no way to know in advance whether lookup is needed —
+  // always run it, land on the new 'propertyConfirm' step either way.
   async function handlePropertyContinue() {
     // Real gap found in this audit: the Continue button here was only
     // disabled by address validity, not by an in-flight request — a
@@ -192,53 +209,62 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     // before the step change to 'researching' removes the button from
     // the DOM. Guarded the same way quote submission already is.
     if (isLookingUpProperty) return;
-    if (!hasResearchableServices && mapMeasureQueue.length === 0) {
-      goNext();
-      return;
-    }
     setIsLookingUpProperty(true);
     setStep('researching');
     try {
-      const result = await quoteWidgetApi.lookupProperty(companySlug, {
-        addressLine1: address.addressLine1.trim(),
-        city: address.city.trim(),
-        state: address.state.trim(),
-        postalCode: address.postalCode.trim(),
-      });
+      const result = await quoteWidgetApi.lookupProperty(companySlug, { address: singleLineAddress.trim() });
       setLookupResult(result);
       if (result.buildingAreaSqFt != null) setAdjustedBuildingArea(String(result.buildingAreaSqFt));
       if (result.roofAreaSqFt != null) setAdjustedRoofArea(String(result.roofAreaSqFt));
     } catch {
       // Property lookup failure must never break the Quote Tool — an
-      // empty result just means the confirm step shows every
-      // researchable service as "couldn't find this automatically,
-      // please enter it" instead of a pre-filled card, and the map step
-      // (if reached) falls back to a generic US center rather than the
-      // property. Never an error shown to the customer.
-      setLookupResult({ latitude: null, longitude: null, buildingAreaSqFt: null, buildingConfidence: 'unavailable', roofAreaSqFt: null, roofConfidence: 'unavailable', buildingFootprint: null });
+      // empty result just means the confirmation screen shows the
+      // address the customer typed with no automatic details, and
+      // later, researchable services show "couldn't find this
+      // automatically" instead of a pre-filled card. Never an error
+      // shown to the customer.
+      setLookupResult({
+        latitude: null,
+        longitude: null,
+        buildingAreaSqFt: null,
+        buildingConfidence: 'unavailable',
+        roofAreaSqFt: null,
+        roofConfidence: 'unavailable',
+        buildingFootprint: null,
+        resolvedAddress: null,
+      });
     }
     setIsLookingUpProperty(false);
+    setStep('propertyConfirm');
+  }
+
+  // Runs when the customer clicks Continue on the SERVICE SELECTION
+  // step — this replaces the branching that used to happen
+  // immediately after property lookup in the old service-first order.
+  // Property lookup already happened (Step 1); this decides where to
+  // go now that we finally know which services were chosen.
+  function handleServiceContinue() {
     if (mapMeasureQueue.length > 0) {
       setMapMeasureIndex(0);
       setStep('mapMeasure');
     } else if (hasResearchableServices) {
       setStep('confirm');
     } else {
-      goNext();
+      setStep('contact');
     }
   }
 
   // Runs after the map-measurement queue finishes — moves on to the
   // existing confirm step if there's still automatic research to show,
-  // otherwise straight to the next step in the normal sequence.
+  // otherwise straight to Contact (the next step after Services in the
+  // new order, same as it always was one step past wherever
+  // measurement/research finished).
   function proceedPastMapMeasurement() {
     if (hasResearchableServices) {
       setStep('confirm');
       return;
     }
-    const order = effectiveOrder();
-    const i = order.indexOf('property');
-    setStep((i >= 0 && i < order.length - 1 ? order[i + 1] : 'contact') as Step);
+    setStep('contact');
   }
 
   function handleMapMeasureComplete(areaSqFt: number, points: LatLon[]) {
@@ -325,7 +351,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
         MAP_MEASURABLE_SERVICE_TYPES.has(s.serviceType) ||
         Number(quantities[s.id]) > 0,
     );
-  const canContinueProperty = !!(address.addressLine1.trim() && address.city.trim() && address.state.trim() && address.postalCode.trim());
+  const canContinueProperty = !!singleLineAddress.trim();
   const canContinueContact = !!(contact.firstName.trim() && /\S+@\S+\.\S+/.test(contact.email) && contact.phone.trim().length >= 7);
 
   // Metadata about HOW a measurement was obtained — not required by the
@@ -345,6 +371,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     }
     if (serviceType === 'roof_soft_wash') {
       if (roofType) details.roofType = roofType;
+      if (gutters) details.gutters = gutters === 'yes';
       details.measurementSource = roofAdjusting ? 'customer_provided' : 'derived';
       details.measurementMethod = 'building_footprint_multiplier';
       details.measurementConfidence = lookupResult?.roofConfidence ?? 'unavailable';
@@ -360,9 +387,25 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     const parts: string[] = [];
     if (stories) parts.push(`Stories: ${stories === 'not_sure' ? 'not sure' : stories}`);
     if (roofType) parts.push(`Roof type: ${roofType === 'not_sure' ? 'not sure' : roofType}`);
+    if (gutters) parts.push(`Gutters: ${gutters === 'yes' ? 'yes' : 'no'}`);
     if (exteriorMaterial) parts.push(`Exterior: ${exteriorMaterial === 'not_sure' ? 'not sure' : exteriorMaterial}`);
     return parts.length > 0 ? parts.join('. ') : undefined;
   }
+
+  // Structured components for the permanent Customer/Estimate record
+  // — from the geocoder's own parsed result (lookupResult.resolvedAddress,
+  // see GeocodingService's addressdetails=1), never guessed/split from
+  // the customer's single-line input ourselves. Falls back to putting
+  // the raw typed text into addressLine1 only when lookup genuinely
+  // failed — the address text itself is never lost, matching the
+  // existing "property lookup failure must never trap the customer"
+  // philosophy already established for the rest of this flow.
+  const submissionAddress = lookupResult?.resolvedAddress ?? {
+    addressLine1: singleLineAddress.trim(),
+    city: '',
+    state: '',
+    postalCode: '',
+  };
 
   async function handleSubmit() {
     // Real bug caught before shipping: the original guard checked
@@ -380,10 +423,10 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
           lastName: contact.lastName.trim() || undefined,
           email: contact.email.trim(),
           phone: contact.phone.trim(),
-          addressLine1: address.addressLine1.trim(),
-          city: address.city.trim(),
-          state: address.state.trim(),
-          postalCode: address.postalCode.trim(),
+          addressLine1: submissionAddress.addressLine1,
+          city: submissionAddress.city,
+          state: submissionAddress.state,
+          postalCode: submissionAddress.postalCode,
           services: selectedServices.map((s) => ({ serviceCatalogItemId: s.id })),
           notes: buildRequestNotes(),
           idempotencyKey,
@@ -395,10 +438,10 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
           lastName: contact.lastName.trim() || undefined,
           email: contact.email.trim(),
           phone: contact.phone.trim(),
-          addressLine1: address.addressLine1.trim(),
-          city: address.city.trim(),
-          state: address.state.trim(),
-          postalCode: address.postalCode.trim(),
+          addressLine1: submissionAddress.addressLine1,
+          city: submissionAddress.city,
+          state: submissionAddress.state,
+          postalCode: submissionAddress.postalCode,
           services: selectedServices.map((s) => ({
             serviceCatalogItemId: s.id,
             quantity: s.defaultUnitOfMeasure === 'flat_rate' ? 1 : Number(quantities[s.id]),
@@ -461,9 +504,79 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
           </>
         )}
 
+        {step === 'property' && (
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">Tell us about your property</h1>
+            <p className="mt-1 text-sm text-slate-500">Enter your property address to get started.</p>
+            <div className="mt-5">
+              <Field label="Property Address">
+                <input
+                  value={singleLineAddress}
+                  onChange={(e) => setSingleLineAddress(e.target.value)}
+                  placeholder="11440 NW 49 Dr, Coral Springs, FL 33076"
+                  className={inputClass}
+                  autoFocus
+                />
+              </Field>
+            </div>
+            <PrimaryButton disabled={!canContinueProperty || isLookingUpProperty} onClick={handlePropertyContinue} color={brandColor}>
+              Continue
+            </PrimaryButton>
+          </div>
+        )}
+
+        {step === 'researching' && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Loader2 className="h-6 w-6 animate-spin" style={{ color: brandColor }} />
+            <p className="mt-4 text-sm font-medium text-slate-700">Finding your property…</p>
+          </div>
+        )}
+
+        {step === 'propertyConfirm' && (
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">
+              {lookupResult?.latitude != null ? 'We found your property' : "Here's the address you entered"}
+            </h1>
+            {!lookupResult?.resolvedAddress && lookupResult?.latitude == null && (
+              <p className="mt-1 text-sm text-slate-500">We couldn&apos;t automatically look up this address, but you can still continue.</p>
+            )}
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <p className="font-medium text-slate-900">{lookupResult?.resolvedAddress?.addressLine1 || singleLineAddress}</p>
+              {lookupResult?.resolvedAddress && (
+                <p className="text-sm text-slate-500">
+                  {lookupResult.resolvedAddress.city}
+                  {lookupResult.resolvedAddress.city && lookupResult.resolvedAddress.state ? ', ' : ''}
+                  {lookupResult.resolvedAddress.state} {lookupResult.resolvedAddress.postalCode}
+                </p>
+              )}
+              {/* Only shown when actually known — per the property-data
+                  audit, stories/property type/exterior have no
+                  automatic source at all, so this card never claims to
+                  have them. Those remain per-service questions later
+                  (see needsStories/needsExteriorMaterial/needsGutters),
+                  asked only once regardless of which services need
+                  them, and only for services that actually need them. */}
+              {lookupResult?.buildingAreaSqFt != null && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <p className="text-xs font-medium text-slate-400">Home Size</p>
+                  <p className="text-lg font-semibold text-slate-900">{lookupResult.buildingAreaSqFt.toLocaleString()} sq ft</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-5">
+              <PrimaryButton onClick={() => setStep('service')} color={brandColor}>
+                Yes, This Is My Property
+              </PrimaryButton>
+              <button onClick={() => setStep('property')} className="mt-3 w-full text-center text-sm font-medium text-slate-500 underline">
+                That&apos;s not my property / Change address
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 'service' && (
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Get Your Estimate</h1>
+            <h1 className="text-xl font-semibold text-slate-900">What would you like cleaned?</h1>
             <p className="mt-1 text-sm text-slate-500">Choose the services you&apos;re interested in.</p>
             <div className="mt-5 space-y-2">
               {services.length === 0 && <p className="text-sm text-slate-500">No services are currently available for online quotes. Please contact us directly.</p>}
@@ -512,33 +625,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 );
               })}
             </div>
-            <PrimaryButton disabled={!canContinueService} onClick={goNext} color={brandColor}>
-              Continue
-            </PrimaryButton>
-          </div>
-        )}
-
-        {step === 'property' && (
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">Where is the property?</h1>
-            <p className="mt-1 text-sm text-slate-500">Your property address helps us calculate your estimate accurately.</p>
-            <div className="mt-5 space-y-3">
-              <Field label="Street Address">
-                <input value={address.addressLine1} onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })} className={inputClass} />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="City">
-                  <input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} className={inputClass} />
-                </Field>
-                <Field label="State">
-                  <input value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} maxLength={2} className={inputClass} />
-                </Field>
-              </div>
-              <Field label="ZIP Code">
-                <input value={address.postalCode} onChange={(e) => setAddress({ ...address, postalCode: e.target.value })} inputMode="numeric" className={inputClass} />
-              </Field>
-            </div>
-            <BackAndContinue onBack={goBack} onNext={handlePropertyContinue} disabled={!canContinueProperty || isLookingUpProperty} color={brandColor} />
+            <BackAndContinue onBack={goBack} onNext={handleServiceContinue} disabled={!canContinueService} color={brandColor} />
           </div>
         )}
 
@@ -581,13 +668,6 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {step === 'researching' && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Loader2 className="h-6 w-6 animate-spin" style={{ color: brandColor }} />
-            <p className="mt-4 text-sm font-medium text-slate-700">Finding the information we need to estimate your service…</p>
           </div>
         )}
 
@@ -655,6 +735,18 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                   brandColor={brandColor}
                 />
               )}
+              {needsGutters && (
+                <ChoiceQuestion
+                  label="Does your home have gutters?"
+                  value={gutters}
+                  onChange={(v) => setGutters(v as typeof gutters)}
+                  options={[
+                    { value: 'yes', label: 'Yes, I have gutters' },
+                    { value: 'no', label: 'No gutters' },
+                  ]}
+                  brandColor={brandColor}
+                />
+              )}
               {needsRoofType && (
                 <ChoiceQuestion
                   label="What type of roof do you have?"
@@ -715,6 +807,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 (selectedServices.some((s) => s.serviceType === 'roof_soft_wash') && !adjustedRoofArea) ||
                 (needsStories && !stories) ||
                 (needsRoofType && !roofType) ||
+                (needsGutters && !gutters) ||
                 (needsExteriorMaterial && !exteriorMaterial)
               }
               color={brandColor}
@@ -769,8 +862,8 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Property</p>
-                <p className="mt-1 text-sm text-slate-700">{address.addressLine1}</p>
-                <p className="text-sm text-slate-700">{address.city}, {address.state} {address.postalCode}</p>
+                <p className="mt-1 text-sm text-slate-700">{submissionAddress.addressLine1}</p>
+                <p className="text-sm text-slate-700">{submissionAddress.city}, {submissionAddress.state} {submissionAddress.postalCode}</p>
               </div>
               {!routesToRequestOnly && (hasResearchableServices || mapMeasureQueue.length > 0) && (
                 <div>
@@ -808,12 +901,13 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                   </div>
                 </div>
               )}
-              {!routesToRequestOnly && (needsStories || needsRoofType || needsExteriorMaterial) && (
+              {!routesToRequestOnly && (needsStories || needsRoofType || needsGutters || needsExteriorMaterial) && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Service Details</p>
                   <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
                     {needsStories && stories && stories !== 'not_sure' && <li>Stories: {stories}</li>}
                     {needsRoofType && roofType && roofType !== 'not_sure' && <li>Roof Type: {roofType[0].toUpperCase() + roofType.slice(1)}</li>}
+                    {needsGutters && gutters && <li>Gutters: {gutters === 'yes' ? 'Yes' : 'No'}</li>}
                     {needsExteriorMaterial && exteriorMaterial && exteriorMaterial !== 'not_sure' && (
                       <li>Exterior: {exteriorMaterial === 'concrete_block' ? 'Concrete/Block' : exteriorMaterial[0].toUpperCase() + exteriorMaterial.slice(1)}</li>
                     )}

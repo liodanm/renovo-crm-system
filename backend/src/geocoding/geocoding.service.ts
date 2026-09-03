@@ -6,6 +6,21 @@ import * as crypto from 'crypto';
 export interface GeocodeResult {
   latitude: number;
   longitude: number;
+  // Nominatim's own parsed address components (addressdetails=1 on the
+  // SAME request already being made — not a second query, not a new
+  // provider). Used for two different, legitimate purposes: a clean
+  // single formatted line for customer-facing display/confirmation,
+  // and real structured components (not guessed/regex-split by us)
+  // for the permanent Customer/Estimate address fields at submission
+  // time, which still require structured data for CRM display and
+  // filtering — this is NOT the Quote Tool's user-facing input
+  // shape, just what the geocoder itself already resolves an address
+  // string into.
+  displayName: string;
+  resolvedAddressLine1: string;
+  resolvedCity: string;
+  resolvedState: string;
+  resolvedPostalCode: string;
 }
 
 // No expiry — a street address's coordinates don't change. Unlike
@@ -30,8 +45,31 @@ export class GeocodingService {
 
   constructor(@Inject('REDIS_CLIENT') private readonly redis: Redis) {}
 
+  /**
+   * Existing structured-field entry point — UNCHANGED contract,
+   * preserved for backward compatibility (any caller still sending
+   * addressLine1/city/state/postalCode separately keeps working
+   * exactly as before). Internally just concatenates and delegates to
+   * geocodeFreeText — this is what the code already did (fullAddress
+   * was already a single concatenated string sent to Nominatim's
+   * free-text `q` parameter), just now factored into its own method
+   * instead of duplicated for the new single-line entry point below.
+   */
   async geocode(addressLine1: string, city: string, state: string, postalCode: string): Promise<GeocodeResult | null> {
-    const fullAddress = `${addressLine1}, ${city}, ${state} ${postalCode}`.trim();
+    return this.geocodeFreeText(`${addressLine1}, ${city}, ${state} ${postalCode}`.trim());
+  }
+
+  /**
+   * The actual Nominatim call — was always free-text under the hood
+   * (Nominatim's `q` parameter, not its structured street/city/state
+   * fields), just previously only reachable by first assembling a
+   * combined string from four separate inputs. This is that same
+   * call, exposed directly for the Quote Tool's single-line address
+   * field — not a second geocoder, not a new provider, the identical
+   * request this service already made.
+   */
+  async geocodeFreeText(query: string): Promise<GeocodeResult | null> {
+    const fullAddress = query.trim();
     const cacheKey = `geocode:${crypto.createHash('sha1').update(fullAddress.toLowerCase()).digest('hex')}`;
 
     const cached = await this.redis.get(cacheKey);
@@ -50,6 +88,11 @@ export class GeocodingService {
       url.searchParams.set('q', fullAddress);
       url.searchParams.set('format', 'json');
       url.searchParams.set('limit', '1');
+      // Added — same request, one more parameter. Returns Nominatim's
+      // own parsed address breakdown alongside the coordinates it was
+      // already returning; previously requested but discarded nothing
+      // new, this data simply wasn't being asked for before.
+      url.searchParams.set('addressdetails', '1');
 
       const response = await fetch(url.toString(), {
         headers: { 'User-Agent': 'RenovoCRM/1.0 (property address geocoding)' },
@@ -66,7 +109,22 @@ export class GeocodingService {
         return null;
       }
 
-      const result: GeocodeResult = { latitude: parseFloat(results[0].lat), longitude: parseFloat(results[0].lon) };
+      const match = results[0];
+      const addr = match.address ?? {};
+      const streetLine = [addr.house_number, addr.road].filter(Boolean).join(' ');
+      const result: GeocodeResult = {
+        latitude: parseFloat(match.lat),
+        longitude: parseFloat(match.lon),
+        displayName: typeof match.display_name === 'string' ? match.display_name : fullAddress,
+        // Falls back to the original input text for any component
+        // Nominatim's response didn't include, rather than leaving it
+        // blank — some rural/PO-box-style addresses have incomplete
+        // structured breakdowns even when the coordinates resolve fine.
+        resolvedAddressLine1: streetLine || fullAddress,
+        resolvedCity: addr.city ?? addr.town ?? addr.village ?? addr.hamlet ?? '',
+        resolvedState: addr.state_code ?? addr.state ?? '',
+        resolvedPostalCode: addr.postcode ?? '',
+      };
       await this.redis.set(cacheKey, JSON.stringify(result));
       return result;
     } catch (err) {
