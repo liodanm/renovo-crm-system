@@ -112,6 +112,13 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   const [roofType, setRoofType] = useState<'' | 'shingle' | 'tile' | 'metal' | 'flat' | 'not_sure'>('');
   const [gutters, setGutters] = useState<'' | 'yes' | 'no'>('');
   const [exteriorMaterial, setExteriorMaterial] = useState<'' | 'stucco' | 'siding' | 'brick' | 'concrete_block' | 'other' | 'not_sure'>('');
+  // No existing property-type source/question was found anywhere in
+  // the codebase (confirmed again this session) — this list is
+  // proposed, not pre-approved, per the task's own explicit
+  // permission to proceed with "the smallest reasonable customer-
+  // facing set" since it requires no architectural change (no
+  // migration, same serviceDetails-style pattern as stories/exterior).
+  const [propertyType, setPropertyType] = useState<'' | 'single_family' | 'townhome' | 'duplex_multi' | 'other' | 'not_sure'>('');
 
   const selectedServices = useMemo(() => (services ?? []).filter((s) => selectedServiceIds.has(s.id)), [services, selectedServiceIds]);
   // If ANY selected service requires manual review, the WHOLE
@@ -363,6 +370,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   function buildServiceDetails(serviceType: string): Record<string, unknown> {
     const details: Record<string, unknown> = {};
     if (stories) details.stories = stories;
+    if (propertyType) details.propertyType = propertyType;
     if (serviceType === 'house_wash') {
       if (exteriorMaterial) details.exteriorMaterial = exteriorMaterial;
       details.measurementSource = buildingAdjusting || !lookupResult?.buildingAreaSqFt ? 'customer_provided' : 'property_intelligence';
@@ -389,6 +397,8 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
     if (roofType) parts.push(`Roof type: ${roofType === 'not_sure' ? 'not sure' : roofType}`);
     if (gutters) parts.push(`Gutters: ${gutters === 'yes' ? 'yes' : 'no'}`);
     if (exteriorMaterial) parts.push(`Exterior: ${exteriorMaterial === 'not_sure' ? 'not sure' : exteriorMaterial}`);
+    if (propertyType) parts.push(`Property type: ${propertyType === 'not_sure' ? 'not sure' : propertyType}`);
+    if (adjustedBuildingArea) parts.push(`Home size: ${adjustedBuildingArea} sq ft`);
     return parts.length > 0 ? parts.join('. ') : undefined;
   }
 
@@ -549,23 +559,99 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                   {lookupResult.resolvedAddress.state} {lookupResult.resolvedAddress.postalCode}
                 </p>
               )}
-              {/* Only shown when actually known — per the property-data
-                  audit, stories/property type/exterior have no
-                  automatic source at all, so this card never claims to
-                  have them. Those remain per-service questions later
-                  (see needsStories/needsExteriorMaterial/needsGutters),
-                  asked only once regardless of which services need
-                  them, and only for services that actually need them. */}
-              {lookupResult?.buildingAreaSqFt != null && (
-                <div className="mt-3 border-t border-slate-100 pt-3">
-                  <p className="text-xs font-medium text-slate-400">Home Size</p>
-                  <p className="text-lg font-semibold text-slate-900">{lookupResult.buildingAreaSqFt.toLocaleString()} sq ft</p>
-                </div>
-              )}
             </div>
+
+            {/* Confirm Property Information — asked ONCE here, upfront,
+                before services are even selected, rather than deferred
+                per-service like an earlier version of this file did.
+                This is a deliberate reversal of that earlier choice,
+                made explicitly at the person's repeated direction
+                (twice, with a visual reference) — flagged as a real
+                tradeoff in the delivery notes, not silently done.
+                Square Footage is pre-filled from Property Intelligence
+                when available (still editable — never presented as
+                unchangeable); Stories/Exterior/Property Type have NO
+                automatic source at all (confirmed, not assumed) and
+                start blank, requiring an explicit answer — including
+                "I'm not sure"/"Other" as a genuinely valid answer, not
+                a dead end — before Confirm is enabled. Answering here
+                means these are NEVER asked again later, for any
+                selected service that would otherwise have needed them. */}
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+              <p className="text-sm font-semibold text-amber-900">Confirm Property Information</p>
+              <p className="mt-0.5 text-xs text-amber-700">We found what we could about your property. Please review and answer what&apos;s missing.</p>
+
+              <div className="mt-3">
+                <p className="mb-2 text-sm font-medium text-slate-700">Square Footage</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    value={adjustedBuildingArea}
+                    onChange={(e) => setAdjustedBuildingArea(e.target.value)}
+                    placeholder="Square feet"
+                    className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base focus:border-transparent focus:outline-none focus:ring-2"
+                  />
+                  <span className="text-sm text-slate-400">sq ft</span>
+                  {lookupResult?.buildingAreaSqFt != null && (
+                    <span className="text-xs text-slate-400">detected automatically</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <ChoiceQuestion
+                  label="Stories"
+                  value={stories}
+                  onChange={(v) => setStories(v as typeof stories)}
+                  options={[
+                    { value: '1', label: '1 story' },
+                    { value: '2', label: '2 stories' },
+                    { value: '3+', label: '3+ stories' },
+                    { value: 'not_sure', label: "I'm not sure" },
+                  ]}
+                  brandColor={brandColor}
+                />
+              </div>
+
+              <div className="mt-4">
+                <ChoiceQuestion
+                  label="Exterior Material"
+                  value={exteriorMaterial}
+                  onChange={(v) => setExteriorMaterial(v as typeof exteriorMaterial)}
+                  options={[
+                    { value: 'stucco', label: 'Stucco' },
+                    { value: 'siding', label: 'Siding' },
+                    { value: 'brick', label: 'Brick' },
+                    { value: 'concrete_block', label: 'Concrete/Block' },
+                    { value: 'other', label: 'Other' },
+                    { value: 'not_sure', label: "I'm not sure" },
+                  ]}
+                  brandColor={brandColor}
+                />
+              </div>
+
+              <div className="mt-4">
+                <ChoiceQuestion
+                  label="Property Type"
+                  value={propertyType}
+                  onChange={(v) => setPropertyType(v as typeof propertyType)}
+                  options={[
+                    { value: 'single_family', label: 'Single Family' },
+                    { value: 'townhome', label: 'Townhome' },
+                    { value: 'duplex_multi', label: 'Duplex / Multi-Family' },
+                    { value: 'other', label: 'Other' },
+                    { value: 'not_sure', label: "I'm not sure" },
+                  ]}
+                  brandColor={brandColor}
+                />
+              </div>
+            </div>
+
             <div className="mt-5">
-              <PrimaryButton onClick={() => setStep('service')} color={brandColor}>
-                Yes, This Is My Property
+              <PrimaryButton disabled={!stories || !exteriorMaterial || !propertyType} onClick={() => setStep('service')} color={brandColor}>
+                Confirm — This Is My Property
               </PrimaryButton>
               <button onClick={() => setStep('property')} className="mt-3 w-full text-center text-sm font-medium text-slate-500 underline">
                 That&apos;s not my property / Change address
@@ -718,23 +804,11 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
             </div>
 
             {/* Service-aware — only the questions relevant to what was
-                actually selected. A driveway-only cart never reaches
-                this step at all (see hasResearchableServices). */}
+                actually selected. Stories/Exterior Material now live
+                on the property confirmation card (asked once, before
+                services are even chosen) — NOT duplicated here. Only
+                genuinely roof-specific questions remain in this step. */}
             <div className="mt-5 space-y-5">
-              {needsStories && (
-                <ChoiceQuestion
-                  label="How many stories is your home?"
-                  value={stories}
-                  onChange={(v) => setStories(v as typeof stories)}
-                  options={[
-                    { value: '1', label: '1 story' },
-                    { value: '2', label: '2 stories' },
-                    { value: '3+', label: '3+ stories' },
-                    { value: 'not_sure', label: "I'm not sure" },
-                  ]}
-                  brandColor={brandColor}
-                />
-              )}
               {needsGutters && (
                 <ChoiceQuestion
                   label="Does your home have gutters?"
@@ -757,22 +831,6 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                     { value: 'tile', label: 'Tile' },
                     { value: 'metal', label: 'Metal' },
                     { value: 'flat', label: 'Flat' },
-                    { value: 'not_sure', label: "I'm not sure" },
-                  ]}
-                  brandColor={brandColor}
-                />
-              )}
-              {needsExteriorMaterial && (
-                <ChoiceQuestion
-                  label="What type of exterior does your home have?"
-                  value={exteriorMaterial}
-                  onChange={(v) => setExteriorMaterial(v as typeof exteriorMaterial)}
-                  options={[
-                    { value: 'stucco', label: 'Stucco' },
-                    { value: 'siding', label: 'Siding' },
-                    { value: 'brick', label: 'Brick' },
-                    { value: 'concrete_block', label: 'Concrete/Block' },
-                    { value: 'other', label: 'Other' },
                     { value: 'not_sure', label: "I'm not sure" },
                   ]}
                   brandColor={brandColor}
@@ -805,10 +863,8 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
               disabled={
                 (selectedServices.some((s) => s.serviceType === 'house_wash') && !adjustedBuildingArea) ||
                 (selectedServices.some((s) => s.serviceType === 'roof_soft_wash') && !adjustedRoofArea) ||
-                (needsStories && !stories) ||
                 (needsRoofType && !roofType) ||
-                (needsGutters && !gutters) ||
-                (needsExteriorMaterial && !exteriorMaterial)
+                (needsGutters && !gutters)
               }
               color={brandColor}
             />
@@ -865,6 +921,27 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
                 <p className="mt-1 text-sm text-slate-700">{submissionAddress.addressLine1}</p>
                 <p className="text-sm text-slate-700">{submissionAddress.city}, {submissionAddress.state} {submissionAddress.postalCode}</p>
               </div>
+              {(stories || exteriorMaterial || propertyType) && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Property Information</p>
+                  <ul className="mt-1 space-y-0.5 text-sm text-slate-700">
+                    {adjustedBuildingArea && <li>{Number(adjustedBuildingArea).toLocaleString()} sq ft</li>}
+                    {stories && stories !== 'not_sure' && <li>{stories} {stories === '1' ? 'story' : 'stories'}</li>}
+                    {exteriorMaterial && exteriorMaterial !== 'not_sure' && (
+                      <li>{exteriorMaterial === 'concrete_block' ? 'Concrete/Block' : exteriorMaterial[0].toUpperCase() + exteriorMaterial.slice(1)}</li>
+                    )}
+                    {propertyType && propertyType !== 'not_sure' && (
+                      <li>
+                        {propertyType === 'single_family'
+                          ? 'Single Family'
+                          : propertyType === 'duplex_multi'
+                            ? 'Duplex / Multi-Family'
+                            : propertyType[0].toUpperCase() + propertyType.slice(1)}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
               {!routesToRequestOnly && (hasResearchableServices || mapMeasureQueue.length > 0) && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Property Measurements</p>
