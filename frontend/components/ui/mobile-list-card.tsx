@@ -68,6 +68,15 @@ export interface MobileListCardProps {
   // Tailwind class, since this needs to work for arbitrary hex values
   // resolved at runtime.
   railColorHex?: string;
+  // Small status dot rendered before the status label — entirely
+  // optional, off by default. Added for the Jobs redesign specifically
+  // (dark-mode status badges shouldn't rely on color alone), as a
+  // Tailwind background-color class (e.g. 'bg-emerald-400'), not a raw
+  // hex, to match the same dark-tinted-badge system the desktop table
+  // uses. The five other pages using this component (Invoices,
+  // Estimates, Payments, Customers, Service Catalog) don't pass this
+  // and are visually unchanged.
+  statusDotClassName?: string;
 }
 
 export function MobileListCard({
@@ -88,6 +97,7 @@ export function MobileListCard({
   canMoveDown = true,
   borderClassName,
   railColorHex,
+  statusDotClassName,
 }: MobileListCardProps) {
   const content = (
     <>
@@ -114,7 +124,8 @@ export function MobileListCard({
       {(statusLabel || amount) && (
         <div className="mt-3 flex items-center justify-between gap-3">
           {statusLabel && (
-            <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize', statusClassName ?? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300')}>
+            <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium capitalize', statusClassName ?? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300')}>
+              {statusDotClassName && <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', statusDotClassName)} aria-hidden="true" />}
               {statusLabel}
             </span>
           )}
