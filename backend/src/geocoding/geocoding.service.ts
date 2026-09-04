@@ -27,6 +27,23 @@ export interface GeocodeResult {
 // weather (which genuinely goes stale), this is a permanent fact once
 // looked up, so there's no TTL here at all (matching "never geocode
 // unnecessarily" literally, not just approximately).
+//
+// GEOCODE_CACHE_VERSION exists because "no expiry" turned out to have
+// a real, confirmed-in-production consequence: GeocodeResult's shape
+// grew over time (displayName/resolvedAddressLine1/resolvedCity/
+// resolvedState/resolvedPostalCode were all added after this caching
+// was first built), but every address geocoded before that addition
+// kept serving its OLD cached JSON forever — genuinely missing those
+// fields (not empty strings, actually `undefined` after JSON.parse),
+// which surfaced as a blank Property section on Review and a real
+// "must be a string" 400 on submission for any address a customer had
+// happened to search before the fields existed. Bumping this version
+// is the correct, permanent fix for that class of bug: any FUTURE
+// change to GeocodeResult's shape must bump this number too, so old
+// cache entries are naturally invalidated instead of silently served
+// with missing fields again. Coordinates still never need a TTL —
+// this solves a different problem (schema drift) than staleness.
+const GEOCODE_CACHE_VERSION = 2;
 
 // Standard USPS state/territory abbreviations — the only thing this
 // touches is normalizing whichever form Nominatim happened to return
@@ -101,7 +118,7 @@ export class GeocodingService {
    */
   async geocodeFreeText(query: string): Promise<GeocodeResult | null> {
     const fullAddress = query.trim();
-    const cacheKey = `geocode:${crypto.createHash('sha1').update(fullAddress.toLowerCase()).digest('hex')}`;
+    const cacheKey = `geocode:v${GEOCODE_CACHE_VERSION}:${crypto.createHash('sha1').update(fullAddress.toLowerCase()).digest('hex')}`;
 
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
