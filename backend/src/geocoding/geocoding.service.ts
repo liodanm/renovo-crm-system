@@ -28,6 +28,37 @@ export interface GeocodeResult {
 // looked up, so there's no TTL here at all (matching "never geocode
 // unnecessarily" literally, not just approximately).
 
+// Standard USPS state/territory abbreviations — the only thing this
+// touches is normalizing whichever form Nominatim happened to return
+// (a real state_code, a full name, or nothing) into the ≤2-char value
+// the rest of the app requires. Not a geocoding decision, not new
+// data — every value on the right is already implied by the input.
+const US_STATE_ABBREVIATIONS: Record<string, string> = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
+  colorado: 'CO', connecticut: 'CT', delaware: 'DE', 'district of columbia': 'DC',
+  florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID', illinois: 'IL',
+  indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA',
+  maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN',
+  mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV',
+  'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK',
+  oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT',
+  virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI',
+  wyoming: 'WY', 'puerto rico': 'PR', 'us virgin islands': 'VI', guam: 'GU',
+};
+
+function normalizeToStateAbbreviation(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.length <= 2) return trimmed.toUpperCase(); // already an abbreviation (or empty)
+  return US_STATE_ABBREVIATIONS[trimmed.toLowerCase()] ?? '';
+  // Deliberately '' rather than a truncated/garbage value for a name
+  // this table doesn't recognize (e.g. non-US results) — an empty
+  // state is a known, handled gap (see quote-widget.service.ts's
+  // existing "property data partially unavailable" fallback
+  // behavior); a silently truncated wrong value is not.
+}
+
 /**
  * OpenStreetMap's Nominatim, not a keyed provider (Google, Mapbox) —
  * same reasoning already established for WeatherService's choice of
@@ -122,7 +153,21 @@ export class GeocodingService {
         // structured breakdowns even when the coordinates resolve fine.
         resolvedAddressLine1: streetLine || fullAddress,
         resolvedCity: addr.city ?? addr.town ?? addr.village ?? addr.hamlet ?? '',
-        resolvedState: addr.state_code ?? addr.state ?? '',
+        // Root cause of a real production bug (confirmed live in
+        // Railway logs: "state must be shorter than or equal to 2
+        // characters" on quote submission): Nominatim's addressdetails
+        // response does not reliably include state_code for every US
+        // address — coverage depends on how completely OSM has tagged
+        // that region's admin boundaries. When it's missing, this used
+        // to fall through to addr.state, which is the FULL name
+        // ("Florida"), silently failing the submission DTO's
+        // @MaxLength(2) validation on the very next step — the
+        // customer never even saw an error tied to the actual cause,
+        // just a generic "couldn't create your estimate" screen.
+        // normalizeToStateAbbreviation() below guarantees a real
+        // ≤2-char value (or empty string, never a truncated garbage
+        // value) regardless of which field Nominatim populated.
+        resolvedState: normalizeToStateAbbreviation(addr.state_code ?? addr.state ?? ''),
         resolvedPostalCode: addr.postcode ?? '',
       };
       await this.redis.set(cacheKey, JSON.stringify(result));
