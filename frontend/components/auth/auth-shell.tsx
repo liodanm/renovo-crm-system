@@ -1,10 +1,21 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
-import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 
 /**
+ * Hero photo is a plain CSS background-image, not next/image. This app
+ * had never used next/image before this page — its automatic
+ * optimization pipeline needs the `sharp` package in production, which
+ * isn't in this project's dependencies, and it silently failed to
+ * serve the image at all on Railway (confirmed: the file itself is
+ * present and valid in the repo, so this was specifically an
+ * optimization/serving failure, not a missing asset). A plain
+ * background-image bypasses that server-side processing entirely —
+ * nothing to fail, at the cost of the automatic responsive/WebP
+ * conversion next/image would have provided. Reasonable trade for one
+ * already-small (~290KB) static hero image that never changes.
+ *
  * Deliberately a FIXED dark theme, not tied to the app-wide Dark/Light/
  * Auto Environment setting (see settings/appearance) — flagged and
  * confirmed with the person before building this: a visitor hasn't
@@ -33,15 +44,12 @@ export function AuthShell({
           hose visible, wet-clean vs dry-dirty contrast — cropped from
           a two-panel comparison shot). Hidden on mobile below a
           shorter top strip (see the lg:hidden block further down). */}
-      <div className="relative hidden w-[55%] flex-col justify-between overflow-hidden lg:flex">
-        <Image
-          src="/hero-driveway.jpg"
-          alt="Pressure washing a residential driveway — before and after"
-          fill
-          priority
-          sizes="55vw"
-          className="object-cover"
-        />
+      <div
+        role="img"
+        aria-label="Pressure washing a residential driveway — before and after"
+        className="relative hidden w-[55%] flex-col justify-between overflow-hidden bg-cover bg-center lg:flex"
+        style={{ backgroundImage: "url('/hero-driveway.jpg')" }}
+      >
         {/* Strongest overlay behind the text (bottom), fading toward
             transparent at the top so the photo itself stays the focal
             point, not a technique explained away by a task brief. */}
@@ -81,8 +89,12 @@ export function AuthShell({
       {/* Short hero strip on mobile — image stays present (brand
           recognition, matches the desktop story) but never dominates
           a small screen; the form is always the priority there. */}
-      <div className="relative h-[200px] w-full shrink-0 overflow-hidden sm:h-[240px] lg:hidden">
-        <Image src="/hero-driveway.jpg" alt="" fill priority sizes="100vw" className="object-cover" />
+      <div
+        role="img"
+        aria-label=""
+        className="relative h-[200px] w-full shrink-0 overflow-hidden bg-cover bg-center sm:h-[240px] lg:hidden"
+        style={{ backgroundImage: "url('/hero-driveway.jpg')" }}
+      >
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a1420] via-[#0a1420]/40 to-[#0a1420]/10" />
         <div className="absolute left-5 top-5">
           <div className="text-base font-semibold tracking-tight text-white">Renovo</div>
