@@ -38,7 +38,15 @@ export function AuthShell({
   footer?: ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-[#0a1420]">
+    <div className="flex min-h-screen flex-col bg-[#0a1420] lg:flex-row">
+      {/* Real bug, confirmed live on a phone: this container was
+          missing flex-col for mobile — plain `flex` defaults to a ROW
+          direction, so the mobile hero strip (w-full) and the form
+          panel were being laid out SIDE BY SIDE instead of stacked,
+          pushing the entire login form out of the visible layout.
+          flex-col here, switching to flex-row only at the lg
+          breakpoint where the two-panel desktop layout actually
+          wants a row, is the fix. */}
       {/* Hero panel — real product photo (a Relentless Pressure Wash
           driveway job, before/after; this is the "during" half —
           hose visible, wet-clean vs dry-dirty contrast — cropped from
