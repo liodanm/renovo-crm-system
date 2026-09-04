@@ -30,7 +30,8 @@ export const viewport: Viewport = {
 const themeInitScript = `
   try {
     var t = window.localStorage.getItem('renovo_theme');
-    if (t === 'dark') document.documentElement.classList.add('dark');
+    var wantsDark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (wantsDark) document.documentElement.classList.add('dark');
   } catch (e) {}
 `;
 

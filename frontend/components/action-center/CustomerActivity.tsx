@@ -22,7 +22,7 @@ export function CustomerActivity({ statusHistory, emailHistory }: { statusHistor
 
   const fromEmail: ActivityItem[] = emailHistory.map((e) => ({
     at: e.createdAt,
-    icon: <Mail className="h-4 w-4 text-blue-600" />,
+    icon: <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
     label: `Estimate emailed to ${e.recipientEmail} (${e.status})`,
   }));
 

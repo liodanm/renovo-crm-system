@@ -1,26 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, MonitorSmartphone, Check } from 'lucide-react';
 import { useTheme } from '../../../lib/theme/theme-context';
 
 /**
- * The Appearance section's first real content — previously a
- * "Coming Soon" placeholder with no functionality behind it at all.
+ * Extended from a single Dark/Light toggle to three modes. Deliberately
+ * does NOT go through SettingsSectionShell's save-bar mechanism
+ * (hasUnsavedChanges/onSave/Cancel) the way Company or Branding do —
+ * unchanged reasoning from before: this is localStorage-only (see
+ * theme-context.tsx), applies instantly, nothing to explicitly save.
  *
- * Deliberately does NOT go through SettingsSectionShell's save-bar
- * mechanism (hasUnsavedChanges/onSave/Cancel) the way Company or
- * Branding do. Those pages hold a draft and require an explicit Save
- * because they're writing to the backend. Dark Mode has no backend
- * step — it's localStorage-only (see theme-context.tsx for why) and
- * is expected to apply the instant you toggle it, the same as every
- * dark-mode switch anywhere else. Forcing a "Save Changes" click for
- * a purely visual preference would be worse UX, not more consistent
- * UX — there's nothing to save.
+ * "Auto Environment" tracks the OS/browser's prefers-color-scheme
+ * LIVE (see theme-context.tsx's matchMedia change listener) — not a
+ * scheduled day/night mode. If the OS switches at sunset, Renovo
+ * follows immediately without a page refresh, only while this mode is
+ * selected.
  */
 export default function AppearanceSettingsPage() {
   const { theme, setTheme } = useTheme();
-  const isDark = theme === 'dark';
+
+  const options: { value: 'dark' | 'light' | 'auto'; label: string; description: string; icon: typeof Moon }[] = [
+    { value: 'dark', label: 'Dark Mode', description: 'Always use Renovo\u2019s dark theme.', icon: Moon },
+    { value: 'light', label: 'Light Mode', description: 'Always use Renovo\u2019s light theme.', icon: Sun },
+    { value: 'auto', label: 'Auto Environment', description: 'Follow your device\u2019s light/dark setting automatically.', icon: MonitorSmartphone },
+  ];
 
   return (
     <div>
@@ -35,23 +39,31 @@ export default function AppearanceSettingsPage() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">App theme and display preferences</p>
       </div>
 
-      <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Dark Mode</p>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Use Dark Mode throughout Renovo CRM.</p>
-          </div>
-          <label className="relative inline-flex shrink-0 cursor-pointer items-center">
-            <input
-              type="checkbox"
-              checked={isDark}
-              onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
-              className="peer sr-only"
-              aria-label="Dark Mode"
-            />
-            <div className="h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-[var(--color-brand)] peer-focus:outline-none after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white dark:bg-slate-900 after:transition-all peer-checked:after:translate-x-5 dark:bg-slate-700" />
-          </label>
-        </div>
+      <div className="mt-6 space-y-2" role="radiogroup" aria-label="Theme">
+        {options.map((opt) => {
+          const Icon = opt.icon;
+          const selected = theme === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => setTheme(opt.value)}
+              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left transition dark:border-slate-800 dark:bg-slate-900"
+              style={{ borderColor: selected ? 'var(--color-brand)' : undefined }}
+            >
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${selected ? 'bg-[var(--color-brand)]/15' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                <Icon className="h-4 w-4" style={{ color: selected ? 'var(--color-brand)' : undefined }} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">{opt.label}</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">{opt.description}</span>
+              </span>
+              {selected && <Check className="h-4 w-4 shrink-0" style={{ color: 'var(--color-brand)' }} />}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -63,7 +63,26 @@ export function WeatherCard() {
             {data.daily.map((d) => (
               <div key={d.date} className="text-center">
                 <div className="text-[11px] text-slate-400 dark:text-slate-500">
-                  {new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' })}
+                  {/* Root cause, confirmed by tracing this exact line:
+                      d.date is a bare YYYY-MM-DD string, already
+                      correctly localized to the property's own
+                      timezone server-side (weather.service.ts sends
+                      timezone=auto to Open-Meteo). But `new Date('2026-09-04')`
+                      — a date-only ISO string with no time component —
+                      is parsed as UTC MIDNIGHT per the ECMAScript spec,
+                      not local midnight. toLocaleDateString() then
+                      converts that UTC instant back to the BROWSER's
+                      local zone for display — for any US timezone
+                      (all negative UTC offsets), UTC midnight on a
+                      given date is still the PREVIOUS day locally,
+                      which is exactly the reported "shows yesterday"
+                      symptom. Appending a literal local-time component
+                      (T00:00:00, no Z) makes the same constructor
+                      parse it as LOCAL midnight instead — the
+                      standard, minimal fix for this exact class of
+                      bug. No backend change needed; the date string
+                      itself was already correct. */}
+                  {new Date(`${d.date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
                 <div className="mt-1 flex justify-center" title={d.condition}>
                   <ConditionIcon condition={d.condition} />

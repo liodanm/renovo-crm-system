@@ -1,0 +1,6 @@
+results/*.json
+results/*.md
+results/.geocode-cache.json
+venv/
+__pycache__/
+*.pyc
