@@ -112,5 +112,16 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
+  // Extended to also exclude any path with a file extension (the
+  // standard Next.js pattern for "any static file", not just the
+  // internal _next/* paths already listed) — the actual, confirmed
+  // fix for a real bug: /hero-driveway.jpg (a plain static image in
+  // /public) matched this catch-all before, got treated as a
+  // protected page route with no session, and was redirected to
+  // /login?redirect=%2Fhero-driveway.jpg — which returns an HTML
+  // page, not image bytes, exactly the 307-then-text/html sequence
+  // confirmed in the browser Network tab. Any future static asset
+  // (fonts, other images, etc.) added to /public is covered by this
+  // same fix, not just this one file.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api|.*\\..*).*)'],
 };
