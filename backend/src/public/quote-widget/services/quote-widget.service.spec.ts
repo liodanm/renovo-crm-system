@@ -339,3 +339,118 @@ describe('QuoteWidgetService — public services projection (cross-reference)', 
     expect(serviceCatalog.findAllPublic).toHaveBeenCalledWith('company-1');
   });
 });
+
+describe('QuoteWidgetService — atomic Customer + Property + Estimate transaction', () => {
+  // IMPORTANT — read before trusting these: this codebase has no
+  // real-database integration test infrastructure anywhere (confirmed
+  // by search, not assumed) — every backend spec here, this file
+  // included, mocks Prisma entirely. That means these tests can prove
+  // the ORCHESTRATION CODE is correctly composed — one shared
+  // transaction object threaded through every write, side effects
+  // strictly sequenced after it resolves — but they CANNOT prove real
+  // Postgres actually rolled back a failed transaction, which requires
+  // a live database connection this sandbox cannot establish (same
+  // Prisma-codegen network block documented in every prior session's
+  // test-run limitations). Real rollback proof needs either a live
+  // manual test (submit a quote, force a failure, check the Customer
+  // table directly) or a genuine integration-test harness this task
+  // did not ask me to build from scratch. Flagging this distinction
+  // explicitly rather than letting "tests pass" imply more than it does.
+
+  it('Test — Customer, Property, and Estimate creation all receive the exact SAME tx object from withTenantContext — proving one shared transaction, not three separate ones', async () => {
+    const TX_MARKER = { __isTheOneSharedTx: true };
+    const { service, customers, properties, estimates, prisma } = buildService({
+      prisma: { withTenantContext: jest.fn((_companyId: string, fn: (tx: any) => any) => fn(TX_MARKER)) },
+    });
+
+    await service.submitQuote('relentless', submitDto());
+
+    expect(prisma.withTenantContext).toHaveBeenCalledTimes(1);
+    expect(customers.findOrCreateByEmail).toHaveBeenCalledWith(expect.any(String), expect.any(String), expect.anything(), TX_MARKER);
+    expect(properties.create).toHaveBeenCalledWith(expect.any(String), expect.any(String), expect.anything(), TX_MARKER);
+    expect(estimates.create).toHaveBeenCalledWith(expect.any(String), expect.anything(), false, TX_MARKER);
+  });
+
+  it('Test — if Estimate creation throws inside the transaction, sendEmail and the owner notification are NEVER called — no side effects for a submission that (per the real Postgres transaction this composition relies on) never actually committed', async () => {
+    const { service, estimates } = buildService({
+      estimates: {
+        create: jest.fn().mockRejectedValue(new Error('simulated estimate creation failure')),
+        sendEmail: jest.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    await expect(service.submitQuote('relentless', submitDto())).rejects.toThrow('simulated estimate creation failure');
+
+    expect(estimates.sendEmail).not.toHaveBeenCalled();
+    expect(mockCreateOwnerNotification).not.toHaveBeenCalled();
+  });
+
+  it('Test — if Property creation throws inside the transaction, Estimate creation is never attempted and no side effects fire (proves ordering: a failure partway through never lets later steps run)', async () => {
+    const { service, properties, estimates } = buildService({
+      properties: { create: jest.fn().mockRejectedValue(new Error('simulated property creation failure')) },
+    });
+
+    await expect(service.submitQuote('relentless', submitDto())).rejects.toThrow('simulated property creation failure');
+
+    expect(estimates.create).not.toHaveBeenCalled();
+    expect(estimates.sendEmail).not.toHaveBeenCalled();
+    expect(mockCreateOwnerNotification).not.toHaveBeenCalled();
+  });
+
+  it('Test — a successful submission still sends the email and creates the owner notification, strictly after the transaction resolves (order verified, not just "both eventually called")', async () => {
+    const callOrder: string[] = [];
+    const { service } = buildService({
+      prisma: {
+        withTenantContext: jest.fn(async (_companyId: string, fn: (tx: any) => any) => {
+          callOrder.push('transaction-start');
+          const result = await fn({});
+          callOrder.push('transaction-committed');
+          return result;
+        }),
+      },
+      estimates: {
+        create: jest.fn().mockResolvedValue(CREATED_ESTIMATE),
+        sendEmail: jest.fn(async () => {
+          callOrder.push('email-sent');
+        }),
+      },
+    });
+    mockCreateOwnerNotification.mockImplementation(async () => {
+      callOrder.push('owner-notified');
+    });
+
+    await service.submitQuote('relentless', submitDto());
+
+    expect(callOrder).toEqual(['transaction-start', 'transaction-committed', 'email-sent', 'owner-notified']);
+  });
+
+  it('Test — an existing Customer (matched, not created) still flows through the same single-tx composition — findOrCreateByEmail returning wasExisting:true does not change how Property/Estimate creation receive the tx', async () => {
+    const TX_MARKER = { __isTheOneSharedTx: true };
+    const { service, properties, estimates } = buildService({
+      prisma: { withTenantContext: jest.fn((_companyId: string, fn: (tx: any) => any) => fn(TX_MARKER)) },
+      customers: { findOrCreateByEmail: jest.fn().mockResolvedValue({ customer: CUSTOMER, wasExisting: true }) },
+    });
+
+    await service.submitQuote('relentless', submitDto());
+
+    expect(properties.create).toHaveBeenCalledWith(expect.any(String), CUSTOMER.id, expect.anything(), TX_MARKER);
+    expect(estimates.create).toHaveBeenCalledWith(expect.any(String), expect.anything(), false, TX_MARKER);
+  });
+
+  it('Test — an existing, already-matched Property (found in customer.properties, no create() call at all) is passed straight through to Estimate creation — no redundant Property write for data that already exists', async () => {
+    const existingProperty = { id: 'existing-property-1', addressLine1: '123 Main St', postalCode: '33065' };
+    const { service, properties, estimates } = buildService({
+      customers: {
+        findOrCreateByEmail: jest.fn().mockResolvedValue({
+          customer: { ...CUSTOMER, properties: [existingProperty] },
+          wasExisting: true,
+        }),
+      },
+    });
+
+    await service.submitQuote('relentless', submitDto({ addressLine1: '123 Main St', postalCode: '33065' }));
+
+    expect(properties.create).not.toHaveBeenCalled();
+    expect(estimates.create).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ propertyId: 'existing-property-1' }), false, expect.anything());
+  });
+});

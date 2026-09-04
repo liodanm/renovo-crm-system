@@ -57,6 +57,12 @@ export interface SubmitQuotePayload {
   city: string;
   state: string;
   postalCode: string;
+  // Already resolved during the address/property step — sent through so
+  // the backend doesn't silently re-geocode the same address a second
+  // time on submission. Optional: an address that couldn't be geocoded
+  // earlier still submits fine without these.
+  latitude?: number;
+  longitude?: number;
   services: { serviceCatalogItemId: string; quantity: number; serviceDetails?: Record<string, unknown> }[];
   notes?: string;
   idempotencyKey: string;
@@ -75,6 +81,8 @@ export interface RequestQuotePayload {
   city: string;
   state: string;
   postalCode: string;
+  latitude?: number;
+  longitude?: number;
   services: { serviceCatalogItemId: string }[];
   notes?: string;
   idempotencyKey: string;

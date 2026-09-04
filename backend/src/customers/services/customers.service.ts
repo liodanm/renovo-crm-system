@@ -221,7 +221,7 @@ export class CustomersService {
     return this.create(companyId, createdByUserId, dto);
   }
 
-  async create(companyId: string, createdByUserId: string, dto: CreateCustomerDto) {
+  async create(companyId: string, createdByUserId: string, dto: CreateCustomerDto, tx?: Prisma.TransactionClient) {
     if (!dto.businessName && !dto.firstName) {
       throw new BadRequestException('Either firstName or businessName is required');
     }
@@ -249,12 +249,24 @@ export class CustomersService {
     // companyId — traced and confirmed: quote-widget.service.ts and
     // leads.service.ts both resolve companyId from a trusted server-side
     // lookup (widget key / company slug), never from client input.
-    return this.prisma.withTenantContext(companyId, async (tx) => {
+    //
+    // Optional `tx` (added for the Instant Quote atomicity fix): when the
+    // caller already has an open transaction spanning Customer + Property
+    // + Estimate (see QuoteWidgetService.submitQuote), that SAME tx is
+    // used directly here instead of opening a second, separate one —
+    // Prisma does not support true nested transactions, and two separate
+    // transactions is exactly the bug this fix exists to close (a failed
+    // Estimate could previously leave a committed, orphaned Customer
+    // behind). Every other existing caller (staff Customer creation, the
+    // Leads capture endpoint) doesn't pass a tx and is completely
+    // unaffected — this method's own withTenantContext still opens
+    // exactly as it always did for them.
+    const body = async (activeTx: Prisma.TransactionClient) => {
       if (dto.email) {
-        await this.assertNoExactEmailConflict(tx, companyId, dto.email, dto.acknowledgedDuplicateWarning);
+        await this.assertNoExactEmailConflict(activeTx, companyId, dto.email, dto.acknowledgedDuplicateWarning);
       }
 
-      const customer = await tx.customer.create({
+      const customer = await activeTx.customer.create({
         data: {
           companyId,
           customerType: dto.customerType,
@@ -288,7 +300,9 @@ export class CustomersService {
       });
 
       return customer;
-    });
+    };
+
+    return tx ? body(tx) : this.prisma.withTenantContext(companyId, body);
   }
 
   /**
@@ -304,18 +318,23 @@ export class CustomersService {
    * still only one "find a customer by email for this company" query in
    * the codebase, not two.
    */
-  async findOrCreateByEmail(companyId: string, createdByLabel: string, dto: CreateCustomerDto) {
+  async findOrCreateByEmail(companyId: string, createdByLabel: string, dto: CreateCustomerDto, tx?: Prisma.TransactionClient) {
+    // Same optional-tx pattern as create() above, for the same reason —
+    // the Instant Quote atomicity fix needs this find-check and the
+    // eventual create() to run inside the SAME outer transaction as the
+    // Property and Estimate that follow it, not their own separate one.
+    const findExisting = (activeTx: Prisma.TransactionClient) =>
+      activeTx.customer.findFirst({
+        where: { companyId, email: dto.email, deletedAt: null },
+        include: { properties: { where: { deletedAt: null } } },
+      });
+
     if (dto.email) {
-      const existing = await this.prisma.withTenantContext(companyId, (tx) =>
-        tx.customer.findFirst({
-          where: { companyId, email: dto.email, deletedAt: null },
-          include: { properties: { where: { deletedAt: null } } },
-        }),
-      );
+      const existing = tx ? await findExisting(tx) : await this.prisma.withTenantContext(companyId, findExisting);
       if (existing) return { customer: existing, wasExisting: true };
     }
 
-    const customer = await this.create(companyId, createdByLabel, { ...dto, acknowledgedDuplicateWarning: true });
+    const customer = await this.create(companyId, createdByLabel, { ...dto, acknowledgedDuplicateWarning: true }, tx);
     return { customer, wasExisting: false };
   }
 

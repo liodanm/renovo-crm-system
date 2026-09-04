@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateEstimateDto } from '../dto/create-estimate.dto';
 import { UpdateEstimateDto } from '../dto/update-estimate.dto';
@@ -66,11 +67,22 @@ export class EstimatesService {
     return { url: null, type: 'none' };
   }
 
-  async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean) {
-    await this.assertCustomerAndPropertyBelongToCompany(companyId, dto.customerId, dto.propertyId);
+  /**
+   * Optional `tx` (Instant Quote atomicity fix): when provided, this
+   * entire method — the pre-check, estimate number generation, the
+   * insert, line items, profitability, and totals — runs inside the
+   * SAME transaction the caller already has open (spanning Customer +
+   * Property too), instead of opening its own second, separate
+   * transaction. Closes the orphaned-Estimate-less-Customer gap the
+   * same way create() in CustomersService/CustomerPropertiesService
+   * was fixed. Every other existing caller (staff Estimate creation)
+   * doesn't pass a tx and gets exactly its previous behavior.
+   */
+  async create(companyId: string, dto: CreateEstimateDto, canViewProfitability: boolean, tx?: Prisma.TransactionClient) {
+    await this.assertCustomerAndPropertyBelongToCompany(companyId, dto.customerId, dto.propertyId, tx);
 
-    const result = await this.prisma.withTenantContext(companyId, async (tx) => {
-      const estimateNumber = await this.generateEstimateNumber(tx, companyId);
+    const body = async (activeTx: Prisma.TransactionClient) => {
+      const estimateNumber = await this.generateEstimateNumber(activeTx, companyId);
 
       // Server-side defaults — applied only when the caller omits the
       // field, never overriding an explicit value. This is deliberate:
@@ -81,7 +93,7 @@ export class EstimatesService {
       let validUntil = dto.validUntil ? new Date(dto.validUntil) : undefined;
       let taxRatePercent = dto.taxRatePercent;
       if (validUntil === undefined || taxRatePercent === undefined) {
-        const rows: { settings: any; defaultTaxRatePercent: string | null }[] = await tx.$queryRawUnsafe(
+        const rows: { settings: any; defaultTaxRatePercent: string | null }[] = await activeTx.$queryRawUnsafe(
           `SELECT settings, default_tax_rate_percent AS "defaultTaxRatePercent" FROM companies WHERE id = $1::uuid`,
           companyId,
         );
@@ -99,7 +111,7 @@ export class EstimatesService {
         }
       }
 
-      const estimate = await tx.estimate.create({
+      const estimate = await activeTx.estimate.create({
         data: {
           companyId,
           customerId: dto.customerId,
@@ -115,10 +127,12 @@ export class EstimatesService {
         },
       });
 
-      await this.insertLineItems(tx, companyId, estimate.id, dto.lineItems);
-      await this.computeAndSaveLineItemProfitability(tx, companyId, estimate.id);
-      return this.recalculateAndSave(tx, companyId, estimate.id, dto.discountType, dto.discountValue, taxRatePercent, dto.discountSource);
-    });
+      await this.insertLineItems(activeTx, companyId, estimate.id, dto.lineItems);
+      await this.computeAndSaveLineItemProfitability(activeTx, companyId, estimate.id);
+      return this.recalculateAndSave(activeTx, companyId, estimate.id, dto.discountType, dto.discountValue, taxRatePercent, dto.discountSource);
+    };
+
+    const result = tx ? await body(tx) : await this.prisma.withTenantContext(companyId, body);
 
     return this.applyProfitabilityVisibility(result, canViewProfitability);
   }
@@ -649,8 +663,17 @@ export class EstimatesService {
   // Internal helpers
   // ===========================================================================
 
-  private async assertCustomerAndPropertyBelongToCompany(companyId: string, customerId: string, propertyId: string) {
-    const property = await this.prisma.tenant.property.findFirst({ where: { id: propertyId, companyId, customerId } });
+  private async assertCustomerAndPropertyBelongToCompany(companyId: string, customerId: string, propertyId: string, tx?: Prisma.TransactionClient) {
+    // Optional tx (Instant Quote atomicity fix): when Customer/Property
+    // were just created moments earlier in the SAME still-open outer
+    // transaction (see QuoteWidgetService.submitQuote), they are not yet
+    // committed and are invisible to `.tenant` (a different connection
+    // from the pool, not the transaction's own dedicated connection) —
+    // this check would wrongly report "not found" without querying the
+    // same tx those rows actually exist in.
+    const property = tx
+      ? await tx.property.findFirst({ where: { id: propertyId, companyId, customerId } })
+      : await this.prisma.tenant.property.findFirst({ where: { id: propertyId, companyId, customerId } });
     if (!property) {
       throw new ForbiddenException('Property does not belong to the specified customer, or either was not found');
     }

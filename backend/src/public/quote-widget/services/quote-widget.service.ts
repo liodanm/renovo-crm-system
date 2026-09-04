@@ -1,4 +1,5 @@
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import Redis from 'ioredis';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { TenantContextService } from '../../../common/tenant/tenant-context.service';
@@ -110,16 +111,13 @@ export class QuoteWidgetService {
     const company = await this.resolveCompany(companySlug);
     const companyId = company.id;
 
-    // --- Customer: find-or-create, never a second creation path ---
-    const { customer, wasExisting } = await this.customers.findOrCreateByEmail(companyId, CREATED_BY_LABEL, toCreateCustomerDto(dto));
-    this.logger.log({ event: wasExisting ? 'quote_widget.customer_matched' : 'quote_widget.customer_created', companyId, customerId: customer.id });
-
-    // --- Property: reuse on normalized-address match, else create ---
-    const { property, wasExisting: propertyWasExisting } = await this.findOrCreateProperty(companyId, customer, dto);
-    this.logger.log({ event: propertyWasExisting ? 'quote_widget.property_matched' : 'quote_widget.property_created', companyId, customerId: customer.id, propertyId: property.id });
-
-    // --- Line items: price comes from the Service Catalog server-side,
-    //     never from the client ---
+    // --- Line items resolved BEFORE the transaction opens — Service
+    //     Catalog lookups are reads, not part of what needs atomic
+    //     rollback, and keeping them out of the transaction matches the
+    //     "external data gathering, then a short DB transaction" shape
+    //     this fix specifically asked for (nothing here is external
+    //     HTTP either way, but resolving them first still keeps the
+    //     eventual transaction as small/short as possible). ---
     const lineItems = await Promise.all(
       dto.services.map(async (selected) => {
         const catalogItem = await this.serviceCatalog.findOne(companyId, selected.serviceCatalogItemId);
@@ -139,17 +137,50 @@ export class QuoteWidgetService {
       }),
     );
 
-    // --- Estimate creation + send: the one place this flow needs the
-    //     manually-established tenant context (see PROJECT_CONTEXT.md's
-    //     Quote Widget section for why). ---
-    const estimate = await this.tenantContext.run({ companyId }, async () => {
-      const created = await this.estimates.create(companyId, toCreateEstimateDto(customer.id, property.id, lineItems, dto.notes, ESTIMATE_SOURCE), false);
-      this.logger.log({ event: 'quote_widget.estimate_created', companyId, customerId: customer.id, estimateId: created.id, estimateNumber: created.estimateNumber, totalAmount: created.totalAmount });
+    // --- Atomicity fix: Customer + Property + Estimate + Line Items all
+    //     inside ONE transaction now, not three separate ones. Before
+    //     this fix, a failed Estimate creation (as happened repeatedly
+    //     during the two address bugs) could leave a real, committed,
+    //     orphaned Customer/Property behind with zero Estimates —
+    //     silent data corruption with no error anywhere in the CRM.
+    //     If ANY step here throws, Postgres rolls back everything in
+    //     this block, including a brand-new Customer/Property created
+    //     moments earlier in the SAME transaction — but an EXISTING
+    //     Customer/Property that was only matched, not created, is
+    //     obviously untouched by a rollback either way (nothing about
+    //     it was written). ---
+    let customer!: Awaited<ReturnType<typeof this.customers.findOrCreateByEmail>>['customer'];
+    let wasExisting = false;
+    let property!: Awaited<ReturnType<typeof this.findOrCreateProperty>>['property'];
+    let propertyWasExisting = false;
+    let estimate!: Awaited<ReturnType<typeof this.estimates.create>>;
 
-      await this.estimates.sendEmail(companyId, created.id);
-      this.logger.log({ event: 'quote_widget.estimate_email_sent', companyId, estimateId: created.id });
+    await this.prisma.withTenantContext(companyId, async (tx) => {
+      const customerResult = await this.customers.findOrCreateByEmail(companyId, CREATED_BY_LABEL, toCreateCustomerDto(dto), tx);
+      customer = customerResult.customer;
+      wasExisting = customerResult.wasExisting;
 
-      return created;
+      const propertyResult = await this.findOrCreateProperty(companyId, customer, dto, tx);
+      property = propertyResult.property;
+      propertyWasExisting = propertyResult.wasExisting;
+
+      estimate = await this.estimates.create(companyId, toCreateEstimateDto(customer.id, property.id, lineItems, dto.notes, ESTIMATE_SOURCE), false, tx);
+    });
+
+    this.logger.log({ event: wasExisting ? 'quote_widget.customer_matched' : 'quote_widget.customer_created', companyId, customerId: customer.id });
+    this.logger.log({ event: propertyWasExisting ? 'quote_widget.property_matched' : 'quote_widget.property_created', companyId, customerId: customer.id, propertyId: property.id });
+    this.logger.log({ event: 'quote_widget.estimate_created', companyId, customerId: customer.id, estimateId: estimate.id, estimateNumber: estimate.estimateNumber, totalAmount: estimate.totalAmount });
+
+    // --- Everything past this point is a side effect of a Customer +
+    //     Property + Estimate that DEFINITELY now exist, committed —
+    //     never the other way around. Per the explicit requirement:
+    //     external calls (Postmark) happen strictly after the
+    //     transaction, never inside it, and never fire for an Estimate
+    //     that ultimately didn't get created. ---
+    const estimateCreated = estimate;
+    await this.tenantContext.run({ companyId }, async () => {
+      await this.estimates.sendEmail(companyId, estimateCreated.id);
+      this.logger.log({ event: 'quote_widget.estimate_email_sent', companyId, estimateId: estimateCreated.id });
     });
 
     // Reuses the existing, already-designed Notification model and the
@@ -419,6 +450,7 @@ export class QuoteWidgetService {
     companyId: string,
     customer: { id: string; properties?: { id: string; addressLine1: string; postalCode: string }[] },
     dto: SubmitQuoteDto,
+    tx?: Prisma.TransactionClient,
   ): Promise<{ property: { id: string; addressLine1: string; postalCode: string }; wasExisting: boolean }> {
     const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
     const existing = (customer.properties ?? []).find(
@@ -426,7 +458,7 @@ export class QuoteWidgetService {
     );
     if (existing) return { property: existing, wasExisting: true };
 
-    const created = await this.properties.create(companyId, customer.id, toCreatePropertyDto(dto));
+    const created = await this.properties.create(companyId, customer.id, toCreatePropertyDto(dto), tx);
     return { property: created, wasExisting: false };
   }
 }

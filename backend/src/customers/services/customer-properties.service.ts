@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { GeocodingService } from '../../geocoding/geocoding.service';
 import { CreatePropertyDto, UpdatePropertyDto } from '../dto/property.dto';
@@ -15,8 +16,30 @@ export class CustomerPropertiesService {
     return this.prisma.property.findMany({ where: { companyId, customerId, deletedAt: null }, orderBy: { createdAt: 'asc' } });
   }
 
-  async create(companyId: string, customerId: string, dto: CreatePropertyDto) {
-    await this.assertCustomerExists(companyId, customerId);
+  /**
+   * Optional `tx` (Instant Quote atomicity fix): when provided, this
+   * write uses the SAME transaction as the Customer/Estimate creation
+   * that call it (see QuoteWidgetService.submitQuote) instead of its own
+   * separate, un-transacted write — closing the orphaned-Property gap
+   * the same way create() above was fixed.
+   *
+   * Also fixes a related, real inefficiency found while building this:
+   * dto.latitude/dto.longitude now always arrive already-resolved from
+   * the Quote Tool (the address was already geocoded once, at the
+   * property-lookup step, before the customer ever reaches submission —
+   * see SubmitQuoteDto/PropertyLookupResult) — so the live Nominatim
+   * call below is now the TRUE fallback it always should have been, not
+   * something that silently re-geocoded the same address a second time
+   * on every single Quote Tool submission. This also matters for
+   * transaction safety specifically: an external HTTP call genuinely
+   * executing while a database transaction is open would be a real
+   * problem (long-held locks) — with coordinates already provided by
+   * the Quote Tool's real callers, that call path is no longer reached
+   * during the atomic submission at all.
+   */
+  async create(companyId: string, customerId: string, dto: CreatePropertyDto, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prisma;
+    await this.assertCustomerExists(companyId, customerId, tx);
     // Caller-supplied coordinates (if ever sent) win — geocoding only
     // fills in what's actually missing, never overwrites a real value.
     const coords =
@@ -26,7 +49,7 @@ export class CustomerPropertiesService {
     // A failed/unavailable lookup returns null, not a thrown error — the
     // property still saves with its address text intact, just without
     // coordinates yet. Never blocks customer/property creation.
-    return this.prisma.property.create({
+    return db.property.create({
       data: {
         companyId,
         customerId,
@@ -97,8 +120,15 @@ export class CustomerPropertiesService {
     return property;
   }
 
-  private async assertCustomerExists(companyId: string, customerId: string) {
-    const customer = await this.prisma.customer.findFirst({ where: { id: customerId, companyId, deletedAt: null } });
+  private async assertCustomerExists(companyId: string, customerId: string, tx?: Prisma.TransactionClient) {
+    // Critical for the atomic path: within the outer Instant Quote
+    // transaction, the Customer row may have been created moments
+    // earlier in that SAME still-open transaction and is not yet
+    // committed — a read on `this.prisma` (a different connection)
+    // would not see it and would wrongly report "not found". Must use
+    // the same `tx` to see consistent, in-progress transaction state.
+    const db = tx ?? this.prisma;
+    const customer = await db.customer.findFirst({ where: { id: customerId, companyId, deletedAt: null } });
     if (!customer) throw new NotFoundException('Customer not found');
   }
 }

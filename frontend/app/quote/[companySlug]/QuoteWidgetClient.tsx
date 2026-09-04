@@ -464,6 +464,11 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
           city: submissionAddress.city,
           state: submissionAddress.state,
           postalCode: submissionAddress.postalCode,
+          // Already resolved during the address/property step — passed
+          // through so the backend doesn't silently re-geocode the same
+          // address a second time on submission.
+          latitude: lookupResult?.latitude ?? undefined,
+          longitude: lookupResult?.longitude ?? undefined,
           services: selectedServices.map((s) => ({ serviceCatalogItemId: s.id })),
           notes: buildRequestNotes(),
           idempotencyKey,
@@ -479,6 +484,8 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
           city: submissionAddress.city,
           state: submissionAddress.state,
           postalCode: submissionAddress.postalCode,
+          latitude: lookupResult?.latitude ?? undefined,
+          longitude: lookupResult?.longitude ?? undefined,
           services: selectedServices.map((s) => ({
             serviceCatalogItemId: s.id,
             quantity: s.defaultUnitOfMeasure === 'flat_rate' ? 1 : Number(quantities[s.id]),

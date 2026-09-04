@@ -68,6 +68,22 @@ export class SubmitQuoteDto {
   @MaxLength(10)
   postalCode: string;
 
+  // Already resolved once, earlier in the Quote Tool flow (the address
+  // lookup/confirmation step) — passing them through here means the
+  // property-creation step below can use them directly instead of
+  // silently re-geocoding the same address a second time on every
+  // submission. Optional and never required: an address that couldn't
+  // be geocoded earlier still submits fine, just without coordinates
+  // yet (existing, unchanged fallback behavior in
+  // CustomerPropertiesService.create()).
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => QuoteSelectedServiceDto)

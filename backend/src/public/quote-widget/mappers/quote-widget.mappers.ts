@@ -29,6 +29,11 @@ export function toCreatePropertyDto(dto: SubmitQuoteDto): CreatePropertyDto {
   property.city = dto.city;
   property.state = dto.state;
   property.postalCode = dto.postalCode;
+  // Passed through when already resolved (see SubmitQuoteDto/
+  // RequestQuoteDto's own comment) — CustomerPropertiesService.create()
+  // only re-geocodes when these are genuinely absent.
+  property.latitude = dto.latitude;
+  property.longitude = dto.longitude;
   return property;
 }
 

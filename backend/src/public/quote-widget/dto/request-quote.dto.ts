@@ -1,4 +1,4 @@
-import { IsArray, IsEmail, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { IsArray, IsEmail, IsNumber, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RequestedServiceDto {
@@ -44,6 +44,16 @@ export class RequestQuoteDto {
   @IsString()
   @MaxLength(10)
   postalCode: string;
+
+  // Same reasoning as SubmitQuoteDto — already resolved earlier in the
+  // flow, passed through to avoid a redundant re-geocode on submission.
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
 
   @IsArray()
   @ValidateNested({ each: true })
