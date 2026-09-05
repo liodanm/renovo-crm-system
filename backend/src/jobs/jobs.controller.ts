@@ -99,8 +99,20 @@ export class JobsController {
   }
 
   @Get(':id/photos/:photoId/file')
-  async getPhotoFile(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Param('photoId') photoId: string, @Res() res: Response) {
-    const { buffer, mimeType } = await this.photos.getFile(user.companyId, id, photoId);
+  async getPhotoFile(
+    @CurrentUser() user: AuthenticatedRequestUser,
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+    @Query('variant') variant: 'original' | 'web' | 'thumbnail' | undefined,
+    @Res() res: Response,
+  ) {
+    // Defaults to 'web' (see JobPhotosService.getFile) — the gallery
+    // grid and viewer use the optimized derivative, not the original,
+    // matching "don't load huge originals into a thumbnail grid" for
+    // staff too, not just the customer portal. ?variant=original is
+    // available for a future "download original" action if ever
+    // needed; nothing currently requests it.
+    const { buffer, mimeType } = await this.photos.getFile(user.companyId, id, photoId, variant);
     res.setHeader('Content-Type', mimeType ?? 'application/octet-stream');
     res.setHeader('Cache-Control', 'private, max-age=86400');
     res.send(buffer);

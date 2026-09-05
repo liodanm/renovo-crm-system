@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { logAutomationEvent } from '../../common/utils/automation-event.util';
 import { createOwnerNotification } from '../../common/utils/owner-notification.util';
 import { JobsService } from '../../jobs/services/jobs.service';
+import { JobPhotosService } from '../../jobs/services/job-photos.service';
 import { CustomersService } from '../../customers/services/customers.service';
 import { CompanyContextService } from '../../documents/services/company-context.service';
 import { MailService } from '../../mail/mail.service';
@@ -33,7 +34,54 @@ export class PortalDataService {
     private readonly companyContext: CompanyContextService,
     private readonly mailService: MailService,
     private readonly config: ConfigService,
+    private readonly jobPhotos: JobPhotosService,
   ) {}
+
+  /**
+   * Real security requirement, not decorative: the client sends a bare
+   * jobId with no other proof of ownership, so this is the ONLY thing
+   * standing between "my job's photos" and "any job's photos" for a
+   * malicious portal session. Never trust jobId alone — verify it
+   * actually belongs to (companyId, customerId) from the AUTHENTICATED
+   * portal session, not from anything the client claims. Reused by
+   * both the list and the file-serving methods below so there's one
+   * authorization check, not two that could drift apart.
+   */
+  private async assertJobBelongsToCustomer(companyId: string, customerId: string, jobId: string): Promise<void> {
+    const job = await this.prisma.withTenantContext(companyId, (tx) => tx.job.findFirst({ where: { id: jobId, companyId, customerId }, select: { id: true } }));
+    if (!job) throw new ForbiddenException('Job not found');
+  }
+
+  /**
+   * Read-only — customers can never upload here (see JobPhotosService's
+   * own upload() method, only reachable from the staff-authenticated
+   * Jobs controller, never from PortalController). Only before/after
+   * are customer-facing; during/damage/equipment/other stay internal —
+   * a customer has no reason to see "damage" documentation photos or
+   * equipment-condition shots taken for the crew's own records.
+   */
+  async getJobPhotosForCustomer(companyId: string, customerId: string, jobId: string) {
+    await this.assertJobBelongsToCustomer(companyId, customerId, jobId);
+    const photos = await this.jobPhotos.listByJob(companyId, jobId);
+    return photos.filter((p) => p.photoType === 'before' || p.photoType === 'after');
+  }
+
+  async getJobPhotoFileForCustomer(companyId: string, customerId: string, jobId: string, photoId: string) {
+    await this.assertJobBelongsToCustomer(companyId, customerId, jobId);
+    // Re-checking the photo itself belongs to this exact job (not just
+    // "some job this company owns") — assertJobBelongsToCustomer only
+    // proved the JOB is theirs; JobPhotosService.getFile still scopes
+    // by jobId+companyId itself too, so a photoId from a different job
+    // in the same company can't be substituted in.
+    //
+    // Explicit 'web' here (this IS getFile's own default, but a
+    // security-critical caller should never rely on an implicit
+    // default silently doing the right thing) — the customer must
+    // never receive 'original', which may still carry the source
+    // phone photo's embedded EXIF/GPS. The web derivative is always
+    // re-encoded through sharp, which strips metadata by default.
+    return this.jobPhotos.getFile(companyId, jobId, photoId, 'web');
+  }
 
   async getEstimates(companyId: string, customerId: string) {
     // Explicit select, not include — Prisma's default with only

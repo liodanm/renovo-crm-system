@@ -53,6 +53,27 @@ export class StorageService {
   }
 
   /**
+   * Reads an object's actual bytes server-side — distinct from
+   * getPresignedDownloadUrl() above, which hands the CLIENT a URL to
+   * fetch directly. Added for JobPhotosService: the existing Job/
+   * Portal photo endpoints proxy image bytes through an authenticated
+   * NestJS route rather than exposing any S3 URL to the browser at
+   * all (an even stronger privacy boundary than a short-lived signed
+   * URL — the client never sees anything S3-shaped, not even
+   * temporarily). Small, additive method; every other existing
+   * consumer of this class (customer-files.service.ts, branding
+   * uploads) is unaffected.
+   */
+  async readObject(key: string): Promise<Buffer> {
+    const response = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  /**
    * Server-side upload for data the backend itself produces (e.g. a
    * signature converted from a base64 data URL), as opposed to
    * getPresignedUploadUrl() above, which is for a browser uploading

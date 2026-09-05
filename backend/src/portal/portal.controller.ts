@@ -581,6 +581,33 @@ export class PortalController {
     return this.data.confirmPhotoUpload(customer.companyId, customer.customerId, body.propertyId, body.key, body.mimeType);
   }
 
+  // ---- Job Before/After photos — read-only for the customer. Kept
+  //      entirely separate from the property-photo-upload routes above
+  //      (a different, pre-existing feature: customers uploading their
+  //      own property photos) — these two do not share a data model
+  //      concept beyond both using the `photos` table. ----
+  @Public()
+  @UseGuards(PortalCustomerGuard)
+  @Get('jobs/:jobId/photos')
+  getJobPhotos(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer, @Param('jobId') jobId: string) {
+    return this.data.getJobPhotosForCustomer(customer.companyId, customer.customerId, jobId);
+  }
+
+  @Public()
+  @UseGuards(PortalCustomerGuard)
+  @Get('jobs/:jobId/photos/:photoId/file')
+  async getJobPhotoFile(
+    @CurrentPortalCustomer() customer: AuthenticatedPortalCustomer,
+    @Param('jobId') jobId: string,
+    @Param('photoId') photoId: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, mimeType } = await this.data.getJobPhotoFileForCustomer(customer.companyId, customer.customerId, jobId, photoId);
+    res.setHeader('Content-Type', mimeType ?? 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(buffer);
+  }
+
   @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('service-requests')

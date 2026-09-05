@@ -65,6 +65,24 @@ export async function portalFetchPdfObjectUrl(path: string): Promise<string> {
   return URL.createObjectURL(blob);
 }
 
+// Same authenticated-binary-fetch pattern as the PDF helper above, for
+// Job Before/After photos — <img src> alone can't carry the Bearer
+// token this endpoint requires, so the browser needs the actual bytes
+// fetched with real headers first, then handed to <img> as an object
+// URL. Caller is responsible for URL.revokeObjectURL when done with
+// it (see the Job Photos page's cleanup effect).
+export async function portalFetchImageObjectUrl(path: string): Promise<string> {
+  const token = getPortalToken();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    throw new PortalApiError(response.status, `Couldn't load the photo (${response.status})`);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
 async function safeJson(response: Response) {
   try {
     return await response.json();

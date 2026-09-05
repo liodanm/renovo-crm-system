@@ -52,6 +52,10 @@ interface InvoiceDetail {
   customer: { name: string; email: string | null; phone: string | null };
   property: { addressLine1: string; city: string; state: string; postalCode: string } | null;
   branding: { logoUrl: string | null; primaryColor: string | null; secondaryColor: string | null };
+  // Already returned by the existing backend query (getOwnedInvoice
+  // already does `job: { include: { property: true } }`) — just not
+  // typed on the frontend yet since nothing needed it before now.
+  job: { id: string } | null;
 }
 
 const money = (v: string | number) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -186,6 +190,18 @@ export default function PortalInvoiceDetailPage() {
               <p className="mt-2 break-words text-sm text-slate-700">
                 {invoice.property.addressLine1}, {invoice.property.city}, {invoice.property.state} {invoice.property.postalCode}
               </p>
+            </div>
+          )}
+
+          {/* The one real discovery path to the new Job photos page —
+              without this, a customer has no way to find it at all.
+              Only shown when this invoice actually came from a Job
+              (some invoices may not, e.g. a manually created one). */}
+          {invoice.job && (
+            <div className="border-t border-slate-100 p-5">
+              <Link href={`/portal/jobs/${invoice.job.id}`} className="text-sm font-medium text-[var(--color-brand)]">
+                View Before &amp; After Photos →
+              </Link>
             </div>
           )}
 

@@ -362,7 +362,7 @@ export default function JobDetailPage() {
                 once would just duplicate them on screen. */}
             {job.status !== 'draft' && job.status !== 'scheduled' && !showCompleteFlow && (
               <div className="mt-6 space-y-4">
-                <div id="job-photos"><PhotoSection jobId={job.id} /></div>
+                <div id="job-photos"><PhotoSection jobId={job.id} jobNumber={job.jobNumber} /></div>
                 <div id="job-chemicals"><ChemicalSection jobId={job.id} /></div>
                 <div id="job-equipment"><EquipmentSection jobId={job.id} /></div>
               </div>
