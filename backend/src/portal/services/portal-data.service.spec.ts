@@ -32,6 +32,12 @@ function buildService(overrides: Record<string, any> = {}) {
     getFile: jest.fn().mockResolvedValue({ buffer: Buffer.from('fake-image'), mimeType: 'image/jpeg' }),
     ...overrides.jobPhotos,
   };
+  const photoStorage = {
+    read: jest.fn().mockResolvedValue(Buffer.from('fake-web-derivative')),
+    save: jest.fn().mockResolvedValue(undefined),
+    buildVariantKeys: jest.fn().mockReturnValue({ original: 'orig-key', web: 'web-key', thumbnail: 'thumb-key' }),
+    ...overrides.photoStorage,
+  };
 
   const service = new PortalDataService(
     prisma as any,
@@ -42,9 +48,10 @@ function buildService(overrides: Record<string, any> = {}) {
     {} as any, // mailService
     {} as any, // config
     jobPhotos as any,
+    photoStorage as any,
   );
 
-  return { service, prisma, jobPhotos };
+  return { service, prisma, jobPhotos, photoStorage };
 }
 
 describe('PortalDataService — Job photos authorization', () => {

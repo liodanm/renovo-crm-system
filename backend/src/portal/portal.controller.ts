@@ -608,6 +608,31 @@ export class PortalController {
     res.send(buffer);
   }
 
+  // ---- Customer-profile Photos — Account → Photos. Read-only, reuses
+  //      the existing CustomerFilesService/photos-tab.tsx staff feature's
+  //      data (see PortalDataService.getCustomerProfilePhotosForPortal),
+  //      not a new photo-management feature. ----
+  @Public()
+  @UseGuards(PortalCustomerGuard)
+  @Get('account/photos')
+  getAccountPhotos(@CurrentPortalCustomer() customer: AuthenticatedPortalCustomer) {
+    return this.data.getCustomerProfilePhotosForPortal(customer.companyId, customer.customerId);
+  }
+
+  @Public()
+  @UseGuards(PortalCustomerGuard)
+  @Get('account/photos/:photoId/file')
+  async getAccountPhotoFile(
+    @CurrentPortalCustomer() customer: AuthenticatedPortalCustomer,
+    @Param('photoId') photoId: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, mimeType } = await this.data.getCustomerProfilePhotoFileForPortal(customer.companyId, customer.customerId, photoId);
+    res.setHeader('Content-Type', mimeType ?? 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(buffer);
+  }
+
   @Public()
   @UseGuards(PortalCustomerGuard)
   @Post('service-requests')

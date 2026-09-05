@@ -8,6 +8,7 @@ import { PortalChatService } from './services/portal-chat.service';
 import { PortalCustomerGuard } from './guards/portal-customer.guard';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
+import { PhotoStorageService } from '../jobs/services/photo-storage.service';
 import { PasswordService } from '../auth/services/password.service';
 import { MailModule } from '../mail/mail.module';
 import { DocumentsModule } from '../documents/documents.module';
@@ -26,6 +27,14 @@ import { CustomersModule } from '../customers/customers.module';
   providers: [
     PrismaService,
     StorageService,
+    // Listed directly here (same convention already used for StorageService
+    // across multiple modules in this app) rather than exported from
+    // JobsModule — for the new Account → Photos feature: reads a
+    // customer-profile photo's original (already uploaded via the
+    // existing, unmodified CustomerFilesService/photos-tab.tsx staff
+    // flow) and generates a safe, EXIF-stripped web derivative on
+    // first portal view. See PortalDataService.getCustomerProfilePhotoFileForPortal.
+    PhotoStorageService,
     PasswordService,
     PortalAuthService,
     PortalDataService,
