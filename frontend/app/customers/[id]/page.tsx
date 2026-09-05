@@ -93,12 +93,12 @@ export default function CustomerProfilePage() {
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-500 dark:text-slate-400">
                   {customer.phone && (
-                    <a href={`tel:${customer.phone}`} className="flex items-center gap-1 hover:text-[var(--color-brand)]">
+                    <a href={`tel:${customer.phone}`} className="flex items-center gap-1 text-slate-700 dark:text-slate-300 hover:text-[var(--color-brand)] dark:hover:text-blue-400">
                       <Phone className="h-3.5 w-3.5" /> {customer.phone}
                     </a>
                   )}
                   {customer.email && (
-                    <a href={`mailto:${customer.email}`} className="flex items-center gap-1 hover:text-[var(--color-brand)]">
+                    <a href={`mailto:${customer.email}`} className="flex items-center gap-1 text-slate-700 dark:text-slate-300 hover:text-[var(--color-brand)] dark:hover:text-blue-400">
                       <Mail className="h-3.5 w-3.5" /> {customer.email}
                     </a>
                   )}
@@ -212,7 +212,7 @@ export default function CustomerProfilePage() {
                   onClick={() => setActiveTab(tab)}
                   className={cn(
                     'whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition',
-                    activeTab === tab ? 'border-[var(--color-brand)] text-[var(--color-brand)]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800',
+                    activeTab === tab ? 'border-[var(--color-brand)] text-[var(--color-brand)] dark:border-blue-400 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800',
                   )}
                 >
                   {tab}

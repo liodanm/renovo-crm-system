@@ -391,9 +391,21 @@ export class CustomersService {
 
     const result = new Map<string, 'new_lead' | 'estimate_sent' | 'scheduled' | 'completed'>();
     for (const id of customerIds) {
+      // Real bug fix: 'completed' was checked AFTER 'estimate_sent',
+      // but every completed job in this app's workflow originated from
+      // an accepted estimate (see ADR-001 — accepting an estimate
+      // auto-creates the job) — meaning withAnyEstimate is essentially
+      // always true for anyone with a completed job, so the
+      // 'completed' branch below was effectively unreachable dead code
+      // for the normal, intended workflow. Reordered so a completed
+      // job takes priority over the mere existence of an estimate,
+      // while an ACTIVE job (in-progress right now) still correctly
+      // takes priority over "completed" — a recurring customer with
+      // one finished job and another currently scheduled should show
+      // as "scheduled", not incorrectly regress to "completed".
       if (withActiveJob.has(id)) result.set(id, 'scheduled');
-      else if (withAnyEstimate.has(id)) result.set(id, 'estimate_sent');
       else if (withCompletedJob.has(id)) result.set(id, 'completed');
+      else if (withAnyEstimate.has(id)) result.set(id, 'estimate_sent');
       else result.set(id, 'new_lead');
     }
     return result;

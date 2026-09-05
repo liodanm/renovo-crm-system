@@ -498,6 +498,21 @@ export class JobsService {
         INSERT INTO job_status_history (company_id, job_id, from_status, to_status, changed_by_user_id, note, latitude, longitude)
         VALUES (${companyId}::uuid, ${id}::uuid, ${job.status}, 'completed', ${userId}::uuid, ${dto.note ?? null}, ${dto.latitude ?? null}, ${dto.longitude ?? null})
       `;
+      // Real bug fix: completing a Job never updated its linked
+      // Appointment's own, separate status column — appointments is a
+      // genuinely distinct table (confirmed directly in scheduling.service.ts,
+      // not a Prisma-modeled relation), which is exactly why the
+      // Dashboard's "Today's Schedule" (reads appointment.status) kept
+      // showing a completed job as still "Running late": the
+      // appointment row itself was never told the job finished. A job
+      // may not always have a linked appointment (some are completed
+      // without ever being formally scheduled), so this is a
+      // best-effort UPDATE, not a required one — zero rows affected is
+      // a normal, valid outcome, not an error.
+      await tx.$executeRaw`
+        UPDATE appointments SET status = 'completed', updated_at = now()
+        WHERE job_id = ${id}::uuid AND company_id = ${companyId}::uuid AND status NOT IN ('cancelled', 'completed')
+      `;
       if (dto.customerSignatureDataUrl) {
         await this.fieldOps.writeAuditLog(tx, companyId, id, 'signature_captured', userId, dto, null, { captured: true });
       }

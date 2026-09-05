@@ -139,14 +139,14 @@ export function OverviewTab({
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{nextAction.title}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{nextAction.detail}</p>
               </div>
-              <Link href={nextAction.href} className="shrink-0 rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90">
+              <Link href={nextAction.href} className="shrink-0 rounded-lg bg-[var(--color-brand)] dark:bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90">
                 {nextAction.cta}
               </Link>
             </div>
           )}
         </Section>
 
-        <Section title="Recent Activity" action={<button onClick={() => onNavigateTab('Activity')} className="text-xs text-[var(--color-brand)] hover:underline">View All Activity</button>}>
+        <Section title="Recent Activity" action={<button onClick={() => onNavigateTab('Activity')} className="text-xs text-[var(--color-brand)] dark:text-blue-400 hover:underline">View All Activity</button>}>
           {!activity && <CardSkeleton lines={3} />}
           {activity && activity.length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500">No activity recorded yet.</p>}
           {activity && activity.length > 0 && (
@@ -172,7 +172,7 @@ export function OverviewTab({
             </div>
           )}
           {upcomingJob && (
-            <Link href={`/jobs/${upcomingJob.id}`} className="flex items-center gap-3 text-sm hover:text-[var(--color-brand)]">
+            <Link href={`/jobs/${upcomingJob.id}`} className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 hover:text-[var(--color-brand)] dark:hover:text-blue-400">
               <CalendarClock className="h-4 w-4 shrink-0 text-slate-400" />
               <span className="font-medium text-slate-800 dark:text-slate-100">{new Date(upcomingJob.scheduledStart!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
               <span className="text-slate-600 dark:text-slate-400">{upcomingJob.title}</span>
@@ -226,7 +226,7 @@ export function OverviewTab({
           </dl>
         </Section>
 
-        <Section title={customer.properties.length > 1 ? 'Properties' : 'Property'} action={customer.properties.length > 1 ? <button onClick={() => onNavigateTab('Properties')} className="text-xs text-[var(--color-brand)] hover:underline">View All</button> : undefined}>
+        <Section title={customer.properties.length > 1 ? 'Properties' : 'Property'} action={customer.properties.length > 1 ? <button onClick={() => onNavigateTab('Properties')} className="text-xs text-[var(--color-brand)] dark:text-blue-400 hover:underline">View All</button> : undefined}>
           {customer.properties.length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500">No properties yet.</p>}
           {customer.properties.length > 0 && (
             <div className="space-y-2">
@@ -318,7 +318,7 @@ function InfoRow({ label, value, href, capitalize }: { label: string; value: str
       <dt className="shrink-0 text-slate-400 dark:text-slate-500">{label}</dt>
       <dd className={cn('truncate text-right', capitalize && 'capitalize')}>
         {value ? (
-          href ? <a href={href} className="font-medium text-[var(--color-brand)]">{value}</a> : <span className="text-slate-700 dark:text-slate-300">{value}</span>
+          href ? <a href={href} className="font-medium text-[var(--color-brand)] dark:text-blue-400">{value}</a> : <span className="text-slate-700 dark:text-slate-300">{value}</span>
         ) : (
           <span className="text-slate-400 dark:text-slate-500">—</span>
         )}
