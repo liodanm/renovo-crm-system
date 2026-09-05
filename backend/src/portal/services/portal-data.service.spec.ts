@@ -81,7 +81,13 @@ describe('PortalDataService — Job photos authorization', () => {
       where: { id: 'job-1', companyId: 'company-1', customerId: 'customer-1' },
       select: { id: true },
     });
-    expect(jobPhotos.getFile).toHaveBeenCalledWith('company-1', 'job-1', 'photo-1');
+    // 'web' explicit — see getJobPhotoFileForCustomer's own comment:
+    // this method was hardened during the S3 migration pass to always
+    // pass the variant explicitly rather than rely on getFile()'s
+    // default, specifically because this is the security-critical
+    // customer-facing path. This assertion has to match that real
+    // change; it was stale (still expecting 3 args) until this fix.
+    expect(jobPhotos.getFile).toHaveBeenCalledWith('company-1', 'job-1', 'photo-1', 'web');
   });
 
   it('Test — getJobPhotoFileForCustomer rejects before ever calling storage when the job ownership check fails', async () => {
