@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { Image as ImageIcon, ChevronRight } from 'lucide-react';
 import useSWR from 'swr';
 import { portalApiFetch } from '../../../lib/portal/portal-api-client';
 import { clearPortalToken, getPortalCompanySlug } from '../../../lib/portal/portal-token-storage';
@@ -63,6 +65,22 @@ export default function PortalAccountPage() {
           </div>
         )}
       </div>
+
+      {/* One clean entry, per the explicit "don't redesign Account,
+          add one item" instruction — not a sub-nav, just a link to
+          the dedicated gallery page. */}
+      <Link
+        href="/portal/account/photos"
+        className="mt-3 flex max-w-md items-center justify-between rounded-xl border border-slate-200 bg-white p-4 hover:bg-slate-50"
+      >
+        <span className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+            <ImageIcon className="h-4 w-4 text-slate-500" />
+          </span>
+          <span className="text-sm font-medium text-slate-900">Photos</span>
+        </span>
+        <ChevronRight className="h-4 w-4 text-slate-400" />
+      </Link>
     </PortalShell>
   );
 }
