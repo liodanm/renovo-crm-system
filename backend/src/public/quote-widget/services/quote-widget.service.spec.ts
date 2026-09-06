@@ -24,7 +24,7 @@ function buildService(overrides: Partial<Record<string, any>> = {}) {
   const redisStore = new Map<string, string>();
   const prisma = {
     company: { findUnique: jest.fn().mockResolvedValue(COMPANY) },
-    withTenantContext: jest.fn((companyId: string, fn: (tx: any) => any) => fn({})),
+    withTenantContext: jest.fn((companyId: string, fn: (tx: any) => any) => fn({ $executeRaw: jest.fn() })),
     ...overrides.prisma,
   };
   const tenantContext = { run: jest.fn((_ctx: any, fn: () => any) => fn()) };
@@ -363,7 +363,7 @@ describe('QuoteWidgetService — atomic Customer + Property + Estimate transacti
   // explicitly rather than letting "tests pass" imply more than it does.
 
   it('Test — Customer, Property, and Estimate creation all receive the exact SAME tx object from withTenantContext — proving one shared transaction, not three separate ones', async () => {
-    const TX_MARKER = { __isTheOneSharedTx: true };
+    const TX_MARKER = { __isTheOneSharedTx: true, $executeRaw: jest.fn() };
     const { service, customers, properties, estimates, prisma } = buildService({
       prisma: { withTenantContext: jest.fn((_companyId: string, fn: (tx: any) => any) => fn(TX_MARKER)) },
     });
@@ -408,7 +408,7 @@ describe('QuoteWidgetService — atomic Customer + Property + Estimate transacti
       prisma: {
         withTenantContext: jest.fn(async (_companyId: string, fn: (tx: any) => any) => {
           callOrder.push('transaction-start');
-          const result = await fn({});
+          const result = await fn({ $executeRaw: jest.fn() });
           callOrder.push('transaction-committed');
           return result;
         }),
@@ -430,7 +430,7 @@ describe('QuoteWidgetService — atomic Customer + Property + Estimate transacti
   });
 
   it('Test — an existing Customer (matched, not created) still flows through the same single-tx composition — findOrCreateByEmail returning wasExisting:true does not change how Property/Estimate creation receive the tx', async () => {
-    const TX_MARKER = { __isTheOneSharedTx: true };
+    const TX_MARKER = { __isTheOneSharedTx: true, $executeRaw: jest.fn() };
     const { service, properties, estimates } = buildService({
       prisma: { withTenantContext: jest.fn((_companyId: string, fn: (tx: any) => any) => fn(TX_MARKER)) },
       customers: { findOrCreateByEmail: jest.fn().mockResolvedValue({ customer: CUSTOMER, wasExisting: true }) },
