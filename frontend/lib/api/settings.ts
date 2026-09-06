@@ -60,6 +60,22 @@ export interface EstimateSettings {
   defaultValidUntilDays: number;
 }
 
+export interface ConsentDisclosures {
+  sms: string;
+  email: string;
+  marketingSms: string;
+  smsHash: string;
+  emailHash: string;
+  marketingSmsHash: string;
+  raw: { sms: string; email: string; marketingSms: string };
+}
+
+export interface UpdateConsentDisclosuresInput {
+  sms?: string;
+  email?: string;
+  marketingSms?: string;
+}
+
 export interface LeadSourceOption {
   key: string;
   label: string;
@@ -169,6 +185,12 @@ export const settingsApi = {
   updateBranding: (input: Partial<BrandingSettings>) => apiFetch<BrandingSettings>('/settings/branding', { method: 'PATCH', body: JSON.stringify(input) }),
   getEstimateSettings: () => apiFetch<EstimateSettings>('/settings/estimates'),
   updateEstimateSettings: (input: EstimateSettings) => apiFetch<EstimateSettings>('/settings/estimates', { method: 'PATCH', body: JSON.stringify(input) }),
+
+  // Consent & Disclosures — GET returns raw (unresolved, {{businessName}}
+  // template) for the editor, plus the resolved+hashed versions for the
+  // preview. PATCH only ever sends the raw template back.
+  getConsentDisclosures: () => apiFetch<ConsentDisclosures>('/settings/consent-disclosures'),
+  updateConsentDisclosures: (input: UpdateConsentDisclosuresInput) => apiFetch<ConsentDisclosures>('/settings/consent-disclosures', { method: 'PATCH', body: JSON.stringify(input) }),
   presignLogoUpload: (fileName: string, mimeType: string, fileSizeBytes: number) =>
     apiFetch<{ uploadUrl: string; publicUrl: string; expiresInSeconds: number }>('/settings/branding/logo-upload-url', {
       method: 'POST',

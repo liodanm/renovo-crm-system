@@ -82,6 +82,7 @@ export const settingsNavGroups: SettingsNavGroup[] = [
     items: [
       { key: 'email', label: 'Email', description: 'Postmark status, sender identity, test email', icon: Mail },
       { key: 'sms', label: 'SMS', description: 'Twilio status, test message', icon: MessageSquare },
+      { key: 'consent-disclosures', label: 'Consent & Disclosures', description: 'SMS, email, and marketing SMS disclosure language shown to customers', icon: Shield },
       { key: 'storage', label: 'Storage', description: 'File storage status and upload limits', icon: HardDrive },
     ],
   },
