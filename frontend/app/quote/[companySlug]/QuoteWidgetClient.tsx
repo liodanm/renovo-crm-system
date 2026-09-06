@@ -11,6 +11,7 @@ import {
   type PublicQuoteBranding,
   type PublicQuoteService,
   type PropertyLookupResult,
+  type ConsentDisclosuresPayload,
 } from '../../../lib/api/quote-widget';
 
 // Leaflet touches window/document at import time — must never run
@@ -93,6 +94,14 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   // succeeds — never guessed/split from this string ourselves.
   const [singleLineAddress, setSingleLineAddress] = useState('');
   const [contact, setContact] = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [disclosures, setDisclosures] = useState<ConsentDisclosuresPayload | null>(null);
+  // Required, unchecked by default — genuine opt-in for service
+  // communication, not pre-checked on the customer's behalf.
+  const [serviceConsent, setServiceConsent] = useState(false);
+  // Separate and optional per the explicit requirement: never required
+  // to submit, never inferred from serviceConsent, never checked by
+  // default.
+  const [marketingConsent, setMarketingConsent] = useState(false);
   // Real bots that fill every visible field will fill this too — a
   // sighted human never sees it. Sent as companyWebsite, matching the
   // exact existing backend honeypot field name — not a new mechanism.
@@ -111,10 +120,11 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
   const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
-    Promise.all([quoteWidgetApi.getBranding(companySlug), quoteWidgetApi.getServices(companySlug)])
-      .then(([b, s]) => {
+    Promise.all([quoteWidgetApi.getBranding(companySlug), quoteWidgetApi.getServices(companySlug), quoteWidgetApi.getConsentDisclosures(companySlug)])
+      .then(([b, s, d]) => {
         setBranding(b);
         setServices(s);
+        setDisclosures(d);
       })
       .catch((err) => {
         setLoadError(err instanceof QuoteWidgetApiError && err.status === 404 ? 'not_found' : 'generic');
@@ -381,7 +391,7 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
         Number(quantities[s.id]) > 0,
     );
   const canContinueProperty = !!singleLineAddress.trim();
-  const canContinueContact = !!(contact.firstName.trim() && /\S+@\S+\.\S+/.test(contact.email) && contact.phone.trim().length >= 7);
+  const canContinueContact = !!(contact.firstName.trim() && /\S+@\S+\.\S+/.test(contact.email) && contact.phone.trim().length >= 7 && serviceConsent);
 
   // Metadata about HOW a measurement was obtained — not required by the
   // pricing engine at all (price still resolves purely server-side from
@@ -493,6 +503,12 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
           })),
           idempotencyKey,
           companyWebsite: honeypot || undefined,
+          smsConsent: serviceConsent,
+          smsDisclosureHash: disclosures?.smsHash,
+          emailConsent: serviceConsent,
+          emailDisclosureHash: disclosures?.emailHash,
+          marketingSmsConsent: marketingConsent,
+          marketingSmsDisclosureHash: marketingConsent ? disclosures?.marketingSmsHash : undefined,
         });
         if ('estimateNumber' in response) {
           setResult(response);
@@ -954,6 +970,34 @@ export function QuoteWidgetClient({ companySlug }: { companySlug: string }) {
               <Field label="Phone">
                 <input type="tel" value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} className={inputClass} />
               </Field>
+
+              {disclosures && (
+                <div className="space-y-2.5 pt-1">
+                  <label className="flex items-start gap-2.5 text-sm text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={serviceConsent}
+                      onChange={(e) => setServiceConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300"
+                    />
+                    <span>{disclosures.sms} {disclosures.email}</span>
+                  </label>
+
+                  {/* Deliberately its own checkbox, its own disclosure
+                      text, unchecked, and never disabled/required —
+                      the whole point of this feature is that this can
+                      never be inferred from the box above. */}
+                  <label className="flex items-start gap-2.5 text-sm text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={marketingConsent}
+                      onChange={(e) => setMarketingConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300"
+                    />
+                    <span>{disclosures.marketingSms}</span>
+                  </label>
+                </div>
+              )}
               <input
                 type="text"
                 value={honeypot}

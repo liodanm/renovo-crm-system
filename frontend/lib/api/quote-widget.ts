@@ -70,6 +70,24 @@ export interface SubmitQuotePayload {
   // in the type so the frontend never needs to suppress a type error to
   // send it.
   companyWebsite?: string;
+  // Consent — hashes come from getConsentDisclosures(), echoed back
+  // untouched (see SettingsService's own doc comment on why the
+  // backend never recomputes/re-verifies these at submission time).
+  smsConsent?: boolean;
+  smsDisclosureHash?: string;
+  emailConsent?: boolean;
+  emailDisclosureHash?: string;
+  marketingSmsConsent?: boolean;
+  marketingSmsDisclosureHash?: string;
+}
+
+export interface ConsentDisclosuresPayload {
+  sms: string;
+  smsHash: string;
+  email: string;
+  emailHash: string;
+  marketingSms: string;
+  marketingSmsHash: string;
 }
 
 export interface RequestQuotePayload {
@@ -125,6 +143,7 @@ export interface PropertyLookupPayload {
 
 export const quoteWidgetApi = {
   getBranding: (companySlug: string) => publicFetch<PublicQuoteBranding>(`/public/${companySlug}/quote-widget/branding`),
+  getConsentDisclosures: (companySlug: string) => publicFetch<ConsentDisclosuresPayload>(`/public/${companySlug}/quote-widget/consent-disclosures`),
   getServices: (companySlug: string) => publicFetch<PublicQuoteService[]>(`/public/${companySlug}/quote-widget/services`),
   lookupProperty: (companySlug: string, payload: PropertyLookupPayload) =>
     publicFetch<PropertyLookupResult>(`/public/${companySlug}/quote-widget/property-lookup`, {
