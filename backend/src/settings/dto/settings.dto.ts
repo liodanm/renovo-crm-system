@@ -467,3 +467,20 @@ export class UpdateEstimateSettingsDto {
   @Max(365)
   defaultValidUntilDays?: number;
 }
+
+export class UpdateConsentDisclosuresDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  sms?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  marketingSms?: string;
+}

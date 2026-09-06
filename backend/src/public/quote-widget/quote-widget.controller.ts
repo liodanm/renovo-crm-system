@@ -29,6 +29,12 @@ export class QuoteWidgetController {
     return this.quoteWidget.getPublicBranding(companySlug);
   }
 
+  @Public()
+  @Get('consent-disclosures')
+  getConsentDisclosures(@Param('companySlug') companySlug: string) {
+    return this.quoteWidget.getPublicConsentDisclosures(companySlug);
+  }
+
   // Tighter than the bare lead-capture endpoint's 3/hour — a full quote
   // (real pricing, real emails, real estimate) is a heavier, more
   // valuable action than a bare lead, so it's worth a slightly more

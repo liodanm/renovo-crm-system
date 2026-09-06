@@ -194,6 +194,27 @@ model Customer {
   updatedAt        DateTime  @updatedAt @map("updated_at")
   deletedAt        DateTime? @map("deleted_at")
 
+  // Consent & Disclosures — see migration 050. Transactional (SMS +
+  // email) and marketing SMS are deliberately separate column groups;
+  // the whole point of this feature is that agreeing to one must
+  // never imply the other. *_source records where consent was given
+  // (e.g. "instant_quote", "staff_entry", "portal") and
+  // *_disclosure_hash records a SHA-256 of the exact disclosure text
+  // shown at that moment — the smallest viable proof of which version
+  // the customer actually saw, chosen over a full version-history
+  // table per this feature's own explicit "don't overbuild" guidance.
+  smsConsentAt              DateTime? @map("sms_consent_at")
+  smsConsentSource          String?   @map("sms_consent_source")
+  smsDisclosureHash         String?   @map("sms_disclosure_hash")
+  emailConsentAt            DateTime? @map("email_consent_at")
+  emailConsentSource        String?   @map("email_consent_source")
+  emailDisclosureHash       String?   @map("email_disclosure_hash")
+  marketingSmsConsent          Boolean   @default(false) @map("marketing_sms_consent")
+  marketingSmsConsentAt        DateTime? @map("marketing_sms_consent_at")
+  marketingSmsConsentSource    String?   @map("marketing_sms_consent_source")
+  marketingSmsDisclosureHash   String?   @map("marketing_sms_disclosure_hash")
+  marketingSmsOptedOutAt       DateTime? @map("marketing_sms_opted_out_at")
+
   properties Property[]
   jobs       Job[]
   estimates  Estimate[]

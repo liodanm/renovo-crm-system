@@ -8,6 +8,7 @@ import {
   UpdateBusinessDefaultsDto,
   UpdateBrandingDto,
   UpdateEstimateSettingsDto,
+  UpdateConsentDisclosuresDto,
   UpdatePaymentSettingsDto,
   UpdateEmailSettingsDto,
   UpdateBusinessLinksDto,
@@ -85,6 +86,21 @@ export class SettingsController {
   @RequirePermissions('settings.manage')
   updateEstimateSettings(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateEstimateSettingsDto) {
     return this.settings.updateEstimateSettings(user.companyId, dto);
+  }
+
+  // Consent & Disclosures — companyId always from the authenticated
+  // user's own JWT-derived context, never from the request body/URL;
+  // same tenant-safety convention every other Settings route here
+  // already follows.
+  @Get('consent-disclosures')
+  getConsentDisclosures(@CurrentUser() user: AuthenticatedRequestUser) {
+    return this.settings.getConsentDisclosures(user.companyId);
+  }
+
+  @Patch('consent-disclosures')
+  @RequirePermissions('settings.manage')
+  updateConsentDisclosures(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: UpdateConsentDisclosuresDto) {
+    return this.settings.updateConsentDisclosures(user.companyId, dto);
   }
 
   // Branding

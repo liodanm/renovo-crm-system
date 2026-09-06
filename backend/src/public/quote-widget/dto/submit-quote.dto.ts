@@ -1,4 +1,4 @@
-import { IsArray, IsEmail, IsIn, IsNumber, IsObject, IsOptional, IsPositive, IsString, IsUUID, Max, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEmail, IsIn, IsNumber, IsObject, IsOptional, IsPositive, IsString, IsUUID, Max, MaxLength, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QuoteSelectedServiceDto {
@@ -51,6 +51,53 @@ export class SubmitQuoteDto {
   @MinLength(7)
   @MaxLength(20)
   phone: string;
+
+  // Consent — server-authoritative recording, never trusting the
+  // client's claim of WHAT text they saw, only THAT they checked a
+  // box. hash fields let the backend verify the disclosure the client
+  // claims to have shown actually matches what's currently configured
+  // for this company (see QuoteWidgetService — mismatches are
+  // rejected, not silently accepted) rather than trusting the client's
+  // self-report of consent wholesale.
+  //
+  // Optional, not required — an older/uncached frontend build that
+  // hasn't picked up the new consent UI yet must keep submitting
+  // quotes successfully (this exact scenario is why the existing test
+  // suite's fixtures, written before this feature existed, needed to
+  // keep compiling unchanged). Absence is always treated as "no
+  // consent recorded", never as an implicit yes — see
+  // QuoteWidgetService.recordConsent.
+  @IsOptional()
+  @IsBoolean()
+  smsConsent?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  smsDisclosureHash?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  emailConsent?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  emailDisclosureHash?: string;
+
+  // Marketing is never required — @IsOptional() + a default of false
+  // if omitted entirely means a client that sends nothing for this
+  // field (which should never happen from Renovo's own frontend, but
+  // a malicious or buggy client could try) still results in NO
+  // marketing consent, never an implicit yes.
+  @IsOptional()
+  @IsBoolean()
+  marketingSmsConsent?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  marketingSmsDisclosureHash?: string;
 
   @IsString()
   @MaxLength(255)

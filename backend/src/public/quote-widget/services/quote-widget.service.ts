@@ -12,6 +12,7 @@ import { CompanyContextService } from '../../../documents/services/company-conte
 import { CustomerNotesService } from '../../../customers/services/customer-notes.service';
 import { GeocodingService } from '../../../geocoding/geocoding.service';
 import { PropertyIntelligenceService, MeasurementConfidence } from '../../../property-intelligence/property-intelligence.service';
+import { SettingsService } from '../../../settings/services/settings.service';
 import { createOwnerNotification } from '../../../common/utils/owner-notification.util';
 import { SubmitQuoteDto } from '../dto/submit-quote.dto';
 import { RequestQuoteDto } from '../dto/request-quote.dto';
@@ -51,6 +52,7 @@ export class QuoteWidgetService {
     private readonly customerNotes: CustomerNotesService,
     private readonly geocoding: GeocodingService,
     private readonly propertyIntelligence: PropertyIntelligenceService,
+    private readonly settings: SettingsService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
@@ -71,6 +73,26 @@ export class QuoteWidgetService {
     // extend this existing response with one additional field rather
     // than create a second branding endpoint.
     return { ...branding, companyName: company.name };
+  }
+
+  /**
+   * The frontend displays sms/email/marketingSms text and echoes the
+   * matching *Hash value back untouched on submit — see SubmitQuoteDto
+   * and getConsentDisclosures' own doc comment for why the hash is
+   * never recomputed/re-verified against current config at submission
+   * time (that's expected staleness, not tampering).
+   */
+  async getPublicConsentDisclosures(companySlug: string) {
+    const company = await this.resolveCompany(companySlug);
+    const disclosures = await this.settings.getConsentDisclosures(company.id);
+    return {
+      sms: disclosures.sms,
+      smsHash: disclosures.smsHash,
+      email: disclosures.email,
+      emailHash: disclosures.emailHash,
+      marketingSms: disclosures.marketingSms,
+      marketingSmsHash: disclosures.marketingSmsHash,
+    };
   }
 
   async submitQuote(companySlug: string, dto: SubmitQuoteDto): Promise<QuoteSubmissionResult | { received: true }> {
@@ -165,6 +187,8 @@ export class QuoteWidgetService {
       propertyWasExisting = propertyResult.wasExisting;
 
       estimate = await this.estimates.create(companyId, toCreateEstimateDto(customer.id, property.id, lineItems, dto.notes, ESTIMATE_SOURCE), false, tx);
+
+      await this.recordConsent(tx, companyId, customer.id, dto);
     });
 
     this.logger.log({ event: wasExisting ? 'quote_widget.customer_matched' : 'quote_widget.customer_created', companyId, customerId: customer.id });
@@ -321,6 +345,53 @@ export class QuoteWidgetService {
       await this.redis.set(idempotencyKeyRedisKey, JSON.stringify(result), 'EX', IDEMPOTENCY_TTL_SECONDS);
     }
     return result;
+  }
+
+  /**
+   * Server-authoritative consent recording — runs inside the same
+   * transaction as Customer/Property/Estimate creation (see the
+   * withTenantContext block above), so a failed Estimate rolls back
+   * consent too, exactly like everything else in that transaction.
+   *
+   * Transactional SMS/email consent is straightforward: this
+   * submission's checkbox state and hash simply overwrite whatever
+   * was there before — it reflects the most recent, most current
+   * statement of consent, same logic as any other profile field a
+   * customer re-submits.
+   *
+   * Marketing SMS is deliberately NOT symmetric: consent can only be
+   * upgraded (false → true) through this flow, never downgraded. An
+   * existing customer who leaves the marketing box unchecked on a
+   * LATER quote is not making an affirmative decision to revoke
+   * previously-given consent — they may simply not have noticed the
+   * box, or considered it irrelevant to filling out another quote.
+   * Only an explicit action (checking the box) or a real opt-out
+   * (STOP) should ever change marketing consent state.
+   */
+  private async recordConsent(tx: Prisma.TransactionClient, companyId: string, customerId: string, dto: SubmitQuoteDto): Promise<void> {
+    const now = new Date();
+    await tx.$executeRaw`
+      UPDATE customers SET
+        sms_consent_at = ${dto.smsConsent ? now : null},
+        sms_consent_source = ${dto.smsConsent ? 'instant_quote' : null},
+        sms_disclosure_hash = ${dto.smsConsent ? dto.smsDisclosureHash : null},
+        email_consent_at = ${dto.emailConsent ? now : null},
+        email_consent_source = ${dto.emailConsent ? 'instant_quote' : null},
+        email_disclosure_hash = ${dto.emailConsent ? dto.emailDisclosureHash : null}
+      WHERE id = ${customerId}::uuid AND company_id = ${companyId}::uuid
+    `;
+
+    if (dto.marketingSmsConsent === true) {
+      await tx.$executeRaw`
+        UPDATE customers SET
+          marketing_sms_consent = true,
+          marketing_sms_consent_at = ${now},
+          marketing_sms_consent_source = 'instant_quote',
+          marketing_sms_disclosure_hash = ${dto.marketingSmsDisclosureHash ?? null},
+          marketing_sms_opted_out_at = NULL
+        WHERE id = ${customerId}::uuid AND company_id = ${companyId}::uuid AND marketing_sms_consent = false
+      `;
+    }
   }
 
   private async resolveCompany(companySlug: string) {

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PasswordService } from '../../auth/services/password.service';
 import { IntegrationStatusService } from '../../common/integrations/integration-status.service';
@@ -12,6 +13,7 @@ import {
   UpdateBusinessDefaultsDto,
   UpdateBrandingDto,
   UpdateEstimateSettingsDto,
+  UpdateConsentDisclosuresDto,
   UpdatePaymentSettingsDto,
   UpdateEmailSettingsDto,
   SendTestEmailDto,
@@ -212,6 +214,102 @@ export class SettingsService {
     // never overwrites the rest of companies.settings.
     await this.prisma.tenant.$executeRawUnsafe(
       `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{estimateSettings}', $2::jsonb, true), updated_at = now() WHERE id = $1::uuid`,
+      companyId,
+      JSON.stringify(merged),
+    );
+    return merged;
+  }
+
+  /**
+   * Renovo-provided defaults — standard, widely-used SMS/email
+   * compliance disclosure STRUCTURE (message-and-data-rates language,
+   * HELP/STOP instructions, message-frequency disclosure, "consent
+   * not a condition of purchase" for marketing) — not a novel legal
+   * position invented for this task. {{businessName}} is the only
+   * placeholder; resolved from the company's real name wherever this
+   * is displayed, never hardcoded to any specific business.
+   *
+   * Deliberately NOT split into a separately-locked "compliance
+   * elements" sub-block a business can't edit — building real field-
+   * level locking here would be a genuine over-build for this pass
+   * (per this feature's own explicit guidance). Instead the Settings
+   * UI itself carries a clear warning listing what should stay
+   * present. A business can still technically remove required
+   * language if determined to — this is a real, deliberate trade-off,
+   * documented as such rather than silently accepted.
+   */
+  private readonly DEFAULT_CONSENT_DISCLOSURES = {
+    sms: 'By providing your phone number, you agree to receive service-related text messages (such as appointment confirmations and updates) from {{businessName}}. Msg & data rates may apply. Message frequency varies. Reply HELP for help, STOP to opt out.',
+    email: 'By providing your email address, you agree to receive service-related emails (such as estimates, invoices, and appointment updates) from {{businessName}}.',
+    marketingSms: 'I agree to receive promotional and marketing text messages from {{businessName}}, including special offers and discounts. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out at any time. Consent is not a condition of purchase.',
+  };
+
+  /**
+   * Static (no DI needed) so QuoteWidgetService and anything else that
+   * needs to verify a disclosure hash can call it directly without
+   * injecting SettingsService — same hashing logic used exactly once,
+   * here.
+   */
+  static hashDisclosure(resolvedText: string): string {
+    return createHash('sha256').update(resolvedText).digest('hex');
+  }
+
+  async getConsentDisclosures(companyId: string) {
+    const rows: { name: string; settings: any }[] = await this.prisma.tenant.$queryRawUnsafe(`SELECT name, settings FROM companies WHERE id = $1::uuid`, companyId);
+    if (rows.length === 0) throw new NotFoundException('Company not found');
+    const configured = rows[0].settings?.consentDisclosures ?? {};
+    const resolve = (template: string) => template.replaceAll('{{businessName}}', rows[0].name);
+    const sms = resolve(configured.sms ?? this.DEFAULT_CONSENT_DISCLOSURES.sms);
+    const email = resolve(configured.email ?? this.DEFAULT_CONSENT_DISCLOSURES.email);
+    const marketingSms = resolve(configured.marketingSms ?? this.DEFAULT_CONSENT_DISCLOSURES.marketingSms);
+    return {
+      sms,
+      email,
+      marketingSms,
+      // Hash of the RESOLVED text (the actual words the customer sees,
+      // business name and all) — not the raw {{businessName}} template.
+      // This is what makes Phase 6 correct: the quote widget displays
+      // `sms` and submits `smsHash` back untouched; the backend never
+      // recomputes or second-guesses it at submission time (the
+      // company's disclosure text could legitimately change between
+      // page-load and submit — that's expected, not an attack — the
+      // hash's whole job is proving what THIS customer saw AT THEIR
+      // page load, not that it still matches current config later).
+      smsHash: SettingsService.hashDisclosure(sms),
+      emailHash: SettingsService.hashDisclosure(email),
+      marketingSmsHash: SettingsService.hashDisclosure(marketingSms),
+      // Raw (unresolved) versions too — the Settings editor itself
+      // should show/save the {{businessName}} TEMPLATE, not a value
+      // that's already been resolved for one specific company at
+      // save time (which would break if the company later renamed
+      // itself).
+      raw: {
+        sms: configured.sms ?? this.DEFAULT_CONSENT_DISCLOSURES.sms,
+        email: configured.email ?? this.DEFAULT_CONSENT_DISCLOSURES.email,
+        marketingSms: configured.marketingSms ?? this.DEFAULT_CONSENT_DISCLOSURES.marketingSms,
+      },
+    };
+  }
+
+  async updateConsentDisclosures(companyId: string, dto: UpdateConsentDisclosuresDto) {
+    // Plain text only — no HTML/script injection surface at all,
+    // matching the explicit "prefer plain text over
+    // dangerouslySetInnerHTML" guidance. Length-capped generously
+    // (an SMS disclosure this long would already be unreasonable, but
+    // this is about preventing abuse, not being a strict SMS-segment
+    // calculator).
+    for (const [key, value] of Object.entries(dto)) {
+      if (typeof value === 'string' && value.length > 2000) {
+        throw new BadRequestException(`${key} disclosure is too long (max 2000 characters).`);
+      }
+    }
+    const merged = {
+      sms: dto.sms,
+      email: dto.email,
+      marketingSms: dto.marketingSms,
+    };
+    await this.prisma.tenant.$executeRawUnsafe(
+      `UPDATE companies SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{consentDisclosures}', $2::jsonb, true), updated_at = now() WHERE id = $1::uuid`,
       companyId,
       JSON.stringify(merged),
     );

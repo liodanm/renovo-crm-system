@@ -8,6 +8,7 @@ import { EstimatesModule } from '../../estimates/estimates.module';
 import { PortalModule } from '../../portal/portal.module';
 import { DocumentsModule } from '../../documents/documents.module';
 import { PropertyIntelligenceService } from '../../property-intelligence/property-intelligence.service';
+import { SettingsModule } from '../../settings/settings.module';
 
 /**
  * The single home for the public Instant Quote Widget (Phase 1) and its
@@ -34,7 +35,7 @@ import { PropertyIntelligenceService } from '../../property-intelligence/propert
  * precedent, so it's provided directly.
  */
 @Module({
-  imports: [CustomersModule, ServiceCatalogModule, EstimatesModule, PortalModule, DocumentsModule],
+  imports: [CustomersModule, ServiceCatalogModule, EstimatesModule, PortalModule, DocumentsModule, SettingsModule],
   controllers: [QuoteWidgetController],
   providers: [PrismaService, QuoteWidgetService, PropertyIntelligenceService],
 })

@@ -74,6 +74,10 @@ function buildService(overrides: Partial<Record<string, any>> = {}) {
     }),
     ...overrides.redis,
   };
+  const settings = {
+    getConsentDisclosures: jest.fn().mockResolvedValue({ sms: 'SMS disclosure', smsHash: 'sms-hash', email: 'Email disclosure', emailHash: 'email-hash', marketingSms: 'Marketing disclosure', marketingSmsHash: 'marketing-hash', raw: {} }),
+    ...overrides.settings,
+  };
 
   const service = new QuoteWidgetService(
     prisma as any,
@@ -87,10 +91,11 @@ function buildService(overrides: Partial<Record<string, any>> = {}) {
     customerNotes as any,
     geocoding as any,
     propertyIntelligence as any,
+    settings as any,
     redis as any,
   );
 
-  return { service, prisma, tenantContext, customers, properties, serviceCatalog, estimates, portalAuth, companyContext, customerNotes, geocoding, propertyIntelligence, redis, redisStore };
+  return { service, prisma, tenantContext, customers, properties, serviceCatalog, estimates, portalAuth, companyContext, customerNotes, geocoding, propertyIntelligence, settings, redis, redisStore };
 }
 
 function submitDto(overrides: Partial<any> = {}) {
