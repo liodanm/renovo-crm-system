@@ -29,6 +29,30 @@ export class CustomersService {
   ) {}
 
   /**
+   * Explicit, staff-initiated marketing SMS consent change — see the
+   * controller's own comment for why this is a dedicated endpoint
+   * rather than folded into the generic customer update. Recording
+   * marketing_sms_opted_out_at on a false transition (not just
+   * clearing the boolean) preserves the distinction between "never
+   * asked" and "explicitly opted out" for reporting/audit purposes,
+   * matching the same fields the public quote flow's opt-IN path
+   * already populates for the true direction (see
+   * QuoteWidgetService.recordConsent, migration 050).
+   */
+  async setMarketingSmsConsent(companyId: string, customerId: string, consent: boolean, staffUserId: string) {
+    const now = new Date();
+    await this.prisma.withTenantContext(companyId, (tx) => tx.$executeRaw`
+      UPDATE customers SET
+        marketing_sms_consent = ${consent},
+        marketing_sms_consent_at = ${consent ? now : null},
+        marketing_sms_consent_source = ${consent ? 'staff_entry' : null},
+        marketing_sms_opted_out_at = ${consent ? null : now}
+      WHERE id = ${customerId}::uuid AND company_id = ${companyId}::uuid
+    `);
+    return { success: true, marketingSmsConsent: consent };
+  }
+
+  /**
    * Server-side enforcement of the lead-source list Settings → Lead
    * Sources already maintains — closes the reporting-foundation audit's
    * confirmed gap: the frontend form's dropdown was already

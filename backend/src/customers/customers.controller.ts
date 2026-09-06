@@ -108,6 +108,20 @@ export class CustomersController {
     return this.customersService.update(user.companyId, id, dto);
   }
 
+  // Deliberately its own endpoint, not folded into the generic PATCH
+  // above — marketing SMS consent needs to always be an explicit,
+  // auditable staff action (who, when, source), not something that
+  // could be silently changed as a side effect of an unrelated bulk
+  // customer edit. Always allowed to move either direction (unlike
+  // the public quote flow, which only ever upgrades false→true) —
+  // staff have direct accountability for this action either way, and
+  // need to be able to correct a mistake.
+  @Patch(':id/marketing-sms-consent')
+  @RequirePermissions('customers.write')
+  setMarketingSmsConsent(@CurrentUser() user: AuthenticatedRequestUser, @Param('id') id: string, @Body('consent') consent: boolean) {
+    return this.customersService.setMarketingSmsConsent(user.companyId, id, consent, user.userId);
+  }
+
   @RequirePermissions('customers.write')
   @Post('bulk-delete')
   bulkDelete(@CurrentUser() user: AuthenticatedRequestUser, @Body() dto: BulkDeleteCustomersDto) {

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import { Mail, MessageSquare, Eye, Loader2 } from 'lucide-react';
 import { fetchPdfObjectUrl, ApiError } from '../../lib/api/api-client';
+import { settingsApi } from '../../lib/api/settings';
 import type { EmailLogEntry } from '../../lib/api/estimates';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -48,6 +49,16 @@ export function DocumentEmailSection({
   onSendSms,
 }: DocumentEmailSectionProps) {
   const { data: history, mutate } = useSWR(historyKey, onGetHistory);
+  // Informational only — reminds whoever's sending what disclosure
+  // applies to this channel, per this company's own configured text
+  // (Settings → Consent & Disclosures). Deliberately NOT a consent
+  // gate: no existing customer has ever had a chance to grant the new
+  // service-SMS/email consent fields (the only UI that could set them
+  // doesn't exist yet), so blocking sends on that state would silently
+  // break appointment reminders and estimate/invoice communication for
+  // every current customer. This is staff-facing awareness, not
+  // enforcement.
+  const { data: disclosures } = useSWR('doc-email-section-disclosures', () => settingsApi.getConsentDisclosures());
   const [showOverride, setShowOverride] = useState(false);
   const [overrideEmail, setOverrideEmail] = useState('');
   const [showPhoneOverride, setShowPhoneOverride] = useState(false);
@@ -137,6 +148,10 @@ export function DocumentEmailSection({
         </button>
       </div>
 
+      {disclosures?.email && (
+        <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">{disclosures.email}</p>
+      )}
+
       {showOverride && (
         <div className="mt-2 flex gap-2">
           <input
@@ -167,6 +182,10 @@ export function DocumentEmailSection({
               {showPhoneOverride ? 'Cancel' : 'Send to a different number'}
             </button>
           </div>
+
+          {disclosures?.sms && (
+            <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">{disclosures.sms}</p>
+          )}
 
           {showPhoneOverride && (
             <div className="mt-2 flex gap-2">

@@ -218,6 +218,8 @@ export function OverviewTab({
           </dl>
         </Section>
 
+        <CommunicationConsentSection customer={customer} onUpdated={onUpdated} />
+
         <Section title="Customer Details">
           <dl className="space-y-1.5 text-sm">
             <InfoRow label="Type" value={customer.customerType} capitalize />
@@ -324,6 +326,74 @@ function InfoRow({ label, value, href, capitalize }: { label: string; value: str
         )}
       </dd>
     </div>
+  );
+}
+
+/**
+ * Staff-facing visibility + control for the consent fields migration
+ * 050 added. SMS/Email rows are read-only status (recorded only
+ * through an actual customer action — Instant Quote today, more
+ * sources later) — staff can SEE it, but the only way to grant it is
+ * the customer actually consenting somewhere real, never a staff
+ * click, which is exactly what keeps this proof meaningful.
+ *
+ * Marketing SMS is the one row staff can change directly, because a
+ * business commonly collects this verbally/in-person and needs a way
+ * to record it — but it's a deliberate, separate, explicit action
+ * (see CustomersService.setMarketingSmsConsent's own comment), never
+ * inferred from SMS/Email consent existing.
+ */
+function CommunicationConsentSection({ customer, onUpdated }: { customer: CustomerProfile; onUpdated: () => void }) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggleMarketing() {
+    setIsSaving(true);
+    setError(null);
+    try {
+      await customersApi.setMarketingSmsConsent(customer.id, !customer.marketingSmsConsent);
+      onUpdated();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't update marketing SMS consent.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <Section title="Communication Consent">
+      <dl className="space-y-1.5 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <dt className="text-slate-400 dark:text-slate-500">SMS</dt>
+          <dd className={customer.smsConsentAt ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}>
+            {customer.smsConsentAt ? '✓ Consented' : 'Not on file'}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <dt className="text-slate-400 dark:text-slate-500">Email</dt>
+          <dd className={customer.emailConsentAt ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}>
+            {customer.emailConsentAt ? '✓ Consented' : 'Not on file'}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-1.5">
+          <dt className="text-slate-400 dark:text-slate-500">Marketing SMS</dt>
+          <dd>
+            <button
+              onClick={toggleMarketing}
+              disabled={isSaving}
+              className={cn(
+                'rounded-full px-2 py-0.5 text-xs font-medium disabled:opacity-50',
+                customer.marketingSmsConsent ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
+              )}
+            >
+              {isSaving ? 'Saving…' : customer.marketingSmsConsent ? '✓ Subscribed' : 'Not subscribed'}
+            </button>
+          </dd>
+        </div>
+      </dl>
+      {error && <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{error}</p>}
+      <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">Tap Marketing SMS to record a customer's verbal or in-person opt-in/opt-out. SMS and Email consent are only ever recorded from an actual customer action, never set here.</p>
+    </Section>
   );
 }
 

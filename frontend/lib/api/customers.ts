@@ -79,6 +79,16 @@ export interface CustomerProfile {
   lifetimeValue: number;
   tags: string[];
   notesText: string | null;
+  // Consent — see migration 050. Nullable timestamps mean "no consent
+  // recorded"; a non-null timestamp does NOT necessarily mean
+  // currently opted in for marketing (see marketingSmsConsent, which
+  // is the actual current-state boolean — the timestamp fields are
+  // proof-of-when, not the state itself).
+  smsConsentAt: string | null;
+  emailConsentAt: string | null;
+  marketingSmsConsent: boolean;
+  marketingSmsConsentAt: string | null;
+  marketingSmsOptedOutAt: string | null;
   properties: Property[];
   customFields: CustomFieldValue[];
   createdAt: string;
@@ -172,6 +182,9 @@ export const customersApi = {
   list: (params: CustomerQueryParams) => apiFetch<PaginatedCustomers>(`/customers${buildQueryString(params as any)}`),
 
   get: (id: string) => apiFetch<CustomerProfile>(`/customers/${id}`),
+
+  setMarketingSmsConsent: (id: string, consent: boolean) =>
+    apiFetch<{ success: boolean; marketingSmsConsent: boolean }>(`/customers/${id}/marketing-sms-consent`, { method: 'PATCH', body: JSON.stringify({ consent }) }),
 
   create: (input: Record<string, unknown>) =>
     apiFetch<CustomerProfile>('/customers', { method: 'POST', body: JSON.stringify(input) }),
