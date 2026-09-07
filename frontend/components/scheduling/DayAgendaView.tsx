@@ -98,7 +98,7 @@ export function DayAgendaView({
       <div>
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          {viewingToday && <span className="ml-2 rounded-full bg-[var(--color-brand)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-brand)]">Today</span>}
+          {viewingToday && <span className="ml-2 rounded-full bg-[var(--color-brand)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-brand)] dark:text-blue-400">Today</span>}
         </h2>
         {today.length > 0 && (
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
@@ -149,7 +149,7 @@ export function DayAgendaView({
       {/* ---- Up Next / Now / Today Complete — today only ---- */}
       {viewingToday && today.length > 0 && (
         <div className={cn('rounded-xl border p-4', current ? 'border-[var(--color-brand)]/40 bg-[var(--color-brand)]/5' : 'border-[var(--color-brand)]/30 bg-[var(--color-brand)]/5')}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-brand)]">{current ? 'Now' : upNext ? 'Up Next' : 'Today Complete'}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-brand)] dark:text-blue-400">{current ? 'Now' : upNext ? 'Up Next' : 'Today Complete'}</p>
           {(current ?? upNext) ? (
             <div className="mt-1.5">
               <AgendaCardContent appointment={(current ?? upNext)!} overlapping={overlapIds.has((current ?? upNext)!.id)} isToday compact />
@@ -200,7 +200,7 @@ function AgendaCard({
       )}
     >
       <button onClick={() => onSelect(appointment)} className="w-16 shrink-0 pt-0.5 text-left">
-        {isCurrent && <p className="mb-0.5 flex items-center gap-1 text-[10px] font-semibold text-[var(--color-brand)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)]" /> NOW</p>}
+        {isCurrent && <p className="mb-0.5 flex items-center gap-1 text-[10px] font-semibold text-[var(--color-brand)] dark:text-blue-400"><span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)] dark:bg-blue-400" /> NOW</p>}
         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{formatTime(appointment.startsAt)}</p>
       </button>
       <button onClick={() => onSelect(appointment)} className="min-w-0 flex-1 text-left">
@@ -242,12 +242,12 @@ function AgendaCardContent({ appointment, overlapping, isToday, compact }: { app
         )}
       </div>
       {customerLine && (
-        <Link href={`/customers/${appointment.customerId}`} onClick={(e) => e.stopPropagation()} className="block truncate text-sm text-slate-600 dark:text-slate-400 hover:text-[var(--color-brand)]">
+        <Link href={`/customers/${appointment.customerId}`} onClick={(e) => e.stopPropagation()} className="block truncate text-sm text-slate-600 dark:text-slate-400 hover:text-[var(--color-brand)] dark:hover:text-blue-400">
           {customerLine}
         </Link>
       )}
       {isJob && appointment.customerId && (
-        <Link href={`/customers/${appointment.customerId}`} onClick={(e) => e.stopPropagation()} className="block truncate text-sm text-slate-600 dark:text-slate-400 hover:text-[var(--color-brand)]">
+        <Link href={`/customers/${appointment.customerId}`} onClick={(e) => e.stopPropagation()} className="block truncate text-sm text-slate-600 dark:text-slate-400 hover:text-[var(--color-brand)] dark:hover:text-blue-400">
           {appointmentCustomerName(appointment)}
         </Link>
       )}
@@ -271,12 +271,12 @@ function AgendaCardContent({ appointment, overlapping, isToday, compact }: { app
       {!compact && (
         <div className="mt-2 flex gap-3">
           {isJob && appointment.jobId && (
-            <Link href={`/jobs/${appointment.jobId}`} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-[var(--color-brand)] hover:underline">
+            <Link href={`/jobs/${appointment.jobId}`} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-[var(--color-brand)] dark:text-blue-400 hover:underline">
               View Job
             </Link>
           )}
           {!isJob && appointment.estimateId && (
-            <Link href={`/estimates/${appointment.estimateId}`} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-[var(--color-brand)] hover:underline">
+            <Link href={`/estimates/${appointment.estimateId}`} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-[var(--color-brand)] dark:text-blue-400 hover:underline">
               View Estimate
             </Link>
           )}
